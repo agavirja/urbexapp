@@ -22,4 +22,4 @@ streamlit-toggle
 unidecode
 openpyxl
 mapbox
-sklearn
+scikit-learn
