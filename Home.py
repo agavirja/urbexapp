@@ -1,6 +1,6 @@
 import streamlit as st
 
-#st.set_page_config(layout='wide',page_icon="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_favicon.png")
+st.set_page_config(layout='wide',page_icon="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_favicon.png")
 
 # streamlit run D:\Dropbox\Empresa\Urbex\_APP\Home.py
 # https://streamlit.io/
