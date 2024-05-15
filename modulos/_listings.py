@@ -185,7 +185,7 @@ def style_function_color(feature):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,tiponegocio=None):
     
-    urlexport = "http://localhost:8501/Ficha"
+    urlexport = "http://www.urbex.com.co/Ficha"
     geojson   = pd.DataFrame().to_json()
     if 'latitud' in data and 'longitud' in data:
         data = data[(data['latitud'].notnull()) & (data['longitud'].notnull())]
@@ -289,7 +289,7 @@ def shwolistings(data,tiponegocio=None):
           }
         </style>
     """
-    urlexport = "http://localhost:8501/Ficha"
+    urlexport = "http://www.urbex.com.co/Ficha"
     imagenes  = ''
     for i, items in data.iterrows():
         urllink = urlexport+f"?code={items['code']}&tiponegocio={items['tiponegocio'].lower()}&tipoinmueble={items['tipoinmueble'].lower()}"

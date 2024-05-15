@@ -317,7 +317,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if barmanpre is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -329,7 +329,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if chip is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -341,7 +341,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if chip is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -353,7 +353,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if barmanpre is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -402,7 +402,7 @@ def style_function_color(feature):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,seleccion=[]):
     
-    urlexport = "http://localhost:8501/Busqueda_avanzada"
+    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]

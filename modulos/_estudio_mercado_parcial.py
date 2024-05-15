@@ -515,7 +515,7 @@ def latlngFrombarmanpre(barmanpre):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data):
     
-    urlexport = "http://localhost:8501/Busqueda_avanzada"
+    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]

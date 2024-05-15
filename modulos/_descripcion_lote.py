@@ -96,8 +96,8 @@ def main(code=None):
         #-------------------------------------------------------------------------#
         #if not datacatastro.empty and len(datacatastro)>1:
         if not datacatastro.empty:
-            #datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://localhost:8501/Busqueda_avanzada?type=unidad&code={x}")
-            datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://localhost:8501/Busqueda_avanzada?type=predio&code={x}&vartype=chip")
+            #datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://www.urbex.com.co/Busqueda_avanzada?type=unidad&code={x}")
+            datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={x}&vartype=chip")
             datacatastro         = datacatastro.sort_values(by='predirecc',ascending=True)
             
             col1,col2,col3,col4 = st.columns([0.04,0.2,0.5,0.26])
@@ -1075,7 +1075,7 @@ def shwolistings(data):
           }
         </style>
     """
-    urlexport = "http://localhost:8501/Ficha"
+    urlexport = "http://www.urbex.com.co/Ficha"
     imagenes  = ''
     for i, items in data.iterrows():
         urllink = urlexport+f"?code={items['code']}&tiponegocio={items['tiponegocio'].lower()}&tipoinmueble={items['tipoinmueble'].lower()}"
