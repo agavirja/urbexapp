@@ -284,7 +284,7 @@ def data2geopandas_owner(data):
             <html>
                 <body>
                     <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;">
-                        <a href="http://www.urbex.com.co/Due_dilligence_digital?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}" target="_blank" style="color: black;">
+                        <a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}" target="_blank" style="color: black;">
                             {titular}
                             {direccion}
                             {barrio}

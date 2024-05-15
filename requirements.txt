@@ -20,3 +20,6 @@ streamlit_option_menu
 streamlit_vertical_slider
 streamlit-toggle
 unidecode
+openpyxl
+mapbox
+sklearn

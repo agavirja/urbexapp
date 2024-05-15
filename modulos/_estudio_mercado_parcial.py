@@ -531,7 +531,7 @@ def data2geopandas(data):
             urllink     = ""
             barmanpre   = items['barmanpre'] if 'barmanpre' in items and isinstance(items['barmanpre'], str) else None
             if barmanpre is not None:
-                urllink = urlexport+f"?type=predio&code={barmanpre}&vartype=barmanpre"
+                urllink = urlexport+f"?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}"
 
             if 'infoByprecuso' in items: 
                 itemsu      = items['infoByprecuso'][0]
