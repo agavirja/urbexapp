@@ -171,7 +171,7 @@ def data2geopandas_brand(data):
             try:    barrio = f"<b> Barrio:</b> {items['prenbarrio']}<br>"
             except: barrio = "<b> Barrio:</b> Sin información <br>"      
             
-            urlexport = "http://urbex.com.co/Busqueda_avanzada"
+            urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
             urllink   = urlexport+f"?type=predio&code={items['lotcodigo']}&vartype=barmanpre&token={st.session_state.token}"
 
             popup_content =  f'''
