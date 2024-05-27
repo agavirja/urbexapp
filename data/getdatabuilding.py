@@ -43,12 +43,20 @@ def _databuilding(barmanpre):
     
     if isinstance(barmanpre, str) and len(barmanpre)>10:
         datacatastro = pd.read_sql_query(f"SELECT barmanpre,precuso,prechip,precedcata,predirecc,preaterre,preaconst,latitud,longitud FROM  bigdata.data_bogota_catastro WHERE barmanpre='{barmanpre}'" , engine)
-
-        datalote = pd.read_sql_query(f"SELECT lotcodigo as barmanpre, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_lotes WHERE lotcodigo ='{barmanpre}'" , engine)
+        datalote     = pd.read_sql_query(f"SELECT lotcodigo as barmanpre, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_lotes WHERE lotcodigo ='{barmanpre}'" , engine)
+        
+    elif isinstance(barmanpre, list) and barmanpre!=[]:
+        lista        = "','".join(barmanpre)
+        query        = f" barmanpre IN ('{lista}')"
+        datacatastro = pd.read_sql_query(f"SELECT barmanpre,precuso,prechip,precedcata,predirecc,preaterre,preaconst,latitud,longitud FROM  bigdata.data_bogota_catastro WHERE {query}" , engine)
+        
+        query        = f" lotcodigo IN ('{lista}')"
+        datalote     = pd.read_sql_query(f"SELECT lotcodigo as barmanpre, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_lotes WHERE {query}" , engine)
+        
+    if not datacatastro.empty and not datalote.empty:
         datalote = datalote.drop_duplicates(subset='barmanpre',keep='first')
-        if not datacatastro.empty and not datalote.empty:
-            datamerge = datacatastro.drop_duplicates(subset='barmanpre',keep='first')
-            datalote  = datalote.merge(datamerge[['barmanpre','latitud','longitud']],on='barmanpre',how='left',validate='m:1')
+        datamerge = datacatastro.drop_duplicates(subset='barmanpre',keep='first')
+        datalote  = datalote.merge(datamerge[['barmanpre','latitud','longitud']],on='barmanpre',how='left',validate='m:1')
         
     if not datacatastro.empty:
         lista = "','".join(datacatastro['barmanpre'].unique())

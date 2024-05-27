@@ -1,94 +1,22 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine 
-from streamlit_js_eval import streamlit_js_eval
 from streamlit_option_menu import option_menu
+from bs4 import BeautifulSoup
 
-from modulos._descripcion_combinacionlote import main as _descripcion_combinacionlote
-from modulos._estudio_mercado_parcial import main as _estudio_mercado_parcial
-from modulos._analisis_unidad import main as _analisis_unidad
-from modulos._propietarios import main as _propietarios
+from modulos._lotes_descripcion_combinacionlote import main as _descripcion_combinacionlote
+from modulos._lotes_desarrollo_busqueda_pdfreport import main as _lotes_busqueda_pdfreport
+from data.data_estudio_mercado_general import main as _estudio_mercado_parcial
 
 def main(code=None):
 
-    st.markdown(
-        f"""
-        <style>
-    
-        .stApp {{
-            background-color: #FAFAFA;        
-            opacity: 1;
-            background-size: cover;
-        }}
-        
-        div[data-testid="collapsedControl"] {{
-            color: #fff;
-            }}
-        
-        div[data-testid="stToolbar"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stDecoration"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stStatusWidget"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-    
-        #MainMenu {{
-        visibility: hidden; 
-        height: 0%;
-        }}
-        header {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        footer {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        div[data-testid="stSpinner"] {{
-            color: #000000;
-            }}
-        
-        a[href="#responsive-table"] {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        a[href^="#"] {{
-            /* Estilos para todos los elementos <a> con href que comienza con "#" */
-            visibility: hidden; 
-            height: 0%;
-            overflow-y: hidden;
-        }}
-
-        div[class="table-scroll"] {{
-            background-color: #a6c53b;
-            visibility: hidden;
-            overflow-x: hidden;
-            }}
-            
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    #html = gethtml()
-    #st.components.v1.html(html,height=450)
-    
     default_index = 0
     #-------------------------------------------------------------------------#
     # Header
-    selectedmod = option_menu(None, ["Lotes", "Estudio de mercado", "Propietarios"], 
-        default_index=default_index, orientation="horizontal",icons=['hexagon','house','magic','person'], 
+    selectedmod = option_menu(None, ["Lotes", "Estudio de mercado","Reporte PDF","Nueva búsqueda"], 
+        default_index=default_index, orientation="horizontal",icons=['hexagon','magic','file-earmark-pdf','arrow-counterclockwise'], 
         styles={
-            "nav-link-selected": {"background-color": "#6EA4EE"},
+            "nav-link-selected": {"background-color": "#A16CFF"},
         })
         
     precuso,latitud,longitud = getlatlngPrecuso(code)
@@ -99,9 +27,41 @@ def main(code=None):
     elif "Estudio de mercado" in selectedmod:
         _estudio_mercado_parcial(code=None,latitud=latitud,longitud=longitud,precuso=precuso) # barmanpre
   
-    elif "Propietarios" in selectedmod:
-        _propietarios(chip=None,barmanpre=None,vartype=None)
-    
+    elif "Reporte PDF" in selectedmod:
+        _lotes_busqueda_pdfreport(code=code,latitud=latitud,longitud=longitud,precuso=precuso)
+        
+    elif "Nueva búsqueda" in selectedmod:
+        
+        col1,col2,col3 = st.columns([0.15,0.2,0.65])
+        style_button_dir = """
+        <style>
+        .custom-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #A16CFF;
+            color: #ffffff; 
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 10px;
+            width: 100%;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .custom-button:visited {
+            color: #ffffff;
+        }
+        </style>
+        """
+        nombre = '¿Seguro quiere salir de está página?'
+        html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+        html = BeautifulSoup(html, 'html.parser')
+        with col2:
+            st.markdown(html, unsafe_allow_html=True)
+            
 @st.cache_data(show_spinner=False)
 def getlatlngPrecuso(code):
     

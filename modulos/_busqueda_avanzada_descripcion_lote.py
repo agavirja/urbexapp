@@ -64,7 +64,7 @@ def main(code=None):
         #-------------------------------------------------------------------------#
         # Mapa & streetview
         #-------------------------------------------------------------------------#
-        col1,col2,col3,col4,col5   = st.columns([0.2,0.02,0.2,0.05,0.5])
+        col1,col2,col3,col4,col5   = st.columns([0.23,0.02,0.23,0.02,0.5])
 
         m  = folium.Map(location=[latitud, longitud], zoom_start=18,tiles="cartodbpositron")
         if polygon:
@@ -78,37 +78,35 @@ def main(code=None):
     
         with col1:
             html = mapstreetview(latitud,longitud)
-            st.components.v1.html(html, width=int(mapwidth*0.4), height=400)
+            st.components.v1.html(html, height=400)
         with col3:
             html = mapsatelite(latitud,longitud)
-            st.components.v1.html(html, width=int(mapwidth*0.4), height=400)
+            st.components.v1.html(html, height=400)
             
         #-------------------------------------------------------------------------#
         # Tabla Principal 
         #-------------------------------------------------------------------------#
-        html = principal_table(code=code,datacatastro=datacatastro,datausosuelo=datausosuelo,datalote=datalote,datavigencia=datavigencia,datatransacciones=datatransacciones,polygon=polygonstr,latitud=latitud,longitud=longitud,direccion=direccion)
-        #texto = BeautifulSoup(html, 'html.parser')
-        #st.markdown(texto, unsafe_allow_html=True)
-        st.components.v1.html(html,height=1900,scrolling=True)
+        html,conteo = principal_table(code=code,datacatastro=datacatastro,datausosuelo=datausosuelo,datalote=datalote,datavigencia=datavigencia,datatransacciones=datatransacciones,polygon=polygonstr,latitud=latitud,longitud=longitud,direccion=direccion)
+        st.components.v1.html(html,height=int(conteo*1100/60),scrolling=True)
 
         #-------------------------------------------------------------------------#
         # Tabla Propiedades
         #-------------------------------------------------------------------------#
         #if not datacatastro.empty and len(datacatastro)>1:
         if not datacatastro.empty:
-            #datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://www.urbex.com.co/Busqueda_avanzada?type=unidad&code={x}")
-            datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={x}&vartype=chip")
+            #datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://localhost:8501/Busqueda_avanzada?type=unidad&code={x}")
+            datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://localhost:8501/Busqueda_avanzada?type=predio&code={x}&vartype=chip&token={st.session_state.token}")
             datacatastro         = datacatastro.sort_values(by='predirecc',ascending=True)
             
-            col1,col2,col3,col4 = st.columns([0.04,0.2,0.5,0.26])
+            col1,col2,col3,col4 = st.columns([0.04,0.26,0.5,0.2])
             with col2:
                 options = ['Todos'] + list(datacatastro['predirecc'].unique())
-                filtro = st.selectbox('',key='filtro_direccion_tabla1',options=options,placeholder='Seleccionar un predio',label_visibility="hidden")
+                filtro = st.selectbox('Filtro por predio:',key='filtro_direccion_tabla1',options=options,placeholder='Seleccionar un predio')
             
             with col3:
                 st.write('')
                 titulo = 'Predios'
-                html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #6EA4EE; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
                 texto  = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 
@@ -185,15 +183,15 @@ def main(code=None):
             dataoptions       = datatransacciones.copy()
             dataoptions       = dataoptions.sort_values(by=['predirecc'],ascending=True)
             
-            col1,col2,col3,col4 = st.columns([0.04,0.2,0.5,0.26])
+            col1,col2,col3,col4 = st.columns([0.04,0.26,0.5,0.2])
             with col2:
                 options = ['Todos'] + list(dataoptions['predirecc'].unique())
-                filtro = st.selectbox('',key='filtro_direccion_tabla2',options=options,placeholder='Seleccionar un predio',label_visibility="hidden")
+                filtro = st.selectbox('Filtro por predio: ',key='filtro_direccion_tabla2',options=options,placeholder='Seleccionar un predio')
             
             with col3:
                 st.write('')
                 titulo = 'Transacciones'
-                html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #6EA4EE; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
                 texto  = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 
@@ -277,7 +275,7 @@ def main(code=None):
             st.components.v1.html(html,height=tableH)       
             
     #-------------------------------------------------------------------------#
-    # Tabla Transacciones
+    # Listings
     #-------------------------------------------------------------------------#
     with st.spinner('Buscando listings'):
         datalistings = pd.DataFrame()
@@ -288,20 +286,24 @@ def main(code=None):
             datapaso = datalistings[datalistings['tipo']=='activos']
             if not datapaso.empty:
                 titulo   = 'Listings activos'
-                html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #6EA4EE; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
                 texto    = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                shwolistings(datapaso)
+                html  = shwolistings(datapaso)
+                texto = BeautifulSoup(html, 'html.parser')
+                st.markdown(texto, unsafe_allow_html=True)
                 
             datapaso = datalistings[datalistings['tipo']=='historico']
             if not datapaso.empty:
                 titulo   = 'Listings históricos'
-                html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #6EA4EE; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
                 texto    = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                shwolistings(datapaso)
+                html  = shwolistings(datapaso)
+                texto = BeautifulSoup(html, 'html.parser')
+                st.markdown(texto, unsafe_allow_html=True)
 
 @st.cache_data(show_spinner=False)
 def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),datalote=pd.DataFrame(),datavigencia=pd.DataFrame(),datatransacciones=pd.DataFrame(),polygon=None,latitud=None,longitud=None,direccion=None):
@@ -338,9 +340,10 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
     tablagalerianuevos   = ""
     tablapot             = ""
     tablasitp            = ""
-    
-    barrio = None
 
+    barrio = None
+    conteo = 0
+    
     if not datausosuelo.empty:
         #---------------------------------------------------------------------#
         # Seccion ubicacion
@@ -371,10 +374,17 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
         for key,value in formato.items():
             if value is not None:
                 html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
+                conteo    += 1
         if html_paso!="":
-            tablaubicacion = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Ubicación</td></tr>{html_paso}</tbody></table></div>"""
-            tablaubicacion = f"""<div class="col-md-6">{tablaubicacion}</div>"""
-               
+            labeltable     = "Ubicación"
+            tablaubicacion = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablaubicacion = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablaubicacion}</tbody></table></div></div>"""
+        
         #---------------------------------------------------------------------#
         # Seccion caracteristicas
         try:    predios = int(datausosuelo['predios_total'].iloc[0])
@@ -394,10 +404,17 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
         for key,value in formato.items():
             if value is not None:
                 html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
+                conteo    += 1
         if html_paso!="":
-            tablacaracteristicas = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Caracteristicas</td></tr>{html_paso}</tbody></table></div>"""
-            tablacaracteristicas = f"""<div class="col-md-6">{tablacaracteristicas}</div>"""
-
+            labeltable     = "Caracteristicas"
+            tablacaracteristicas = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablacaracteristicas = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablacaracteristicas}</tbody></table></div></div>"""
+        
         #---------------------------------------------------------------------#
         # Seccion terreno
         try:    areaterreno = f"{round(datausosuelo['preaterre_total'].iloc[0],2)} m²"
@@ -417,10 +434,17 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
         for key,value in formato.items():
             if value is not None:
                 html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
+                conteo    += 1
         if html_paso!="":
-            tablaterreno = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Terreno</td></tr>{html_paso}</tbody></table></div>"""
-            tablaterreno = f"""<div class="col-md-6">{tablaterreno}</div>"""
-
+            labeltable   = "Terreno"
+            tablaterreno = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablaterreno = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablaterreno}</tbody></table></div></div>"""
+        
         #---------------------------------------------------------------------#
         # Seccion Tipologias
         datausosuelo.index = range(len(datausosuelo))
@@ -437,7 +461,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
                 except: predios = ''                 
                 try:    proporcion = f"{round(datausosuelo['preaconst_precuso'].iloc[i]/datausosuelo['preaconst_total'].iloc[i],2):,.1%}" 
                 except: proporcion = ''
-                
+                conteo    += 1
                 html_paso += f"""
                 <tr>
                     <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{usosuelo}</h6></td>
@@ -447,7 +471,6 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
                     <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{areaterreno}</h6></td>
                 </tr>
                 """
-                
             html_paso = f"""
                 <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;"></h6></td>
                 <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Predios</h6></td>
@@ -457,10 +480,15 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
             {html_paso}
             """
             if html_paso!="":
-                tablatipologia = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Tipologías de activos</td></tr>{html_paso}</tbody></table></div>"""
-                tablatipologia = f"""<div class="col-md-12">{tablatipologia}</div>"""
-
-
+                labeltable     = "Tipologías de activos"
+                tablatipologia = f"""
+                <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+                <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+                {html_paso}
+                <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+                """
+                tablatipologia = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0" style="table-layout: auto; width: 100%;"><tbody>{tablatipologia}</tbody></table></div></div>"""
+    
     labelbarrio = ""
     try:
         if isinstance(barrio, str): 
@@ -477,8 +505,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
     try:    valortrasnacciones_lastyear = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Valor promedio de las transacciones:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">${round(input_transacciones['valortransacciones_lastyear'],2):,.0f} m²</h6></td></tr>""" if (isinstance(input_transacciones['valortransacciones_lastyear'],float) or isinstance(input_transacciones['valortransacciones_lastyear'],int)) else """<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Valor promedio m²:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">Sin información</h6></td></tr>"""
     except: valortrasnacciones_lastyear = """<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Valor promedio de las transacciones:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">Sin información</h6></td></tr>"""
     
-    
-    titulo    = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;text-align: left;">Último año</h6></td></tr>"""
+    titulo    = """<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;text-align: left;">Último año</h6></td></tr>"""
     html_paso = f"""
     {titulo}
     <tr><td style="border: none;"><h6></h6></td></tr>
@@ -487,7 +514,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
     <tr><td style="border: none;"><h6></h6></td></tr>
     """
     
-    titulo     = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;text-align: left;">Desde el 2019 a la fecha</h6></td></tr>"""
+    titulo     = """<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;text-align: left;">Desde el 2019 a la fecha</h6></td></tr>"""
     html_paso += f"""
     {titulo}
     <tr><td style="border: none;"><h6></h6></td></tr>
@@ -496,9 +523,16 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
     <tr><td style="border: none;"><h6></h6></td></tr>
     """   
     if html_paso!="":
-        tablatransacciones = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Transacciones</td></tr>{html_paso}</tbody></table></div>"""
-        tablatransacciones = f"""<div class="col-md-6">{tablatransacciones}</div>"""
-      
+        conteo += 6
+        labeltable         = "Transacciones"
+        tablatransacciones = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablatransacciones = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablatransacciones}</tbody></table></div></div>"""
+    
     #---------------------------------------------------------------------#
     # Seccion precios de referencia
     if 'market_venta' in input_complemento:
@@ -531,10 +565,17 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
                 <tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;"># de listings:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">Sin información</h6></td></tr>
                 <tr><td style="border: none;"><h6></h6></td></tr>
                 """
+            conteo    += 4
 
         if html_paso!="":
-            tablamarketventa = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Precios de Referencia en Venta</td></tr>{html_paso}</tbody></table></div>"""
-            tablamarketventa = f"""<div class="col-md-6">{tablamarketventa}</div>"""
+            labeltable         = "Precios de Referencia en Venta"
+            tablamarketventa = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablamarketventa = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablamarketventa}</tbody></table></div></div>"""
 
     if 'market_arriendo' in input_complemento:
         html_paso     = ""
@@ -566,11 +607,18 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
                 <tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;"># de listings:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">Sin información</h6></td></tr>
                 <tr><td style="border: none;"><h6></h6></td></tr>
                 """
+            conteo    += 4
 
         if html_paso!="":
-            tablamarketarriendo = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Precios de Referencia en Arriendo</td></tr>{html_paso}</tbody></table></div>"""
-            tablamarketarriendo = f"""<div class="col-md-6">{tablamarketarriendo}</div>"""
-
+            labeltable         = "Precios de Referencia en Arriendo"
+            tablamarketarriendo = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablamarketarriendo = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablamarketarriendo}</tbody></table></div></div>"""
+    
     #---------------------------------------------------------------------#
     # Seccion Condiciones de mercado
     html_paso = ""
@@ -590,6 +638,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
             datapaso['output'] = df[variables].apply(lambda x: ''.join(x), axis=1)
             titulo = ""
             if k>1: titulo = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;text-align: center;">{i.title()}:</h6></td></tr>"""
+            conteo    += 1
             html_paso += f"""
             {titulo}
             <tr><td style="border: none;"><h6></h6></td></tr>
@@ -597,9 +646,15 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
             <tr><td style="border: none;"><h6></h6></td></tr>
             """
     if html_paso!="":
-        tablavalorizacion = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Precios de referencia {labelbarrio}</td></tr>{html_paso}</tbody></table></div>"""
-        tablavalorizacion = f"""<div class="col-md-6">{tablavalorizacion}</div>"""
-        
+        labeltable         = f"Precios de referencia {labelbarrio}"
+        tablavalorizacion = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablavalorizacion = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablavalorizacion}</tbody></table></div></div>"""
+
     #---------------------------------------------------------------------#
     # Seccion Galeria Nuevos
     #formato   = {'# Proyectos activos en barrio:':'','Valor de venta:':' m²'}
@@ -630,10 +685,17 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
                         <tr><td style="border: none;"><h6></h6></td></tr>
                         <tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;">{items['nombre']}:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>
                         """
+                conteo += 1
             
         if html_paso!="":
-            tablapot = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">P.O.T</td></tr>{html_paso}</tbody></table></div>"""
-            tablapot = f"""<div class="col-md-12">{tablapot}</div>"""
+            labeltable = "P.O.T"
+            tablapot   = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablapot = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0" style="table-layout: auto; width: 100%;"><tbody>{tablapot}</tbody></table></div></div>"""
 
     #---------------------------------------------------------------------#
     # Seccion Demografica
@@ -643,32 +705,57 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
             try: 
                 valor = "{:,}".format(int(value))
                 html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{valor}</h6></td></tr>"""
+                conteo    += 1
             except: pass
         if html_paso!="":
-            tablademografica = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Información Demográfica {labelbarrio}</td></tr>{html_paso}</tbody></table></div>"""
-            tablademografica = f"""<div class="col-md-6">{tablademografica}</div>"""
+            labeltable         = f"Información Demográfica {labelbarrio}"
+            tablademografica = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablademografica = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablademografica}</tbody></table></div></div>"""
 
     #---------------------------------------------------------------------#
     # Seccion Transporte
     if 'transmilenio' in input_complemento and isinstance(input_complemento['transmilenio'],str): 
-        html_paso = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['transmilenio']}</h6></td></tr>"""
-        tablatransporte = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Transmilenio</td></tr>{html_paso}</tbody></table></div>"""
-        tablatransporte = f"""<div class="col-md-6">{tablatransporte}</div>"""
-
+        html_paso       = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['transmilenio']}</h6></td></tr>"""
+        labeltable      = "Transmilenio"
+        tablatransporte = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablatransporte = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablatransporte}</tbody></table></div></div>"""
+        conteo    += 1
     #---------------------------------------------------------------------#
     # Seccion SITP
     if 'sitp' in input_complemento and isinstance(input_complemento['sitp'],str): 
-        html_paso = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['sitp']}</h6></td></tr>"""
-        tablasitp = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">SITP</td></tr>{html_paso}</tbody></table></div>"""
-        tablasitp = f"""<div class="col-md-6">{tablasitp}</div>"""
-
+        html_paso  = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['sitp']}</h6></td></tr>"""
+        labeltable = "SITP"
+        tablasitp  = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablasitp = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablasitp}</tbody></table></div></div>"""
+        conteo    += 1
     #---------------------------------------------------------------------#
     # Seccion Vias
     if 'vias' in input_complemento and isinstance(input_complemento['vias'],str): 
         html_paso = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['vias']}</h6></td></tr>"""
-        tablavias = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Vías</td></tr>{html_paso}</tbody></table></div>"""
-        tablavias = f"""<div class="col-md-6">{tablavias}</div>"""
-   
+        labeltable = "Vías"
+        tablavias  = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablavias = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablavias}</tbody></table></div></div>"""
+        conteo    += 1
     #---------------------------------------------------------------------#
     # Seccion Predial
     try:    avaluomt2 = f"${round(input_predial['avaluocatastral'],0):,.0f} m²" if (isinstance(input_predial['avaluocatastral'],float) or isinstance(input_predial['avaluocatastral'],int)) else None
@@ -682,11 +769,17 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
     for key,value in formato.items():
         if value is not None:
             html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
+            conteo    += 1
     if html_paso!="":
-        tablapredial = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Información Catastral</td></tr>{html_paso}</tbody></table></div>"""
-        tablapredial = f"""<div class="col-md-6">{tablapredial}</div>"""
-
-
+        labeltable = "Información Catastral"
+        tablapredial  = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablapredial = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablapredial}</tbody></table></div></div>"""
+        
     #---------------------------------------------------------------------#
     # Cuando es un solo predio
     tablasolopredio = ""
@@ -704,7 +797,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
         for key,value in formato.items():
             if value is not None:
                 html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
-        
+                conteo    += 1
         if not datausosuelo.empty:
             try:    usosuelo = datausosuelo['usosuelo'].iloc[0]
             except: usosuelo = None
@@ -712,11 +805,17 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
             for key,value in formato.items():
                 if value is not None:
                     html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
-            
+                    conteo    += 1
         if html_paso!="":
-            tablasolopredio = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Información del predio</td></tr>{html_paso}</tbody></table></div>"""
-            tablasolopredio = f"""<div class="col-md-6">{tablasolopredio}</div>"""
-
+            labeltable = "Información del predio"
+            tablasolopredio  = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablasolopredio = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablasolopredio}</tbody></table></div></div>"""
+        
     style = """
     <style>
         .css-table {
@@ -728,10 +827,14 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
         .css-table table {
             width: 100%;
             padding: 0;
+            table-layout: fixed; 
+            border-collapse: collapse;
         }
         .css-table td {
             text-align: left;
             padding: 0;
+            overflow: hidden; 
+            text-overflow: ellipsis; 
         }
         .css-table h6 {
             line-height: 1; 
@@ -741,13 +844,14 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
         .css-table td[colspan="labelsection"] {
           text-align: left;
           font-size: 15px;
-          color: #6EA4EE;
+          color: #A16CFF;
           font-weight: bold;
           border: none;
-          border-bottom: 2px solid #6EA4EE;
+          border-bottom: 2px solid #A16CFF;
           margin-top: 20px;
           display: block;
           font-family: 'Inter';
+          width: 100%
         }
         .css-table td[colspan="labelsectionborder"] {
           text-align: left;
@@ -756,6 +860,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
           margin-top: 20px;
           display: block;
           padding: 0;
+          width: 100%;
         }
         
         #top {
@@ -817,7 +922,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
     </body>
     </html>
     """
-    return html
+    return html,conteo
     
 @st.cache_data
 def gruoptransactions(datatransacciones):
@@ -958,7 +1063,7 @@ def tablestyle():
         
             .fl-table thead th {
                 color: #ffffff;
-                background: #6EA4EE; /* Manteniendo el color verde claro para el encabezado */
+                background: #A16CFF; /* Manteniendo el color verde claro para el encabezado */
                 position: sticky; /* Haciendo el encabezado fijo */
                 top: 0; /* Fijando el encabezado en la parte superior */
             }
@@ -1043,10 +1148,11 @@ def tablestyle():
 
 @st.cache_data(show_spinner=False)
 def shwolistings(data):
+    html = ""
     css_format = """
         <style>
             .card {
-                background-color: #dcdcdc;
+                background-color: #F0F0F0;
             }
           .property-image {
             width: 100%;
@@ -1075,7 +1181,7 @@ def shwolistings(data):
           }
         </style>
     """
-    urlexport = "http://www.urbex.com.co/Ficha"
+    urlexport = "http://localhost:8501/Ficha"
     imagenes  = ''
     for i, items in data.iterrows():
         urllink = urlexport+f"?code={items['code']}&tiponegocio={items['tiponegocio'].lower()}&tipoinmueble={items['tipoinmueble'].lower()}"
@@ -1101,19 +1207,19 @@ def shwolistings(data):
                 <div class="property-image">
                   <img src="{imagen_principal}"  alt="property image" onerror="this.src='https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/sin_imagen.png';">
                 </div>
+                {tiponegocio}
                 {precio}
                 {valormt2}
                 {caracteristicas}
                 {direccion}
                 {tipoinmueble}
-                {tiponegocio}
             </a>
             </div>
           </div>
         </div>            
         '''
     if imagenes!='':
-        texto = f"""
+        html = f"""
             <!DOCTYPE html>
             <html>
               <head>
@@ -1131,9 +1237,8 @@ def shwolistings(data):
               </body>
             </html>
             """
-        texto = BeautifulSoup(texto, 'html.parser')
-        st.markdown(texto, unsafe_allow_html=True)
-        
+    return html
+
 def style_function_color(feature):
     return {
         'fillColor': '#828DEE',

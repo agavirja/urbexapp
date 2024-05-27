@@ -37,14 +37,12 @@ def main():
     
 def landing(mapwidth,mapheight):
     
-    style()
-    
     col1,col2,col3 = st.columns([6,1,1])
     with col2:
         st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
         
     #-------------------------------------------------------------------------#
-    # Variables 
+    # Variables  
     formato = {
                'reporte_forecast':False
                }
@@ -128,7 +126,7 @@ def landing(mapwidth,mapheight):
                 """
                 
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_blank">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_blank">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)
                 
@@ -292,64 +290,5 @@ def getscacodigo(latitud=None,longitud=None):
     engine.dispose()
     return scacodigo
 
-def style():
-    st.markdown(
-        f"""
-        <style>
-    
-        .stApp {{
-            background-color: #fff;        
-            opacity: 1;
-            background-size: cover;
-        }}
-    
-        header {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        footer {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        div[data-testid="collapsedControl"] svg {{
-            background-image: url('https://iconsapp.nyc3.digitaloceanspaces.com/house-white.png');
-            background-size: cover;
-            fill: transparent;
-            width: 20px;
-            height: 20px;
-        }}
-        
-        div[data-testid="stToolbar"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stDecoration"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stStatusWidget"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        
-        
-        .stButton button {{
-                background-color: #5CE6A2;
-                font-weight: bold;
-                width: 100%;
-                border: 2px solid #5CE6A2;
-                
-            }}
-        
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-        
 if __name__ == "__main__":
     main()

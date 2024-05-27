@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from datetime import datetime
 from streamlit_folium import st_folium
 from shapely.geometry import mapping,Point
+from bs4 import BeautifulSoup
 
 from data.circle_polygon import circle_polygon
 from data.getdatalotes import main as getdatalotes
@@ -55,9 +56,16 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
         
         #-------------------------------------------------------------------------#
         # Slider
+        cols1,cols2 = st.columns(2,gap='large')
         colm1,colm2 = st.columns([0.05,0.95])
         coll1,coll2 = st.columns([0.2,0.8])
         with colm1:
+            st.write('')
+            st.write('')
+            st.write('')
+            st.write('')
+            st.write('')
+            st.write('')
             metros  = vertical_slider(
                 key = "vert_01" ,
                 height = int(maph*0.7), 
@@ -80,12 +88,11 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
 
     #-------------------------------------------------------------------------#
     # Filtros
-    cols1,cols2,cols3,cols4 = st.columns(4,gap='large')
     if not datacatastro.empty:
         with cols1:
             options = sorted(list(datacatastro[datacatastro['destino'].notnull()]['destino'].unique()))
             options = ['Todos'] + options
-            tipodestino  = st.selectbox('Segmentación por tipo de destino:',options=options)
+            tipodestino  = st.selectbox('Filtro por tipo de destino:',options=options)
             if 'todo' not in tipodestino.lower():
                 datacatastro      = datacatastro[datacatastro['destino']==tipodestino]
                 datalotes         = datalotes[datalotes['barmanpre'].isin(datacatastro['barmanpre'])]
@@ -94,19 +101,19 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
         with cols2:
             options = sorted(list(datacatastro[datacatastro['usosuelo'].notnull()]['usosuelo'].unique()))
             options = ['Todos'] + options
-            tipouso = st.selectbox('Segmentacion por de uso del suelo:',options=options) 
+            tipouso = st.selectbox('Filtro por de uso del suelo:',options=options) 
             if 'todo' not in tipouso.lower():
                 datacatastro      = datacatastro[datacatastro['usosuelo']==tipouso]
                 datalotes         = datalotes[datalotes['barmanpre'].isin(datacatastro['barmanpre'])]
                 datatransacciones = datatransacciones[datatransacciones['prechip'].isin(datacatastro['prechip'])]
 
-        with cols3:
+        with cols1:
             tipotrans = st.selectbox('Filtro de transacciones:',options=['Todos','Los que tienen transacciones']) 
             if 'Los que tienen transacciones' in tipotrans and not datatransacciones.empty:
                 datacatastro = datacatastro[datacatastro['prechip'].isin(datatransacciones['prechip'])]
                 datalotes    = datalotes[datalotes['barmanpre'].isin(datacatastro['barmanpre'])]
          
-        with cols4:
+        with cols2:
             tiposelected = st.selectbox('Filtro de las graficas por:', options=['Destino','Uso del suelo'])
             if 'Destino' in tiposelected: 
                 tiposelected = 'destino'
@@ -129,24 +136,27 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 datalotes         = datalotes[datalotes['barmanpre'].isin(datacatastro['barmanpre'])]
                 datatransacciones = datatransacciones[datatransacciones['prechip'].isin(datacatastro['prechip'])]
 
-        with cols3:
+        with cols1:
             minyear         = 1940
-            antiguedaddesde = st.number_input('Antigüedad de los predios desde:',min_value=minyear,value=minyear,max_value=datetime.now().year,step=1)
+            antiguedaddesde = st.number_input('Antigüedad desde:',min_value=minyear,value=minyear,max_value=datetime.now().year,step=1)
             if antiguedaddesde>0: 
                 datacatastro      = datacatastro[datacatastro['prevetustz']>=antiguedaddesde]
                 datalotes         = datalotes[datalotes['barmanpre'].isin(datacatastro['barmanpre'])]
                 datatransacciones = datatransacciones[datatransacciones['prechip'].isin(datacatastro['prechip'])]
 
-        with cols4:
-            antiguedadhasta = st.number_input('Antigüedad de los predios hasta:',min_value=minyear,value=datetime.now().year,max_value=datetime.now().year,step=1)
+        with cols2:
+            antiguedadhasta = st.number_input('Antigüedad hasta:',min_value=minyear,value=datetime.now().year,max_value=datetime.now().year,step=1)
             if antiguedadhasta>0: 
                 datacatastro      = datacatastro[datacatastro['prevetustz']<=antiguedadhasta]
                 datalotes         = datalotes[datalotes['barmanpre'].isin(datacatastro['barmanpre'])]
                 datatransacciones = datatransacciones[datatransacciones['prechip'].isin(datacatastro['prechip'])]
-
+                
+    
     #-------------------------------------------------------------------------#
     # Mapa
     if not datalotes.empty and (isinstance(latitud, float) or isinstance(latitud, int)) or (isinstance(longitud, float) or isinstance(longitud, int)):
+        
+
         m = folium.Map(location=[latitud, longitud], zoom_start=16,tiles="cartodbpositron")
         folium.GeoJson(mapping(polygon), style_function=style_function_color).add_to(m)
         
@@ -165,19 +175,25 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             )
             folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
         with colm2:
+            st.write('')
+            titulo = 'Mapa de comparables'
+            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1><p style="font-size: 12px; color: #A16CFF;">(Haz click en los lotes)</p></section></body></html>"""
+            texto  = BeautifulSoup(html, 'html.parser')
+            st.markdown(texto, unsafe_allow_html=True)
+
             st_map = st_folium(m,width=mapw,height=maph)
         
         if '{}' not in geopoints:
-            with coll1:
+            with colm2:
                 st.image('https://iconsapp.nyc3.digitaloceanspaces.com/Lotes_con_transacciones_positivo.png',width=150)
 
     #-------------------------------------------------------------------------#
     # Graficas: Estadisticas
     #-------------------------------------------------------------------------#
-    cols1,cols2 = st.columns(2,gap='large')
 
         #---------------------------------------------------------------------#
         # Transacciones
+    cols1,cols2 = st.columns(2,gap='large')
     if not datatransacciones.empty:
     
         df = datatransacciones.groupby('fecha_documento_publico').agg({'valormt2_transacciones':['count','median']}).reset_index()
@@ -187,7 +203,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             fig = px.bar(df, x="fecha", y="count", text="count", title='Número de transacciones')
             fig.update_traces(texttemplate='%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
             fig.update_xaxes(tickmode='linear', dtick=1)
-            fig.update_layout(title_x=0.2,height=350, xaxis_title=None, yaxis_title=None)
+            fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
             fig.update_layout({
                 'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
                 'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
@@ -201,7 +217,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 
             fig = px.bar(df, x="fecha", y="value", text="value", title='Valor promedio de las transacciones por m²')
             fig.update_traces(texttemplate='$%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-            fig.update_layout(title_x=0.2,height=350, xaxis_title=None, yaxis_title=None)
+            fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
             fig.update_layout({
                 'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
                 'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
@@ -301,37 +317,6 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
                 
         #---------------------------------------------------------------------#
-        # Listings
-    with st.spinner('Buscando data listings'):
-        datalistingsactivos,datalistingshistoricos = listingsBypolygon(str(polygon),precuso=None)
-    #datalistingshistoricos['fecha_inicial'] = datalistingshistoricos['fecha_inicial'].dt.strftime('%Y')
-    #datalistingshistoricos = datalistingshistoricos[datalistingshistoricos['fecha_inicial']>'2022']
-    col = [cols1,cols2]
-    s   = 0
-    if not datalistingsactivos.empty:
-    
-        df = datalistingsactivos.groupby(['tiponegocio','tipoinmueble']).agg({'valormt2':['count','median']}).reset_index()
-        df.columns = ['tiponegocio','tipoinmueble','count','value']
-        df.index = range(len(df))
-        for tiponegocio in ['Venta','Arriendo']:
-            dfiter = df[df['tiponegocio']==tiponegocio]
-            dfiter = dfiter.sort_values(by='value',ascending=True)
-            if not dfiter.empty:
-                fig = px.bar(dfiter, x="value", y="tipoinmueble", text="value", title=f'Valor de {tiponegocio.lower()} por m² (listings activos)',orientation='h')
-                fig.update_traces(texttemplate='$%{x:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                fig.update_layout({
-                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                    'title_font':dict(color='black'),
-                })    
-                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                with col[s]:
-                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
-                s +=1
-                
-        #---------------------------------------------------------------------#
         # Analisis demografico
     
     datacensodane = pd.DataFrame()
@@ -425,7 +410,39 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 with col[s]:
                     st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
                 s+=1
-
+    
+        #---------------------------------------------------------------------#
+        # Listings
+    with st.spinner('Buscando data listings'):
+        datalistingsactivos,datalistingshistoricos = listingsBypolygon(str(polygon),precuso=None)
+    #datalistingshistoricos['fecha_inicial'] = datalistingshistoricos['fecha_inicial'].dt.strftime('%Y')
+    #datalistingshistoricos = datalistingshistoricos[datalistingshistoricos['fecha_inicial']>'2022']
+    col = [cols1,cols2]
+    s   = 0
+    if not datalistingsactivos.empty:
+    
+        df = datalistingsactivos.groupby(['tiponegocio','tipoinmueble']).agg({'valormt2':['count','median']}).reset_index()
+        df.columns = ['tiponegocio','tipoinmueble','count','value']
+        df.index = range(len(df))
+        for tiponegocio in ['Venta','Arriendo']:
+            dfiter = df[df['tiponegocio']==tiponegocio]
+            dfiter = dfiter.sort_values(by='value',ascending=True)
+            if not dfiter.empty:
+                fig = px.bar(dfiter, x="value", y="tipoinmueble", text="value", title=f'Valor de {tiponegocio.lower()} por m² (listings activos)',orientation='h')
+                fig.update_traces(texttemplate='$%{x:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
+                fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
+                fig.update_layout({
+                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
+                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
+                    'title_font':dict(color='black'),
+                })    
+                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                with col[s]:
+                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                s +=1
+                
+                
 @st.cache_data(show_spinner=False)
 def builddata(polygon=None):
     
@@ -515,7 +532,7 @@ def latlngFrombarmanpre(barmanpre):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data):
     
-    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
+    urlexport = "http://localhost:8501/Busqueda_avanzada"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]

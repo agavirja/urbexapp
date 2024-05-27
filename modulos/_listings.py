@@ -42,12 +42,10 @@ def main():
         st.error('Por favor iniciar sesión para poder tener acceso a la plataforma de Urbex')
     
 def landing(mapwidth,mapheight):
-    
-    style()
-    
+
     col1,col2,col3 = st.columns([6,1,1])
     with col2:
-        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_positivo.png',width=200)
+        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
         
     #-------------------------------------------------------------------------#
     # Variables 
@@ -159,7 +157,6 @@ def landing(mapwidth,mapheight):
         with col1:
             if st.button('Buscar'):
                 with st.spinner('Buscando información'):
-                    #st.session_state.data_mls = getdatamarket(polygon=polygon, tipoinmueble=tipoinmueble, tiponegocio=tiponegocio, areamin=areamin, areamax=areamax, valormin=valormin, valormax=valormax, habitacionesmin=habitacionesmin, habitacionesmax=habitacionesmax, banosmin=banosmin, banosmax=banosmax, garajesmin=garajesmin, garajesmax=garajesmax)
                     st.session_state.data_mls = listingsPolygonActive(polygon=polygon, tipoinmueble=tipoinmueble, tiponegocio=tiponegocio, areamin=areamin, areamax=areamax, valormin=valormin, valormax=valormax, habitacionesmin=habitacionesmin, habitacionesmax=habitacionesmax, banosmin=banosmin, banosmax=banosmax, garajesmin=garajesmin, garajesmax=garajesmax)
                 st.session_state.reporte_mls = True
                 st.rerun()
@@ -185,7 +182,7 @@ def style_function_color(feature):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,tiponegocio=None):
     
-    urlexport = "http://www.urbex.com.co/Ficha"
+    urlexport = "http://localhost:8501/Ficha"
     geojson   = pd.DataFrame().to_json()
     if 'latitud' in data and 'longitud' in data:
         data = data[(data['latitud'].notnull()) & (data['longitud'].notnull())]
@@ -260,7 +257,7 @@ def shwolistings(data,tiponegocio=None):
     css_format = """
         <style>
             .card {
-                background-color: #2B2D31;
+                background-color: #F0F0F0;
             }
           .property-image {
             width: 100%;
@@ -289,7 +286,7 @@ def shwolistings(data,tiponegocio=None):
           }
         </style>
     """
-    urlexport = "http://www.urbex.com.co/Ficha"
+    urlexport = "http://localhost:8501/Ficha"
     imagenes  = ''
     for i, items in data.iterrows():
         urllink = urlexport+f"?code={items['code']}&tiponegocio={items['tiponegocio'].lower()}&tipoinmueble={items['tipoinmueble'].lower()}"
@@ -313,16 +310,16 @@ def shwolistings(data,tiponegocio=None):
         <div class="col-xl-3 col-sm-6 mb-xl-2 mb-2">
           <div class="card h-100">
             <div class="card-body p-3">
-            <a href="{urllink}" target="_blank" style="color: white;">
+            <a href="{urllink}" target="_blank" style="color: black;">
                 <div class="property-image">
                   <img src="{imagen_principal}"  alt="property image" onerror="this.src='https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/sin_imagen.png';">
                 </div>
+                {tiponegocio}
                 {precio}
                 {valormt2}
                 {caracteristicas}
                 {direccion}
                 {tipoinmueble}
-                {tiponegocio}
                 {barrio}
             </a>
             </div>
@@ -351,138 +348,6 @@ def shwolistings(data,tiponegocio=None):
         texto = BeautifulSoup(texto, 'html.parser')
         st.markdown(texto, unsafe_allow_html=True)
         #st.components.v1.html(texto,height=2000)      
-          
-def style():
-    st.markdown(
-        f"""
-        <style>
-    
-        .stApp {{
-            background-color: #3C3840;        
-            opacity: 1;
-            background-size: cover;
-        }}
-    
-        header {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        footer {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        div[data-testid="collapsedControl"] svg {{
-            background-image: url('https://iconsapp.nyc3.digitaloceanspaces.com/house-white.png');
-            background-size: cover;
-            fill: transparent;
-            width: 20px;
-            height: 20px;
-        }}
-        
-        div[data-testid="stToolbar"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stDecoration"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stStatusWidget"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        
-        label[data-testid="stWidgetLabel"] p {{
-            font-size: 14px;
-            font-weight: bold;
-            color: #05edff;
-            font-family: 'Roboto', sans-serif;
-        }}
-                
-        span[data-baseweb="tag"] {{
-          background-color: #007bff;
-        }}
-        
-        .stButton button {{
-                background-color: #05edff;
-                font-weight: bold;
-                width: 100%;
-                border: 2px solid #05edff;
-                
-            }}
-        
-        .stButton button:hover {{
-            background-color: #05edff;
-            color: black;
-            border: #05edff;
-        }}
-        
-        div[data-testid="stSpinner"] {{
-            color: #fff;
-            }}
-        
-        [data-testid="stNumberInput"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stMultiSelect"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px; 
-            padding: 5px;
-        }}
-        
-        [data-testid="stMultiSelect"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stTextInput"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stSelectbox"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        button[data-testid="StyledFullScreenButton"] {{
-            visibility: hidden; 
-            height: 0%;
-        }}
-        
-        ::-webkit-scrollbar {{
-            width: 10px; /* Ancho de la barra de desplazamiento */
-        }}
-        
-        ::-webkit-scrollbar-track {{
-            background: #fff; 
-        }}
-        
-        ::-webkit-scrollbar-thumb {{
-            background: white; 
-            border-radius: 5px; 
-        }}
-        
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-        
+
 if __name__ == "__main__":
     main()

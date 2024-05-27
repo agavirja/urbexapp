@@ -11,7 +11,7 @@ from streamlit_js_eval import streamlit_js_eval
 
 from data.inmuebleANDusosuelo import inmueble2usosuelo
 from data.dataheatmap  import main as dataheatmap, selectpolygon
-from display.stylefunctions  import style_function,style_function_geojson
+from display.stylefunctions  import style_function_geojson
 
 def main():
 
@@ -40,9 +40,7 @@ def main():
         st.error('Por favor iniciar sesión para poder tener acceso a la plataforma de Urbex')
     
 def landing(mapwidth,mapheight):
-    
-    style()
-    
+
     col1,col2,col3 = st.columns([6,1,1])
     with col2:
         st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
@@ -206,114 +204,9 @@ def datagroupby(data,tipoconsulta):
     except: pass
     return data
 
-def style():
-    st.markdown(
-        f"""
-        <style>
-    
-        .stApp {{
-            background-color: #fff;        
-            opacity: 1;
-            background-size: cover;
-        }}
-        
-        div[data-testid="collapsedControl"] {{
-            color: #000;
-            }}
-        
-        div[data-testid="collapsedControl"] svg {{
-            background-image: url('https://iconsapp.nyc3.digitaloceanspaces.com/house-black.png');
-            background-size: cover;
-            fill: transparent;
-            width: 20px;
-            height: 20px;
-        }}
-        
-        div[data-testid="collapsedControl"] button {{
-            background-color: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-        }}
-
-        div[data-testid="stToolbar"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stDecoration"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stStatusWidget"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-    
-        #MainMenu {{
-        visibility: hidden; 
-        height: 0%;
-        }}
-        header {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        footer {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        div[data-testid="stSpinner"] {{
-            color: #000000;
-            }}
-        
-        a[href="#responsive-table"] {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        a[href^="#"] {{
-            /* Estilos para todos los elementos <a> con href que comienza con "#" */
-            visibility: hidden; 
-            height: 0%;
-            overflow-y: hidden;
-        }}
-
-        div[class="table-scroll"] {{
-            background-color: #a6c53b;
-            visibility: hidden;
-            overflow-x: hidden;
-            }}
-            
-        button[data-testid="StyledFullScreenButton"] {{
-            visibility: hidden; 
-            height: 0%;
-
-        }}
-        
-        [data-testid="stSelectbox"] {{
-            border: 5px solid #F2F2F2;
-            background-color: #F2F2F2;
-            border-radius: 5px;
-        }}
-        
-        .stButton button {{
-                background-color: #5CE6A2;
-                font-weight: bold;
-                width: 100%;
-                border: 2px solid #5CE6A2;
-                
-            }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-        
 def style_function_color(feature):
     return {
         'fillColor': '#828DEE',
         'color':'#828DEE',
         'weight': 1,
-    }  
-    
+    }

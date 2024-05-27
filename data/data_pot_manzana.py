@@ -45,14 +45,11 @@ def builddata(tratamiento=[],alturamin=0,actividad=[],actuacion=None):
         query = f" AND scacodigo IN ('{lista}')"
         if query!="":
             query        = query.strip().strip('AND').strip()
-            data_barrios = pd.read_sql_query(f"SELECT scacodigo,scanombre,ST_AsText(geometry) as wkt FROM {schema}.data_bogota_barriocatastro WHERE {query}" , engine)
+            data_barrios = pd.read_sql_query(f"SELECT scacodigo,scanombre,ST_AsText(geometry) as wkt FROM {schema}.data_bogota_barriocatastro_simplify WHERE {query}" , engine)
             if not data_barrios.empty:
-                data_barrios['geometry'] = gpd.GeoSeries.from_wkt(data_barrios['wkt'])
-                data_barrios             = gpd.GeoDataFrame(data_barrios, geometry='geometry')
-                data_barrios['geometry'] = data_barrios['geometry'].simplify(0.0001, preserve_topology=True)
-                data_barrios['wkt']      = data_barrios['geometry'].apply(lambda x: x.wkt)
-                data_barrios.drop(columns=['geometry'],inplace=True)
-                data_barrios = pd.DataFrame(data_barrios)
+                datamerge         = data_manzanas.groupby(['scacodigo'])['mancodigo'].count().reset_index()
+                datamerge.columns = ['scacodigo','num_manzanas']
+                data_barrios      = data_barrios.merge(datamerge[['scacodigo','num_manzanas']],on='scacodigo',how='left',validate='m:1')
     return data_manzanas,data_barrios
 
 
@@ -80,7 +77,7 @@ def consolidacionlotesselected(polygon=None):
 
 @st.cache_data(show_spinner=False)
 def getmanzanas():
-    data = pd.read_sql_query(f"SELECT mancodigo,seccodigo as scacodigo, ST_AsText(geometry) as wkt FROM {schema}.data_bogota_manzana" , engine)
+    data = pd.read_sql_query(f"SELECT mancodigo,seccodigo as scacodigo, ST_AsText(geometry) as wkt FROM {schema}.data_bogota_manzana_simplify" , engine)
     if not data.empty:
         data['geometry'] = gpd.GeoSeries.from_wkt(data['wkt'])
         data             = gpd.GeoDataFrame(data, geometry='geometry')

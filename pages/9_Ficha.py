@@ -1,11 +1,13 @@
 import streamlit as st
-import pandas as pd
-from sqlalchemy import create_engine
 
 from modulos._ficha_default  import main as _ficha_default
 from modulos._ficha_report  import main as _ficha_report
 
+from display.style_white import style 
+
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_icon="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_favicon.png")
+
+style()
 
 formato = {
            'code':None,

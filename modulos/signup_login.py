@@ -4,6 +4,7 @@ import hashlib
 import time
 from datetime import datetime
 from sqlalchemy import create_engine
+from streamlit_js_eval import streamlit_js_eval
 
 user     = st.secrets["user_bigdata"]
 password = st.secrets["password_bigdata"]
@@ -11,7 +12,36 @@ host     = st.secrets["host_bigdata"]
 schema   = 'urbex'
 
 def main():
+    
+    wsize = None
+    try:
+        js_code     = """function getWindowSize() {return { width: window.innerWidth, height: window.innerHeight };}getWindowSize();"""
+        window_size = streamlit_js_eval(js_expressions=js_code, key='window_size')
+        wsize       = window_size['width']
+    except: pass 
 
+    #-------------------------------------------------------------------------#
+    # Tamano de la pantalla 
+    colorlogo  = "negativo"
+    background = """
+    .stApp {
+        background-color: #fff;        
+        opacity: 1;
+        background-size: cover;
+    }
+    """
+    if wsize is not None:
+        if wsize>1000:
+            colorlogo  = "positivo"
+            background = """
+            .stApp {
+                background: linear-gradient(to right, #000 50%, #FFF 50%);
+            }
+            """
+    style(background)
+    
+    #-------------------------------------------------------------------------#
+    # Variables
     formato = {
                 'login':True,
                 'signin':False,
@@ -24,11 +54,9 @@ def main():
             
     if st.session_state.access is False:
         
-        style()
-        
         col1, col3 = st.columns(2)
         with col1:
-            st.markdown('<div class="centered-image"><img src="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_positivo.png" width="350"></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="centered-image"><img src="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_{colorlogo}.png" width="350"></div>', unsafe_allow_html=True)
     
         if st.session_state.login:
             with col3:
@@ -85,79 +113,6 @@ def main():
                         else:
                             st.error(response)
 
-def style():
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background: linear-gradient(to right, #000 50%, #FFF 50%);
-        }}
-                                        
-        .centered-image {{
-            display: flex;
-            justify-content: center;
-        }}   
-        
-        div[data-testid="stToolbar"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        
-        div[data-testid="stDecoration"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        
-        div[data-testid="stStatusWidget"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        
-        a[href="#log-in"] {{
-            display: none;
-            visibility: hidden; 
-            height: 0%;
-            fill: transparent;
-        }}
-                
-        header {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        footer {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        div[data-testid="collapsedControl"] svg {{
-            background-image: url('https://iconsapp.nyc3.digitaloceanspaces.com/house-white.png');
-            background-size: cover;
-            fill: transparent;
-            width: 20px;
-            height: 20px;
-        }}
-        
-        .stButton button {{
-                background-color: #00FFFF;
-                font-weight: bold;
-                width: 30%;
-                border: 2px solid #00FFFF;
-                
-            }}
-        
-        .stButton button:hover {{
-            background-color: #00FFFF;
-            color: black;
-            border: #00FFFF;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
     
 def encriptar_contrasena(contrasena_plana):
     token = hashlib.md5()
@@ -210,6 +165,173 @@ def button_login():
 def button_signin():
     st.session_state.login  = False
     st.session_state.signin = True
+    
+def style(background):
+    st.markdown(
+        f"""
+        <style>
+        {background}             
+        .centered-image {{
+            display: flex;
+            justify-content: center;
+        }}   
+        
+        .stApp {{
+            background-color: #fff;        
+            opacity: 1;
+            background-size: cover;
+        }}
+        
+        div[data-testid="collapsedControl"] {{
+            color: #000;
+            }}
+        
+        div[data-testid="collapsedControl"] svg {{
+            background-image: url('https://iconsapp.nyc3.digitaloceanspaces.com/house-black.png');
+            background-size: cover;
+            fill: transparent;
+            width: 20px;
+            height: 20px;
+        }}
+        
+        div[data-testid="collapsedControl"] button {{
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }}
+
+        div[data-testid="stToolbar"] {{
+            visibility: hidden; 
+            height: 0%; 
+            position: fixed;
+            }}
+        div[data-testid="stDecoration"] {{
+            visibility: hidden; 
+            height: 0%; 
+            position: fixed;
+            }}
+        div[data-testid="stStatusWidget"] {{
+            visibility: hidden; 
+            height: 0%; 
+            position: fixed;
+            }}
+    
+        #MainMenu {{
+        visibility: hidden; 
+        height: 0%;
+        }}
+        
+        header {{
+            visibility: hidden; 
+            height:
+                0%;
+            }}
+            
+        footer {{
+            visibility: hidden; 
+            height: 0%;
+            }}
+        
+        div[data-testid="stSpinner"] {{
+            color: #000000;
+            }}
+        
+        a[href="#responsive-table"] {{
+            visibility: hidden; 
+            height: 0%;
+            }}
+        
+        a[href^="#"] {{
+            /* Estilos para todos los elementos <a> con href que comienza con "#" */
+            visibility: hidden; 
+            height: 0%;
+            overflow-y: hidden;
+        }}
+
+        div[class="table-scroll"] {{
+            background-color: #a6c53b;
+            visibility: hidden;
+            overflow-x: hidden;
+            }}
+            
+        button[data-testid="StyledFullScreenButton"] {{
+            visibility: hidden; 
+            height: 0%;
+        }}
+        
+        .stButton button {{
+                background-color: #A16CFF;
+                font-weight: bold;
+                width: 100%;
+                border: 2px solid #A16CFF;
+                color:white;
+            }}
+        
+        .stButton button:hover {{
+            background-color: #A16CFF;
+            color: white;
+            border: #A16CFF;
+        }}
+        
+        [data-testid="stMultiSelect"] {{
+            border: 5px solid #F0F0F0;
+            background-color: #F0F0F0;
+            border-radius: 5px;
+            padding: 5px; 
+        }}
+        
+        [data-baseweb="select"] > div {{
+            background-color: #fff;
+        }}
+        
+        [data-testid="stTextInput"] {{
+            border: 5px solid #F0F0F0;
+            background-color: #F0F0F0;
+            border-radius: 5px;
+            padding: 5px; 
+        }}
+    
+    
+        [data-testid="stSelectbox"] {{
+            border: 5px solid #F0F0F0;
+            background-color: #F0F0F0;
+            border-radius: 5px;
+            padding: 5px;  
+        }}
+        
+        button[data-testid="StyledFullScreenButton"] {{
+            visibility: hidden; 
+            height: 0%;
+            
+        }}
+
+        [data-testid="stNumberInput"] {{
+            border: 5px solid #F0F0F0;
+            background-color: #F0F0F0;
+            border-radius: 5px;
+            padding: 5px;
+        }}
+        
+        [data-baseweb="input"] > div {{
+            background-color: #fff;
+        }}
+        
+        div[data-testid="stNumberInput-StepUp"]:hover {{
+            background-color: #A16CFF;
+        }}
+        
+        label[data-testid="stWidgetLabel"] p {{
+            font-size: 14px;
+            font-weight: bold;
+            color: #3C3840;
+            font-family: 'Aptos Narrow';
+        }}
+        
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
     
 if __name__ == "__main__":
     main()

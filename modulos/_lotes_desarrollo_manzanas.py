@@ -9,11 +9,11 @@ from shapely.geometry import Polygon,mapping
 from streamlit_js_eval import streamlit_js_eval
 
 from data.data_pot_manzana import builddata,getmanzanasfromlatlng,consolidacionlotesselected,getmanzanadescripcion,getscacodigofromlatlng,getconfiguracionmanazana
+from modulos._propietarios import main as getpropietarios
 
 from display.stylefunctions  import style_function,style_function_geojson
 
 def main():
-    
     initialformat = {
         'access':False,
         'token':'',
@@ -35,18 +35,11 @@ def main():
  
     if st.session_state.access:
         landing(mapwidth,mapheight)
-    else:
-        from signup_login import main as signup_login
-        signup_login()
+    else: 
+        st.error('Por favor iniciar sesión para poder tener acceso a la plataforma de Urbex')
     
 def landing(mapwidth,mapheight):
     
-    style()
-    
-    col1,col2,col3 = st.columns([6,1,1])
-    with col2:
-        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_positivo.png',width=200)
-
     #-------------------------------------------------------------------------#
     # Variables 
     formato = {
@@ -89,14 +82,14 @@ def landing(mapwidth,mapheight):
         maxpropietarios = st.number_input('Máximo número de propietarios en la manzana',value=0,min_value=0)
     
     col1, col2 = st.columns(2)
-    with col1:
+    with col2:
         st.write('')
         st.write('')
         if st.button('Buscar'):
             st.session_state.showreport = True
             st.rerun()
             
-    with col2:
+    with col1:
         st.write('')
         st.write('')
         if st.button('Resetear la busqueda'):
@@ -116,17 +109,15 @@ def landing(mapwidth,mapheight):
             texto    = BeautifulSoup(html, 'html.parser')
             st.markdown(texto, unsafe_allow_html=True)
     
-            m1 = folium.Map(location=[st.session_state.latitud, st.session_state.longitud], zoom_start=st.session_state.zoom_start_map1,tiles="cartodbpositron")
-            
+            m1      = folium.Map(location=[st.session_state.latitud, st.session_state.longitud], zoom_start=st.session_state.zoom_start_map1,tiles="cartodbpositron")
             geojson = data2geopandas(st.session_state.data_barrios)
-            #popup   = folium.GeoJsonPopup(
-            #    fields=["popup"],
-            #    aliases=[""],
-            #    localize=True,
-            #    labels=True,
-            #)
-            #folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m1)
-            folium.GeoJson(geojson,style_function=style_function_geojson).add_to(m1)
+            
+            tooltip=folium.features.GeoJsonTooltip(
+                fields=['scanombre','num_manzanas'],  # Campo a mostrar en el tooltip
+                aliases=['Barrio: ','# de manzanas: '],  # Etiquetas para los campos
+                localize=False)
+        
+            folium.GeoJson(geojson,style_function=style_function_geojson,tooltip=tooltip).add_to(m1)
             
             if st.session_state.geojson_onclick_barrio is not None:
                 folium.GeoJson(st.session_state.geojson_onclick_barrio,style_function=style_function_geojson).add_to(m1)
@@ -146,8 +137,8 @@ def landing(mapwidth,mapheight):
                         st.rerun()
                 
         #---------------------------------------------------------------------#
-        # Mapa 2: Manzanas     
-        datapaso = pd.DataFrame()
+        # Mapa 2: Manzanas   
+        datapaso  = pd.DataFrame()
         if not st.session_state.data_manzanas.empty and st.session_state.scacodigo is not None:
             datapaso = st.session_state.data_manzanas[st.session_state.data_manzanas['scacodigo']==st.session_state.scacodigo]
             
@@ -157,27 +148,19 @@ def landing(mapwidth,mapheight):
             texto    = BeautifulSoup(html, 'html.parser')
             st.markdown(texto, unsafe_allow_html=True)
 
-            col1,col2 = st.columns([0.6,0.4])
             m2 = folium.Map(location=[st.session_state.latitud, st.session_state.longitud], zoom_start=st.session_state.zoom_start_map2,tiles="cartodbpositron",key='mapa2')
             
             if not st.session_state.data_manzanas.empty:
                 datapaso = st.session_state.data_manzanas[st.session_state.data_manzanas['scacodigo']==st.session_state.scacodigo]
                 geojson  = data2geopandas(datapaso)
-                #popup   = folium.GeoJsonPopup(
-                #    fields=["popup"],
-                #    aliases=[""],
-                #    localize=True,
-                #    labels=True,
-                #)
-                #folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m1)
                 folium.GeoJson(geojson,style_function=style_function_geojson).add_to(m2)
                 
             if st.session_state.geojson_onclick_manzana is not None:
                 folium.GeoJson(st.session_state.geojson_onclick_manzana,style_function=style_function_geojson).add_to(m2)
         
-            with col1:
-                st_map2 = st_folium(m2,width=mapwidth,height=mapheight)
+            st_map2 = st_folium(m2,width=mapwidth,height=mapheight)
             
+            col1,col2 = st.columns([0.6,0.4])
             if 'last_object_clicked' in st_map2 and st_map2['last_object_clicked']:
                 st.session_state.latitud   = st_map2['last_object_clicked']['lat']
                 st.session_state.longitud  = st_map2['last_object_clicked']['lng']
@@ -194,87 +177,60 @@ def landing(mapwidth,mapheight):
                     st.rerun()
 
             if st.session_state.codigomanzana is not None:
-                with col2:
+                titulo   = 'Descripción de la manzana'
+                html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;background-color: #2B2D31;"><h1 style="color: #6EA4EE; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1><p style="font-size: 12px; color: #6EA4EE;">&nbsp;</p></section></body></html>"""
+                texto    = BeautifulSoup(html, 'html.parser')
+                with col1:
+                    st.markdown(texto, unsafe_allow_html=True)
+                with col1:
                     with st.spinner('Descripción de la manzana'):
                         datagroup       = getconfiguracionmanazana(st.session_state.codigomanzana)
                         datamanzanadesc = getmanzanadescripcion(st.session_state.codigomanzana)
                         html = tabla_resumen_manzana(data=datamanzanadesc,databyuso=datagroup)
                         #texto = BeautifulSoup(html, 'html.parser')
                         #st.markdown(texto, unsafe_allow_html=True)
-                        st.components.v1.html(html,height=500,scrolling=True)
-                            
+                        st.components.v1.html(html,height=600,scrolling=True)
+                        
         #---------------------------------------------------------------------#
         # Mapa 3: Lotes 
         if not st.session_state.data_lotes.empty:
             titulo   = 'Lotes de la manzana'
             html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;background-color: #2B2D31;"><h1 style="color: #6EA4EE; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1><p style="font-size: 12px; color: #6EA4EE;">Consolida lotes dibujando un poligono</p></section></body></html>"""
             texto    = BeautifulSoup(html, 'html.parser')
-            st.markdown(texto, unsafe_allow_html=True)
-            col1,col2 = st.columns([0.6,0.4])
-
+            with col2:
+                st.markdown(texto, unsafe_allow_html=True)
+            
             m3 = folium.Map(location=[st.session_state.latitud, st.session_state.longitud], zoom_start=st.session_state.zoom_start_map3,tiles="cartodbpositron",key='mapa3')
-            draw    = Draw(
-                        draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
-                        edit_options={"poly": {"allowIntersection": False}}
-                        )
-            draw.add_to(m3)
 
             if not st.session_state.data_lotes.empty:
-                geojson  = data2geopandas(st.session_state.data_lotes)
-                #popup   = folium.GeoJsonPopup(
-                #    fields=["popup"],
-                #    aliases=[""],
-                #    localize=True,
-                #    labels=True,
-                #)
-                #folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m1)
-                folium.GeoJson(geojson,style_function=style_function_geojson).add_to(m3)
-      
-            if not st.session_state.data_consolidacion.empty:
-                geojson  = data2geopandas(st.session_state.data_consolidacion,color='blue')
-                #popup   = folium.GeoJsonPopup(
-                #    fields=["popup"],
-                #    aliases=[""],
-                #    localize=True,
-                #    labels=True,
-                #)
-                #folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m1)
-                folium.GeoJson(geojson,style_function=style_function_geojson).add_to(m3)
-
-            #if st.session_state.geojson_onclick_manzana is not None:
-            #    folium.GeoJson(st.session_state.geojson_onclick_manzana,style_function=style_function_geojson).add_to(m3)
-            with col1:
-                st_map3 = st_folium(m3,width=mapwidth,height=mapheight)
-            
-            if 'all_drawings' in st_map3 and st_map3['all_drawings'] is not None:
-                if st_map3['all_drawings']!=[]:
-                    if 'geometry' in st_map3['all_drawings'][0] and 'type' in st_map3['all_drawings'][0]['geometry']:
-                        polygonType = st_map3['all_drawings'][0]['geometry']['type']
-                        if 'polygon' in polygonType.lower():
-                            coordenadas           = st_map3['all_drawings'][0]['geometry']['coordinates']
-                            polygonselected       = Polygon(coordenadas[0])
-                            geojson_consolidacion = mapping(polygonselected)
-                            col1,col2,col3 = st.columns([0.35,0.35,0.3])
-                            if polygonselected is not None:
-                                with col1:
-                                    if st.button('Consolidar lotes'):
-                                        with st.spinner('Consolidando lotes'):
-                                            st.session_state.data_consolidacion = consolidacionlotesselected(polygon=str(polygonselected))
-                                            st.rerun()
+                geojson  = data2geopandas(st.session_state.data_lotes,link=True)
+                popup   = folium.GeoJsonPopup(
+                    fields=["popup"],
+                    aliases=[""],
+                    localize=True,
+                    labels=True,
+                )
+                folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m3)
+                #folium.GeoJson(geojson,style_function=style_function_geojson).add_to(m3)
 
             with col2:
-                with st.spinner('Descripción de la manzana'):
-                    datamanzanadesc = getmanzanadescripcion(st.session_state.codigomanzana)
-                    html = tabla_resumen_manzana(data=datamanzanadesc)
-                    #texto = BeautifulSoup(html, 'html.parser')
-                    #st.markdown(texto, unsafe_allow_html=True)
-                    st.components.v1.html(html,height=500,scrolling=True)
-                    
-                    
-                    
+                st_map3 = st_folium(m3,width=int(mapwidth*0.4),height=mapheight)
+
+    #-------------------------------------------------------------------------#
+    # Propietarios
+    if not st.session_state.data_lotes.empty:
+        titulo   = 'Propietarios'
+        html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;background-color: #2B2D31;"><h1 style="color: #6EA4EE; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1><p style="font-size: 12px; color: #6EA4EE;"> &nbsp;</p></section></body></html>"""
+        texto    = BeautifulSoup(html, 'html.parser')
+        st.markdown(texto, unsafe_allow_html=True)
+        
+        barmanpre = list(st.session_state.data_lotes['barmanpre'].unique())
+        getpropietarios(chip=None,barmanpre=barmanpre,vartype=None,infilter=False)
+    
+    
 @st.cache_data(show_spinner=False)
-def data2geopandas(data,color=None):
-    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
+def data2geopandas(data,color=None,link=False):
+    urlexport = "http://localhost:8501/Busqueda_avanzada"
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]
     if not data.empty:
@@ -282,128 +238,29 @@ def data2geopandas(data,color=None):
         data             = gpd.GeoDataFrame(data, geometry='geometry')
         data['popup']    = None
         data.index       = range(len(data))
+        
+        if link:
+            for idd,items in data.iterrows():
+                            
+                urllink = urlexport+f"?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}"
+                popup_content =  f'''
+                <!DOCTYPE html>
+                <html>
+                    <body>
+                        <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;font-size: 12px;">
+                            <a href="{urllink}" target="_blank" style="color: black;">
+                                Ver descripción del lote
+                            </a>
+                        </div>
+                    </body>
+                </html>
+                '''
+                data.loc[idd,'popup'] = popup_content
+            
         if isinstance(color, str): data['color'] = color #'#5A189A' #'#003F2D'
         else: data['color'] ='#5A189A'
     return data.to_json()
 
-def style():
-    st.markdown(
-        f"""
-        <style>
-    
-        .stApp {{
-            background-color: #3C3840;        
-            opacity: 1;
-            background-size: cover;
-        }}
-    
-        header {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        footer {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        div[data-testid="collapsedControl"] svg {{
-            background-image: url('https://iconsapp.nyc3.digitaloceanspaces.com/house-white.png');
-            background-size: cover;
-            fill: transparent;
-            width: 20px;
-            height: 20px;
-        }}
-        
-        div[data-testid="stToolbar"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stDecoration"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stStatusWidget"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        
-        label[data-testid="stWidgetLabel"] p {{
-            font-size: 14px;
-            font-weight: bold;
-            color: #05edff;
-            font-family: 'Roboto', sans-serif;
-        }}
-                
-        span[data-baseweb="tag"] {{
-          background-color: #007bff;
-        }}
-        
-        .stButton button {{
-                background-color: #05edff;
-                font-weight: bold;
-                width: 100%;
-                border: 2px solid #05edff;
-                
-            }}
-        
-        .stButton button:hover {{
-            background-color: #05edff;
-            color: black;
-            border: #05edff;
-        }}
-        
-        div[data-testid="stSpinner"] {{
-            color: #fff;
-            }}
-        
-        [data-testid="stNumberInput"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stMultiSelect"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px; 
-            padding: 5px;
-        }}
-        
-        [data-testid="stMultiSelect"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stTextInput"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stSelectbox"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        button[data-testid="StyledFullScreenButton"] {{
-            visibility: hidden; 
-            height: 0%;
-        }}
-        
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
 
 @st.cache_data(show_spinner=False)
 def tabla_resumen_manzana(data=pd.DataFrame(),databyuso=pd.DataFrame()):
@@ -412,8 +269,8 @@ def tabla_resumen_manzana(data=pd.DataFrame(),databyuso=pd.DataFrame()):
     tablatipologia      = ""
     if not data.empty:
         barrio          = data['prenbarrio'].iloc[0] if 'prenbarrio' in data and isinstance(data['prenbarrio'].iloc[0], str) else "Sin información"
-        areaterreno     = round(data['preaterre'].iloc[0],0)  if 'preaterre' in data and (isinstance(data['preaterre'].iloc[0], float) or isinstance(data['preaterre'].iloc[0], int)) else "Sin información"
-        areaconstruida  = round(data['preaconst'].iloc[0],0)  if 'preaconst' in data and (isinstance(data['preaconst'].iloc[0], float) or isinstance(data['preaconst'].iloc[0], int)) else "Sin información"
+        areaterreno     = f"{round(data['preaterre'].iloc[0],0) :,}"  if 'preaterre' in data and (isinstance(data['preaterre'].iloc[0], float) or isinstance(data['preaterre'].iloc[0], int)) else "Sin información"
+        areaconstruida  = f"{round(data['preaconst'].iloc[0],0) :,}"  if 'preaconst' in data and (isinstance(data['preaconst'].iloc[0], float) or isinstance(data['preaconst'].iloc[0], int)) else "Sin información"
         estrato         = int(data['estrato'].iloc[0])    if 'estrato' in data and (isinstance(data['estrato'].iloc[0], float) or isinstance(data['estrato'].iloc[0], int)) else "Sin información"
         predios         = int(data['prechip'].iloc[0]) if 'prechip' in data else "Sin información"
         pisos           = int(data['connpisos'].iloc[0])  if 'connpisos' in data and (isinstance(data['connpisos'].iloc[0], float) or isinstance(data['connpisos'].iloc[0], int)) else "Sin información"
@@ -441,8 +298,8 @@ def tabla_resumen_manzana(data=pd.DataFrame(),databyuso=pd.DataFrame()):
         for i in range(len(databyuso)):
             usosuelo       = databyuso['usosuelo'].iloc[i] if 'usosuelo' in databyuso and isinstance(databyuso['usosuelo'].iloc[i], str) else ''
             predios        = databyuso['predios_precuso'].iloc[i]
-            areaterreno    = round(databyuso['preaterre_precuso'].iloc[i],0) if 'preaterre_precuso' in databyuso and (isinstance(databyuso['preaterre_precuso'].iloc[i], int) or isinstance(databyuso['preaterre_precuso'].iloc[i], float)) else ''
-            areaconstruida = round(databyuso['preaconst_precuso'].iloc[i],0) if 'preaconst_precuso' in databyuso and (isinstance(databyuso['preaconst_precuso'].iloc[i], int) or isinstance(databyuso['preaconst_precuso'].iloc[i], float)) else ''
+            areaterreno    = f"{round(databyuso['preaterre_precuso'].iloc[i],0) :,}"  if 'preaterre_precuso' in databyuso and (isinstance(databyuso['preaterre_precuso'].iloc[i], int) or isinstance(databyuso['preaterre_precuso'].iloc[i], float)) else ''
+            areaconstruida = f"{round(databyuso['preaconst_precuso'].iloc[i],0) :,}"  if 'preaconst_precuso' in databyuso and (isinstance(databyuso['preaconst_precuso'].iloc[i], int) or isinstance(databyuso['preaconst_precuso'].iloc[i], float)) else ''
 
             html_paso += f"""
             <tr>

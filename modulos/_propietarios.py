@@ -6,30 +6,30 @@ import shapely.wkt as wkt
 import hashlib
 import plotly.express as px
 from bs4 import BeautifulSoup
-from streamlit_folium import st_folium
-from streamlit_js_eval import streamlit_js_eval
 
-from data.getlatlng import getlatlng
-from data.datacomplemento import main as datacomplemento
 from data.getdatabuilding import main as getdatabuilding
 
-def main(chip=None,barmanpre=None,vartype=None):
+def main(chip=None,barmanpre=None,vartype=None,infilter=True,descargar=True):
     
-    #-------------------------------------------------------------------------#
-    # Tamano de la pantalla 
-    screensize = 1920
-    mapwidth   = int(screensize*0.25)
-    mapheight  = int(screensize*0.20)
-    try:
-        screensize = streamlit_js_eval(js_expressions='screen.width', key = 'SCR')
-        mapwidth   = int(screensize*0.25)
-        mapheight  = int(screensize*0.20)
-    except: pass
+    html,datavigencia_predio = gethtml(chip=chip,barmanpre=barmanpre,vartype=vartype,infilter=infilter,descargar=descargar) 
+    st.components.v1.html(html,height=450)    
     
-    col1,col2,col3  = st.columns([0.03,0.4,0.27],gap="small")
-    chip_referencia = chip
-
-    if isinstance(barmanpre, str):
+    if descargar:
+        col1,col2,col3 = st.columns([0.7,0.2,0.1])
+        with col2:
+            st.write('')
+            st.write('')
+            if st.button('Descargar Excel'):
+                download_excel(datavigencia_predio)
+    
+@st.cache_data(show_spinner=False)
+def gethtml(chip=None,barmanpre=None,vartype=None,infilter=True,descargar=True):
+    
+    col1,col2,col3,col4  = st.columns([0.1,0.4,0.3,0.2],gap="small")
+    chip_referencia     = chip
+    html                = ""
+    datavigencia_predio = pd.DataFrame()
+    if isinstance(barmanpre, str) or isinstance(barmanpre, list):
         with st.spinner('Buscando información'):
             datacatastro,datausosuelo,datalote,datavigencia,datatransacciones = getdatabuilding(barmanpre)
             
@@ -41,7 +41,7 @@ def main(chip=None,barmanpre=None,vartype=None):
             varemails             = [x for x in ['email1','email2'] if x in datavigencia]
             datavigencia['email'] = datavigencia[varemails].apply(buildemail, axis=1)
             
-        if not datacatastro.empty:
+        if not datacatastro.empty and infilter:
             if len(datacatastro)>1:
                 lista     = datacatastro['predirecc'].tolist()
                 listachip = datacatastro['prechip'].tolist()
@@ -176,14 +176,7 @@ def main(chip=None,barmanpre=None,vartype=None):
             </body>
             </html>
             """
-            st.components.v1.html(html,height=450)    
-        
-        with col3:
-            st.write('')
-            st.write('')
-            if st.button('Descargar Excel'):
-                
-                download_excel(datavigencia_predio)
+    return html,datavigencia_predio
         
 def download_excel(df):
     excel_file = df.to_excel('data_property.xlsx', index=False)
@@ -316,9 +309,9 @@ def tablestyle():
         
             .fl-table thead th {
                 color: #ffffff;
-                background: #6EA4EE; /* Manteniendo el color verde claro para el encabezado */
-                position: sticky; /* Haciendo el encabezado fijo */
-                top: 0; /* Fijando el encabezado en la parte superior */
+                background: #A16CFF; 
+                position: sticky; 
+                top: 0; 
             }
         
             .fl-table tr:nth-child(even) {

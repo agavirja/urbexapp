@@ -1,5 +1,5 @@
 import streamlit as st
-import copy
+import re
 import folium
 import pandas as pd
 import geopandas as gpd
@@ -11,9 +11,7 @@ from sqlalchemy import create_engine
 from bs4 import BeautifulSoup
 
 from data.getdatalotes import main as getdatalotes
-from data.getdataconsolidacionlotes import main as getdataconsolidacionlotes
 from data.getdatalotesedificios import main as getdatalotesedificios
-
 from data.coddir import coddir 
 
 from display.stylefunctions  import style_function,style_function_geojson
@@ -45,27 +43,24 @@ def main():
         st.error('Por favor iniciar sesión para poder tener acceso a la plataforma de Urbex')
     
 def landing(mapwidth,mapheight):
-    
-    style()
-    
+
     col1,col2,col3 = st.columns([6,1,1])
     with col2:
-        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_positivo.png',width=200)
+        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
         
     #-------------------------------------------------------------------------#
     # Variables 
     formato = {
-               'polygon_busquedavanzada':None,
-               'reporte_busquedavanzada':False,
-               'datalotes_busquedavanzada': pd.DataFrame(),
-               'geojson_data':None,
-               'zoom_start':12,
-               'latitud':4.652652, 
-               'longitud':-74.077899,
-               'options':        ['Todos','Apartamento', 'Bodega', 'Casa', 'Consultorio', 'Edificio', 'Hotel', 'Local', 'Lote', 'Oficina', 'Parqueadero'],
-               'optionsoriginal':['Todos','Apartamento', 'Bodega', 'Casa', 'Consultorio', 'Edificio', 'Hotel', 'Local', 'Lote', 'Oficina', 'Parqueadero'],
-               'default':[],
-               'resetear':False,
+               'polygon_busqueda_avanzada_default':None,
+               'reporte_busqueda_avanzada_default':False,
+               'datalotes_busqueda_avanzada_default': pd.DataFrame(),
+               'geojson_data_busqueda_avanzada_default':None,
+               'zoom_start_data_busqueda_avanzada_default':12,
+               'latitud_busqueda_avanzada_default':4.652652, 
+               'longitud_busqueda_avanzada_default':-74.077899,
+               'options_busqueda_avanzada_default':        ['Todos','Apartamento', 'Bodega', 'Casa', 'Consultorio', 'Edificio', 'Hotel', 'Local', 'Oficina', 'Parqueadero'],
+               'optionsoriginal_busqueda_avanzada_default':['Todos','Apartamento', 'Bodega', 'Casa', 'Consultorio', 'Edificio', 'Hotel', 'Local', 'Oficina', 'Parqueadero'],
+               'default':[]
                }
     
     for key,value in formato.items():
@@ -107,7 +102,7 @@ def landing(mapwidth,mapheight):
                     
         col1, col2 = st.columns([0.25,0.75])
         with col1:
-            if st.button('Buscar Información'):
+            if st.button('Buscar Información',key='boton1'):
                 ifPredio(direccion=direccion,chip=chip,matricula=matricula,fcoddir=fcoddirlist)
 
 #-----------------------------------------------------------------------------#        
@@ -115,7 +110,6 @@ def ifPolygon(formato,mapwidth,mapheight):
     
     colm1,colm2,colm3    = st.columns([0.025,0.95,0.025])
     colf1,colf2          = st.columns(2)
-    colb1,colb2          = st.columns(2)
 
     areamin              = 0
     areamax              = 0
@@ -136,33 +130,17 @@ def ifPolygon(formato,mapwidth,mapheight):
     
     #-------------------------------------------------------------------------#
     # Formulario            
-    with colf1: seleccion  = st.multiselect('Tipo de inmueble(s)', key='seleccion',options=st.session_state.options, default=st.session_state.default,on_change=multyselectoptions,placeholder='Selecciona uno o varios inmuebles')
-    with colf2: st.text_input('empty',disabled=True,label_visibility="hidden")
+    with colf1: seleccion  = st.multiselect('Tipo de inmueble(s)', key='seleccion',options=st.session_state.options_busqueda_avanzada_default, default=st.session_state.default,on_change=multyselectoptions,placeholder='Selecciona uno o varios inmuebles')
+    colf1,colf2 = st.columns(2)
+    colb1,colb2 = st.columns(2)
     
-    if 'Lote' in seleccion:
-        with colf1: areamin              = st.number_input('Área de terreno mínima',value=0,min_value=0)
-        with colf2: areamax              = st.number_input('Área de terreno máxima',value=0,min_value=0)
-        with colf1: maxpiso              = st.number_input('Número máximo de pisos construidos actualmente',value=6,min_value=0)
-        with colf2: alturaminpot         = st.number_input('Altura mínima P.O.T',value=0,min_value=0)
-        with colf1: tratamiento          = st.multiselect('Tratamiento P.O.T',['CONSOLIDACION', 'DESARROLLO', 'RENOVACION', 'CONSERVACION', 'MEJORAMIENTO INTEGRAL'])
-        with colf2: actuacionestrategica = st.selectbox('Actuación estrategica', options=['Todos','Si','No'])
-        with colf1: areaactividad        = st.multiselect('Área de actividad P.O.T',['Área de Actividad Grandes Servicios Metropolitanos - AAGSM', 'Área de Actividad de Proximidad - AAP- Generadora de soportes urbanos', 'Área de Actividad de Proximidad - AAP - Receptora de soportes urbanos', 'Área de Actividad Estructurante - AAE - Receptora de vivienda de interés social', 'Plan Especial de Manejo y Protección -PEMP BIC Nacional: se rige por lo establecido en la Resolución que lo aprueba o la norma que la modifique o sustituya', 'Área de Actividad Estructurante - AAE - Receptora de actividades económicas'])
-        with colf2: maxpredios           = st.number_input('Número máximo de predios actuales en el lote',value=0,min_value=0)
-        with colf1: loteesquinero        = st.selectbox('Lote esquinero', options=['Todos','Si','No'])
-        with colf2: viaprincipal         = st.selectbox('Sobre vía principal', options=['Todos','Si','No'])
-        with colf1: frente               = st.number_input('Área de frente mínima',value=0,min_value=0)
-        with colf2: maxpropietario       = st.number_input('Número máximo propietarios',value=0,min_value=0)
-        with colf1: maxavaluo            = st.number_input('Valor máximo de avalúo catastral',value=0,min_value=0)
-        #usodelsuelo   = st.selectbox('Uso del suelo', options=['Todos','Si','No'])
-        
-    elif 'Edificio' in seleccion:
+    if 'Edificio' in seleccion:
         with colf1: tipoedificio   = st.selectbox('Tipo de Edificio', options=['Todos','Oficinas y Consultorios','Residencial'])
         with colf2: areamin        = st.number_input('Área construida mínima',value=0,min_value=0)
         with colf1: areamax        = st.number_input('Área construida máxima',value=0,min_value=0)
         with colf2: antiguedadmin  = st.number_input('Antigüedad mínima',value=0,min_value=0)
         with colf1: antiguedadmax  = st.number_input('Antigüedad máxima',value=0,min_value=0)
         with colf2: maxpropietario = st.number_input('Número máximo propietarios',value=0,min_value=0)
-        #with colf1: maxpredios     = st.number_input('Número máximo de predios',value=0,min_value=0)
         with colf1: maxavaluo      = st.number_input('Valor máximo de avalúo catastral',value=0,min_value=0)
         with colf2: loteesquinero  = st.selectbox('Lote esquinero', options=['Todos','Si','No'])
         with colf1: viaprincipal   = st.selectbox('Sobre vía principal', options=['Todos','Si','No'])
@@ -179,57 +157,46 @@ def ifPolygon(formato,mapwidth,mapheight):
         
     #-------------------------------------------------------------------------#
     # Mapa
-    m    = folium.Map(location=[st.session_state.latitud, st.session_state.longitud], zoom_start=st.session_state.zoom_start,tiles="cartodbpositron")
-    draw = Draw(
-                draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":True},
-                edit_options={"poly": {"allowIntersection": False}}
-                )
-    draw.add_to(m)
-
-    if st.session_state.geojson_data is not None:
-        if st.session_state.datalotes_busquedavanzada.empty:
-            folium.GeoJson(st.session_state.geojson_data, style_function=style_function).add_to(m)
-        else:
-            folium.GeoJson(st.session_state.geojson_data, style_function=style_function_color).add_to(m)
-
-    if not st.session_state.datalotes_busquedavanzada.empty:
-        geojson = data2geopandas(st.session_state.datalotes_busquedavanzada,seleccion)
-        popup   = folium.GeoJsonPopup(
-            fields=["popup"],
-            aliases=[""],
-            localize=True,
-            labels=True,
-        )
-        folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
-    
     with colm2:
-        st_map = st_folium(m,width=mapwidth,height=mapheight)
-
-    if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
-        if st_map['all_drawings']!=[]:
-            if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
-                coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
-                st.session_state.polygon_busquedavanzada = Polygon(coordenadas[0])
-                st.session_state.geojson_data            = mapping(st.session_state.polygon_busquedavanzada)
-                polygon_shape                            = shape(st.session_state.geojson_data)
-                centroid                                 = polygon_shape.centroid
-                st.session_state.latitud                 = centroid.y
-                st.session_state.longitud                = centroid.x
-                st.session_state.zoom_start              = 16
-                st.rerun()
+        with st.container():
+            m    = folium.Map(location=[st.session_state.latitud_busqueda_avanzada_default, st.session_state.longitud_busqueda_avanzada_default], zoom_start=st.session_state.zoom_start_data_busqueda_avanzada_default,tiles="cartodbpositron")
+            draw = Draw(
+                        draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
+                        edit_options={"poly": {"allowIntersection": False}}
+                        )
+            draw.add_to(m)
+        
+            if st.session_state.geojson_data_busqueda_avanzada_default is not None:
+                if st.session_state.datalotes_busqueda_avanzada_default.empty:
+                    folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function).add_to(m)
+                else:
+                    folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function_color).add_to(m)
+        
+            if not st.session_state.datalotes_busqueda_avanzada_default.empty:
+                geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default,seleccion)
+                popup   = folium.GeoJsonPopup(
+                    fields=["popup"],
+                    aliases=[""],
+                    localize=True,
+                    labels=True,
+                )
+                folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
                 
-    if 'last_circle_polygon' in st_map and st_map['last_circle_polygon'] is not None:
-        if st_map['last_circle_polygon']!=[]:
-            coordenadas = st_map['last_circle_polygon']['coordinates'][0]
-            st.session_state.polygon_busquedavanzada = Polygon(coordenadas)
-            st.session_state.geojson_data            = mapping(st.session_state.polygon_busquedavanzada)
-            polygon_shape                            = shape(st.session_state.geojson_data)
-            centroid                                 = polygon_shape.centroid
-            st.session_state.latitud                 = centroid.y
-            st.session_state.longitud                = centroid.x
-            st.session_state.zoom_start              = 16
-            st.rerun()
-            
+            st_map = st_folium(m,width=mapwidth,height=mapheight)
+    
+            if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
+                if st_map['all_drawings']!=[]:
+                    if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
+                        coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
+                        st.session_state.polygon_busqueda_avanzada_default = Polygon(coordenadas[0])
+                        st.session_state.geojson_data_busqueda_avanzada_default            = mapping(st.session_state.polygon_busqueda_avanzada_default)
+                        polygon_shape                            = shape(st.session_state.geojson_data_busqueda_avanzada_default)
+                        centroid                                 = polygon_shape.centroid
+                        st.session_state.latitud_busqueda_avanzada_default                 = centroid.y
+                        st.session_state.longitud_busqueda_avanzada_default                = centroid.x
+                        st.session_state.zoom_start_data_busqueda_avanzada_default              = 16
+                        st.rerun()
+
     #-------------------------------------------------------------------------#
     # Reporte
     if seleccion==[]: seleccion = ['Todos']
@@ -253,33 +220,29 @@ def ifPolygon(formato,mapwidth,mapheight):
                ]
         }
 
-    if st.session_state.polygon_busquedavanzada is not None:        
-        inputvar['polygon'] = str(st.session_state.polygon_busquedavanzada)
-        with colb2:
+    if st.session_state.polygon_busqueda_avanzada_default is not None:        
+        inputvar['polygon'] = str(st.session_state.polygon_busqueda_avanzada_default)
+        with colb1:
             if st.button('Buscar'):
-                st.session_state.reporte_busquedavanzada = True
+                st.session_state.reporte_busqueda_avanzada_default = True
                 st.rerun()
 
-        with colb1:
+        with colb2:
             if st.button('Resetear búsqueda'):
                 for key,value in formato.items():
                     del st.session_state[key]
                 st.rerun()
             
-    if st.session_state.reporte_busquedavanzada:
+    if st.session_state.reporte_busqueda_avanzada_default:
         with colm2:
             with st.spinner('Buscando data'):
-                if any([x for x in seleccion if 'lote' in x.lower()]):
-                    _d,st.session_state.datalotes_busquedavanzada = getdataconsolidacionlotes(inputvar)
-                    st.session_state.reporte_busquedavanzada   = False
-                    st.rerun()
-                elif any([x for x in seleccion if 'edificio' in x.lower()]):
-                    _d,st.session_state.datalotes_busquedavanzada = getdatalotesedificios(inputvar)
-                    st.session_state.reporte_busquedavanzada   = False
+                if any([x for x in seleccion if 'edificio' in x.lower()]):
+                    _d,st.session_state.datalotes_busqueda_avanzada_default = getdatalotesedificios(inputvar)
+                    st.session_state.reporte_busqueda_avanzada_default   = False
                     st.rerun()
                 else:
-                    st.session_state.datalotes_busquedavanzada = getdatalotes(inputvar)
-                    st.session_state.reporte_busquedavanzada   = False
+                    st.session_state.datalotes_busqueda_avanzada_default = getdatalotes(inputvar)
+                    st.session_state.reporte_busqueda_avanzada_default   = False
                     st.rerun()
         
 def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):    
@@ -290,13 +253,13 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
     .custom-button {
         display: inline-block;
         padding: 10px 20px;
-        background-color: #68c8ed; /* Cambia el color de fondo según tu preferencia */
+        background-color: #A16CFF;
         color: #ffffff; 
         font-weight: bold;
         text-decoration: none;
         border-radius: 10px;
         width: 100%;
-        border: 2px solid #68c8ed; /* Añade el borde como en el estilo de Streamlit */
+        border: 2px solid #A16CFF;
         cursor: pointer;
         text-align: center;
         letter-spacing: 1px;
@@ -304,9 +267,9 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         margin-bottom: 20px;
     }
     .custom-button:hover {
-        background-color: #21D375; /* Cambia el color de fondo al pasar el ratón */
+        background-color: #21D375;
         color: black;
-        border: 2px solid #21D375; /* Cambia el color del borde al pasar el ratón */
+        border: 2px solid #21D375;
     }
     </style>
     """
@@ -317,7 +280,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if barmanpre is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -329,7 +292,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if chip is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -341,7 +304,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if chip is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={chip}&vartype=chip&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -353,7 +316,7 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
         if barmanpre is not None:
             with col1:
                 nombre = 'Ir al reporte'
-                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
+                html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}" class="custom-button" target="_self">{nombre}</a></body></html>"""
                 html = BeautifulSoup(html, 'html.parser')
                 st.markdown(html, unsafe_allow_html=True)        
         else:
@@ -362,35 +325,26 @@ def ifPredio(direccion=None,chip=None,matricula=None,fcoddir=None):
 def multyselectoptions():
     
     if st.session_state.seleccion==[]:
-        st.session_state.options = copy.deepcopy(st.session_state.optionsoriginal)
+        st.session_state.options_busqueda_avanzada_default = st.session_state.optionsoriginal_busqueda_avanzada_default.copy()
         st.session_state.default = []
         
     if any([x for x in st.session_state.seleccion if 'todo' in x.lower()]):
-        st.session_state.options = ['Todos']
+        st.session_state.options_busqueda_avanzada_default = ['Todos']
         st.session_state.default = ['Todos']
 
-    if any([x for x in st.session_state.seleccion if 'lote' in x.lower()]):
-        st.session_state.options = ['Lote']
-        st.session_state.default = ['Lote']
-
     if any([x for x in st.session_state.seleccion if 'edificio' in x.lower()]):
-        st.session_state.options = ['Edificio']
+        st.session_state.options_busqueda_avanzada_default = ['Edificio']
         st.session_state.default = ['Edificio']   
     
     if st.session_state.seleccion!=[] and not any([x for x in st.session_state.seleccion if 'todo' in x.lower()]):
-        if 'Todos' in st.session_state.options:
-            st.session_state.options.remove('Todos')
-        st.session_state.default = copy.deepcopy(st.session_state.seleccion)
+        if 'Todos' in st.session_state.options_busqueda_avanzada_default:
+            st.session_state.options_busqueda_avanzada_default.remove('Todos')
+        st.session_state.default = st.session_state.seleccion.copy()
         
-    if st.session_state.seleccion!=[] and not any([x for x in st.session_state.seleccion if 'lote' in x.lower()]):
-        if 'Lote' in st.session_state.options:
-            st.session_state.options.remove('Lote')
-        st.session_state.default = copy.deepcopy(st.session_state.seleccion)
-
     if st.session_state.seleccion!=[] and not any([x for x in st.session_state.seleccion if 'edificio' in x.lower()]):
-        if 'Edificio' in st.session_state.options:
-            st.session_state.options.remove('Edificio')
-        st.session_state.default = copy.deepcopy(st.session_state.seleccion)
+        if 'Edificio' in st.session_state.options_busqueda_avanzada_default:
+            st.session_state.options_busqueda_avanzada_default.remove('Edificio')
+        st.session_state.default = st.session_state.seleccion.copy()
     
 def style_function_color(feature):
     return {
@@ -402,7 +356,7 @@ def style_function_color(feature):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,seleccion=[]):
     
-    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
+    urlexport = "http://localhost:8501/Busqueda_avanzada"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]
@@ -414,20 +368,11 @@ def data2geopandas(data,seleccion=[]):
         data.index       = range(len(data))
         for idd,items in data.iterrows():
                         
-            combinacionlotes = ""
             buildinfinfo     = ""
             infoprecuso      = ""
                 
             urllink = ""
-            if 'Lote' in seleccion:
-                combinacion = items['combinacion'] if 'combinacion' in items and isinstance(items['combinacion'], str) else None
-                if combinacion is not None:
-                    urllink = urlexport+f"?type=lote&code={combinacion}&token={st.session_state.token}"
-                if 'num_lotes_comb' in items:
-                    combinacionlotes += """
-                    <b> Ver lote<br>
-                    """
-            elif 'Edificio' in seleccion:
+            if 'Edificio' in seleccion:
                 barmanpre =  items['barmanpre'] if 'barmanpre' in items and isinstance(items['barmanpre'], str) else None
                 if barmanpre is not None:
                     urllink = urlexport+f"?type=predio&code={barmanpre}&vartype=barmanpre&token={st.session_state.token}"
@@ -499,7 +444,6 @@ def data2geopandas(data,seleccion=[]):
                     <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;font-size: 12px;">
                         <a href="{urllink}" target="_blank" style="color: black;">
                             {infoprecuso}
-                            {combinacionlotes}
                             {buildinfinfo}
                         </a>
                     </div>
@@ -535,8 +479,11 @@ def matricula2chip(matricula):
         host     = st.secrets["host_bigdata_lectura"]
         schema   = st.secrets["schema_bigdata"]
         engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
-        
-        query = f" matriculainmobiliaria IN ('0{matricula.replace('-','')}','{matricula.replace('-','')}','{matricula}','{matricula.split('-')[-1]}')"
+    
+        matriculah1 = re.sub('[^0-9a-zA-Z]','',matricula)
+        matriculah2 = re.sub('[^0-9a-zA-Z]','',matricula).lstrip('0')
+        matriculah3 = re.sub('[^0-9a-zA-Z]','',matricula).lstrip('0')[3:]
+        query = f" matriculainmobiliaria IN ('0{matricula.replace('-','')}','{matricula.replace('-','')}','{matricula}','{matricula.split('-')[-1]}','{matriculah1}','{matriculah2}','{matriculah3}')"
         data     = pd.read_sql_query(f"SELECT chip,matriculainmobiliaria FROM  bigdata.data_bogota_shd_objetocontrato WHERE {query} " , engine)
         if not data.empty:
             chip = data['chip'].iloc[0]
@@ -594,124 +541,5 @@ def buildinglist():
     data = pd.concat([pd.DataFrame([{'nombre_conjunto':'','coddir':''}]),data])
     return data 
 
-def style():
-    st.markdown(
-        f"""
-        <style>
-    
-        .stApp {{
-            background-color: #3C3840;        
-            opacity: 1;
-            background-size: cover;
-        }}
-    
-        header {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        footer {{
-            visibility: hidden; 
-            height: 0%;
-            }}
-        
-        div[data-testid="collapsedControl"] svg {{
-            background-image: url('https://iconsapp.nyc3.digitaloceanspaces.com/house-white.png');
-            background-size: cover;
-            fill: transparent;
-            width: 20px;
-            height: 20px;
-        }}
-        
-        div[data-testid="stToolbar"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stDecoration"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        div[data-testid="stStatusWidget"] {{
-            visibility: hidden; 
-            height: 0%; 
-            position: fixed;
-            }}
-        
-        label[data-testid="stWidgetLabel"] p {{
-            font-size: 14px;
-            font-weight: bold;
-            color: #05edff;
-            font-family: 'Roboto', sans-serif;
-        }}
-                
-        span[data-baseweb="tag"] {{
-          background-color: #007bff;
-        }}
-        
-        .stButton button {{
-                background-color: #05edff;
-                font-weight: bold;
-                width: 100%;
-                border: 2px solid #05edff;
-                
-            }}
-        
-        .stButton button:hover {{
-            background-color: #05edff;
-            color: black;
-            border: #05edff;
-        }}
-        
-        div[data-testid="stSpinner"] {{
-            color: #fff;
-            }}
-        
-        [data-testid="stNumberInput"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stMultiSelect"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px; 
-            padding: 5px;
-        }}
-        
-        [data-testid="stMultiSelect"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stTextInput"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        [data-testid="stSelectbox"] {{
-            border: 5px solid #2B2D31;
-            background-color: #2B2D31;
-            border-radius: 5px;
-            padding: 5px; 
-        }}
-        
-        button[data-testid="StyledFullScreenButton"] {{
-            visibility: hidden; 
-            height: 0%;
-            
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-        
 if __name__ == "__main__":
     main()

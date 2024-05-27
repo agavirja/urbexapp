@@ -31,10 +31,6 @@ def main(inputvar):
         data = data.merge(dataprecuso,on='precuso',how='left',validate='m:1')
         data = data.merge(dataprecdestin,on='precdestin',how='left',validate='m:1')
 
-
-    # from scripts.getdatasnr import getdatasnr
-    #inputs = list(data['value'].unique())
-    #d1,d2  = getdatasnr(inputs,tipovariable='matricula')
     return data,dataproceso
 
 @st.cache_data(show_spinner=False)
@@ -112,11 +108,6 @@ def getSNRbyID(inputvar):
                 datacatastro  = pd.read_sql_query(f"SELECT prechip,predirecc,prenbarrio,preaterre,preaconst,precdestin,precuso,barmanpre,latitud,longitud  FROM  {schema}.data_bogota_catastro WHERE {query}" , engine)
                 if not datacatastro.empty:
                     datachip   = datachip.merge(datacatastro,on='prechip',how='left',validate='m:1')
-                    
-                    # Revisar duplicados en datachip. 
-                    # A veces tienen el mismo numero de matricula en oficina del centro,
-                    # norte o sur y son inmuebles diferentes.
-                    # Ej. matricula: 1187668 o matricula 1192280
                     datachip   = datachip.drop_duplicates(subset='value',keep='first')
                     databogota = databogota.merge(datachip,on='value',how='left',validate='m:1')
         
@@ -181,10 +172,6 @@ def getSHDbyID(inputvar):
         query         = f" prechip IN ('{query}')"        
         datacatastro  = pd.read_sql_query(f"SELECT prechip,predirecc,prenbarrio,preaterre,preaconst,precdestin,precuso,barmanpre,latitud,longitud  FROM  {schema}.data_bogota_catastro WHERE {query}" , engine)
         if not datacatastro.empty:
-            # Revisar duplicados en datachip. 
-            # A veces tienen el mismo numero de matricula en oficina del centro,
-            # norte o sur y son inmuebles diferentes.
-            # Ej. matricula: 1187668 o matricula 1192280
             datacatastro = datacatastro.drop_duplicates(subset='prechip',keep='first')
             data         = data.merge(datacatastro,on='prechip',how='left',validate='m:1')
 

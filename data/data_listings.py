@@ -97,6 +97,8 @@ def listingsPolygonActive(polygon=None, tipoinmueble=None, tiponegocio=None, are
     datamarket = pd.DataFrame()
     if tipoinmueble is not None and tiponegocio is not None:
         query = ''
+        if isinstance(tipoinmueble, str): query += f" AND tipoinmueble='{tipoinmueble}'"
+        if isinstance(tiponegocio, str): query += f" AND tiponegocio='{tiponegocio}'"
         if areamin > 0:         query += f" AND areaconstruida >= {areamin}"
         if areamax > 0:         query += f" AND areaconstruida <= {areamax}"
         if valormin > 0:        query += f" AND valor >= {valormin}"

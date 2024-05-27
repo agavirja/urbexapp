@@ -73,7 +73,7 @@ def main(code=None,typesearch=None,datamatricula=pd.DataFrame(),polygon=None):
                 datacompleta       = datacompleta[variables]
                 datacompleta       = datacompleta.drop_duplicates(subset='docid',keep='last')
                 datamatriculadocid = datamatriculadocid.merge(datacompleta,on='docid',how='left',validate='m:1')
-                datamatriculadocid['oficina_original'] = datamatriculadocid['oficina_original'].apply(lambda x: re.sub(r'\s+',' ',unidecode(x.lower())))
+                datamatriculadocid['oficina_original'] = datamatriculadocid['oficina_original'].apply(lambda x: estandar_text(x))
                 datamatriculadocid = datamatriculadocid.merge(dataoficinas,left_on='oficina_original',right_on='oficina',how='left',validate='m:1')
                 datamatriculadocid['matriculamatch'] = datamatriculadocid['codigos']+datamatriculadocid['value']
         
@@ -173,3 +173,7 @@ def getINfecha(x):
                 break
     except: result = None
     return result
+
+def estandar_text(x):
+    try: return re.sub(r'\s+',' ',unidecode(x.lower()))
+    except: return x
