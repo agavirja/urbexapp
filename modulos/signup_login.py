@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import boto3
 import hashlib
+import time
 from datetime import datetime
 from sqlalchemy import create_engine
 from streamlit_js_eval import streamlit_js_eval
@@ -98,9 +99,12 @@ def main():
                 if submit:
                     with st.spinner('Verificando'):
                         token,acceso_manual = datos_usuario(email)
+                        time.sleep(3)
                         controller = CookieController()
+                        cookies    = controller.getAll()
                         try: controller.remove("token")
                         except: pass
+                        time.sleep(3)
                         controller.set("token",f"{token}")
 
                         r = sign_in(email, password)
