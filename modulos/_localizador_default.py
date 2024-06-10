@@ -203,7 +203,7 @@ def data2geopandas_brand(data):
             try:    barrio = f"<b> Barrio:</b> {items['prenbarrio']}<br>"
             except: barrio = "<b> Barrio:</b> Sin información <br>"      
             
-            urlexport = "http://localhost:8501/Busqueda_avanzada"
+            urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
             urllink   = urlexport+f"?type=predio&code={items['lotcodigo']}&vartype=barmanpre&token={st.session_state.token}"
 
             popup_content =  f'''
@@ -284,7 +284,7 @@ def data2geopandas_owner(data):
             <html>
                 <body>
                     <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;">
-                        <a href="http://localhost:8501/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}" target="_blank" style="color: black;">
+                        <a href="http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}" target="_blank" style="color: black;">
                             {titular}
                             {direccion}
                             {barrio}

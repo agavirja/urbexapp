@@ -120,7 +120,7 @@ def landing(mapwidth,mapheight):
         # Tabla de datos
         #-------------------------------------------------------------------------#
         df         = data.copy()
-        df['link'] = df['barmanpre'].apply(lambda x: f"http://localhost:8501/Busqueda_avanzada?type=predio&code={x}&vartype=barmanpre&token={st.session_state.token}")
+        df['link'] = df['barmanpre'].apply(lambda x: f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={x}&vartype=barmanpre&token={st.session_state.token}")
 
         df        = df.sort_values(by='fecha_creacion',ascending=False)
         df['id']  = range(len(df))

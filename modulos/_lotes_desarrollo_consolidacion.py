@@ -300,7 +300,7 @@ def landing(mapwidth,mapheight):
     # Tabla Propiedades
     #-------------------------------------------------------------------------#
     if not datacatastro.empty:
-        datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://localhost:8501/Busqueda_avanzada?type=predio&code={x}&vartype=chip")
+        datacatastro['url']  = datacatastro['prechip'].apply(lambda x: f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={x}&vartype=chip")
         datacatastro         = datacatastro.sort_values(by='predirecc',ascending=True)
         
         col1,col2,col3,col4 = st.columns([0.04,0.2,0.5,0.26])
@@ -818,7 +818,7 @@ def principal_table(barmanpre=None,latitud=None,longitud=None,polygon=None,datag
 
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,color=None):
-    urlexport = "http://localhost:8501/Busqueda_avanzada"
+    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]
     if not data.empty:

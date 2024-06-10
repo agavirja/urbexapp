@@ -284,7 +284,7 @@ def point2geopandas(data):
             <html>
                 <body>
                     <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;font-size: 14px;">
-                        <a href="http://localhost:8501/Proyectos_nuevos?code={items['codproyecto']}&token={st.session_state.token}" target="_blank" style="color: black;">
+                        <a href="http://www.urbex.com.co/Proyectos_nuevos?code={items['codproyecto']}&token={st.session_state.token}" target="_blank" style="color: black;">
                             {direccion}    
                             {proyecto}
                             {estado}
