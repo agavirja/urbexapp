@@ -15,7 +15,7 @@ schema   = 'urbex'
 
 USER_POOL_ID = st.secrets["COGNITO_USER_POOL_ID"]
 CLIENT_ID    = st.secrets["COGNITO_CLIENT_ID"]
-client       = boto3.client('cognito-idp')
+client       = boto3.client('cognito-idp',region_name='us-east-2')
 
 def main():
     
