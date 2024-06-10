@@ -325,7 +325,7 @@ def analisis_combinacion_lote(code,datacombinacion=pd.DataFrame(),datausosuelo=p
                     antiguedadmax = f"{int(items['antiguedadmax'])}"
                 except: antiguedadmax = ""
                 
-                try:    link = f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}"
+                try:    link = f"http://localhost:8501/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}"
                 except: link = ""
                 html_paso += f"""
                 <tr>
@@ -440,7 +440,7 @@ def getdatacombinacionlotes(code):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data):
     
-    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
+    urlexport = "http://localhost:8501/Busqueda_avanzada"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]

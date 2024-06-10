@@ -15,7 +15,7 @@ schema   = 'urbex'
 
 USER_POOL_ID = st.secrets["COGNITO_USER_POOL_ID"]
 CLIENT_ID    = st.secrets["COGNITO_CLIENT_ID"]
-client       = boto3.client('cognito-idp',region_name='us-east-2')
+client       = boto3.client('cognito-idp')
 
 def main():
     
@@ -99,7 +99,6 @@ def main():
                     with st.spinner('Verificando'):
                         token,acceso_manual = datos_usuario(email)
                         controller = CookieController()
-                        cookies    = controller.getAll()
                         try: controller.remove("token")
                         except: pass
                         controller.set("token",f"{token}")

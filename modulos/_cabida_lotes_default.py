@@ -184,7 +184,7 @@ def data2consolidacion(data):
         data             = pd.DataFrame([{'geometry':polygon}])
         data             = gpd.GeoDataFrame(data, geometry='geometry')
         data['color']    = '#5A189A'
-        urllink          = f"http://www.urbex.com.co/Cabida?code={barmanpre}&token={st.session_state.token}"
+        urllink          = f"http://localhost:8501/Cabida?code={barmanpre}&token={st.session_state.token}"
         data['popup']    = f'''
         <!DOCTYPE html>
         <html>
@@ -203,7 +203,7 @@ def data2consolidacion(data):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,seleccion=[],color=None):
     
-    urlexport = "http://www.urbex.com.co/Cabida"
+    urlexport = "http://localhost:8501/Cabida"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]
