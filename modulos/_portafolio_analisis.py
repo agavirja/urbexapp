@@ -4,6 +4,7 @@ import geopandas as gpd
 import pymysql
 import folium
 import matplotlib.pyplot as plt
+import plotly.express as px
 from matplotlib.colors import to_hex
 from streamlit_folium import st_folium
 from sqlalchemy import create_engine 
@@ -66,21 +67,49 @@ def landing(mapwidth,mapheight):
             if st.button('Guardar datos'):
                 with st.spinner('Guardando datos'):
                     uploadportafolio(dataupload)
+        st.write('')
+        st.write('')
+        st.write('')
+                    
+    with col2:
+        st.write('')
+        st.write('')
+        st.write('')
+        plantilla = pd.DataFrame({'ciudad': ['bogota', 'bogota', 'bogota', 'bogota'], 'matricula': [None, None, '050C01304860', '050C01141309'], 'chip': ['AAA0218YARJ', 'AAA0000AALW', None, None], 'direccion': ['KR 19A 103A 62', 'KR 73A BIS 25C 39', None, None], 'precioventa': [890000000, 750000000, 685000000, None], 'preciorenta': [4500000, None, None, 4120000]})
+        csv       = convert_df(plantilla)
+        st.download_button(
+            label="Descargar Plantilla",
+            data=csv,
+            file_name='plantilla.csv',
+            mime='text/csv',
+        )
 
-    with col1:
-        tipovariable = st.selectbox('Segmentación del mapa:',options=['# Inmuebles','Precio de venta','Precio de renta'])
-        if '# Inmuebles' in tipovariable: tipovariable = 'conteo'
-        elif 'Precio de venta' in tipovariable: tipovariable = 'precioventa'
-        elif 'Precio de renta' in tipovariable: tipovariable = 'preciorenta'
+    col1, col2 = st.columns(2)
+    tipovariable = 'conteo'
+    #with col1:
+    #    tipovariable = st.selectbox('Segmentación del mapa:',options=['# Inmuebles','Precio de venta','Precio de renta'])
+    #    if '# Inmuebles' in tipovariable: tipovariable = 'conteo'
+    #    elif 'Precio de venta' in tipovariable: tipovariable = 'precioventa'
+    #    elif 'Precio de renta' in tipovariable: tipovariable = 'preciorenta'
 
     with col1:
         with st.spinner('Buscando datos del portfalio'):
             data        = getportafolio()
             dataheatmap = mergegeodata(data.copy(),tipovariable=tipovariable)
             data.index  = range(len(data))
-            
-    lista_selected = []
+            data        = matchdata(data)
     
+    col1, col2 = st.columns(2)
+    if not dataheatmap.empty:
+        with col1:
+            options = list(dataheatmap['scanombre'].unique())
+            options = ['Todos'] + options
+            barrio  = st.selectbox('Filtro de barrio:',options=options)
+            if 'todo' not in barrio.lower():
+                dataheatmap = dataheatmap[dataheatmap['scanombre']==barrio]
+                data        = data[data['scacodigo'].isin(dataheatmap['scacodigo'])]
+                
+    lista_selected = []
     #-------------------------------------------------------------------------#
     # Merge barrios
     if not data.empty:
@@ -111,7 +140,7 @@ def landing(mapwidth,mapheight):
                 class UrlCellRenderer {
                   init(params) {
                     this.eGui = document.createElement('a');
-                    this.eGui.innerText = 'Link';
+                    this.eGui.innerText = 'Reporte completo';
                     this.eGui.setAttribute('href', params.value);
                     this.eGui.setAttribute('style', "text-decoration:none");
                     this.eGui.setAttribute('target', "_blank");
@@ -122,8 +151,7 @@ def landing(mapwidth,mapheight):
                 }
             """)
         )
-        
-        
+    
         with cold2:
             response = AgGrid(df,
                         gridOptions=gb.build(),
@@ -137,7 +165,7 @@ def landing(mapwidth,mapheight):
                 lista_selected = df.index.to_list()
             
         #-------------------------------------------------------------------------#
-        # Heat Map
+        # Mapa
         #-------------------------------------------------------------------------#
         m = folium.Map(location=[4.652652, -74.077899], zoom_start=12,tiles="cartodbpositron") #"cartodbdark_matter"
 
@@ -157,7 +185,7 @@ def landing(mapwidth,mapheight):
             idd       = data.index.isin(lista)
             df        = data[~idd]
             geopoints = geopointsdata(df)
-            folium.GeoJson(geopoints).add_to(m)
+            folium.GeoJson(geopoints,style_function=style_function_geojson).add_to(m)
 
         # Select inmueble
         if isinstance(lista_selected, list) and lista_selected!=[]:
@@ -166,12 +194,129 @@ def landing(mapwidth,mapheight):
             df        = data[idd]
             geopoints = geopointsdata(df)
             marker    = folium.Marker(icon=folium.Icon(icon='star'))
-            folium.GeoJson(geopoints,marker=marker).add_to(m)
+            folium.GeoJson(geopoints,style_function=style_function_geojson,marker=marker).add_to(m)
         
         with colm2:
             st_map = st_folium(m,width=mapwidth,height=600)
             
+    #-------------------------------------------------------------------------#
+    # Exportar data
+    #-------------------------------------------------------------------------#
+    if not data.empty:
+        dataexport = data.copy()
+        variables = [x for x in ['id','token','barmanpre','direccion','mpio_ccdgo','scacodigo','localidad','fecha_creacion','fecha_actualizacion','activo','precuso','precdestin',] if x in dataexport]
+        if variables!=[]:
+            dataexport.drop(columns=variables,inplace=True)
+        for i in ['latitud', 'longitud', 'precioventa', 'preciorenta', 'preaconst', 'preaterre', 'prevetustz', 'estrato', 'predios_precuso', 'preaconst_precuso', 'preaterre_precuso', 'preaconst_total', 'preaterre_total', 'connpisos', 'connsotano', 'avaluomt2', 'predialmt2', 'valormt2_transacciones', 'transacciones','impuesto_predial','avaluo_catastral']:
+            if i in dataexport: dataexport[i] = pd.to_numeric(dataexport[i],errors='coerce')
+        dataexport.rename(columns={'ciudad': 'Ciudad', 'matricula': 'Matricula', 'chip': 'Chip', 'predirecc': 'Predirecc', 'latitud': 'Latitud', 'longitud': 'Longitud', 'barrio': 'Barrio', 'precioventa': 'Precio de venta', 'preciorenta': 'Precio de renta', 'preaconst': 'Area privada', 'preaterre': 'Area de terreno', 'prevetustz': 'Antiguedad', 'preusoph': 'PH', 'estrato': 'Estrato', 'predios_precuso': '# Predios del mismo uso ', 'preaconst_precuso': 'Area privada de predios del mismo uso', 'preaterre_precuso': 'Area de terreno de predios del mismo uso', 'preaconst_total': 'Area construida total en el terreno', 'preaterre_total': 'Area total del terreno', 'connpisos': '# Pisos', 'connsotano': 'Sotanos', 'nombre_conjunto': 'Nombre copropiedad', 'avaluomt2': 'Avaluo Catastral mt2', 'predialmt2': 'Predial mt2', 'valormt2_transacciones': 'Valor mt2 de Transacciones de los ultimos 12 meses', 'transacciones': '# de Transacciones','impuesto_predial':'Predial','avaluo_catastral':'Avaluo catastral'},inplace=True)
+        col1,col2,col3 = st.columns([0.7,0.2,0.1])
+        with col2:
+            st.write('')
+            st.write('')
+            if st.button('Descargar Excel Completo'):
+                download_excel(dataexport)
 
+    #-------------------------------------------------------------------------#
+    # Estadisticas
+    #-------------------------------------------------------------------------#
+    col1,col2 = st.columns(2)
+    if not data.empty:
+        with col1:
+            html = htmltable(data=data.copy())
+            st.components.v1.html(html,height=300,scrolling=True)
+
+    if not data.empty:
+
+        # Numeor de inmuebles por barrio
+        df = data.groupby(['barrio'])['id'].count().reset_index()
+        df.columns = ['variable','value']
+        df = df.sort_values(by=['value','variable'],ascending=[False,True])
+        if not df.empty and len(df)>1:
+            fig = px.bar(df, x="variable", y="value", text="variable", title='# de activos por barrio')
+            fig.update_traces(texttemplate='%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
+            fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
+            fig.update_layout({
+                'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
+                'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
+                'title_font':dict(color='black'),
+            })    
+            fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+            fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+            with col2:
+                st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+
+        col1,col2 = st.columns(2)
+        if 'precioventa' in data:
+            df = data.copy()
+            df = df[df['precioventa']>0]
+            if not df.empty and len(df)>1:
+                fig = px.box(df,y='precioventa',title='Distribución del precio de venta los inmuebles',color_discrete_sequence=['#68c8ed'])
+                fig.update_layout(title_x=0.3,height=500, xaxis_title=None, yaxis_title=None)
+                fig.update_layout({
+                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
+                    'title_font':dict(color='black'),
+                })    
+                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_traces(boxpoints=False)
+                with col1:
+                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                
+        if 'preciorenta' in data:
+            df = data.copy()
+            df = df[df['preciorenta']>0]
+            if not df.empty and len(df)>1:
+                fig = px.box(df,y='preciorenta',title='Distribución del precio de renta de los inmuebles',color_discrete_sequence=['#68c8ed'])
+                fig.update_layout(title_x=0.3,height=500, xaxis_title=None, yaxis_title=None)
+                fig.update_layout({
+                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
+                    'title_font':dict(color='black'),
+                })    
+                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_traces(boxpoints=False)
+                with col2:
+                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                    
+        col1,col2 = st.columns(2)
+        if 'preaconst' in data:
+            df = data.copy()
+            df = df[df['preaconst']>0]
+            if not df.empty and len(df)>1:
+                fig = px.box(df,y='preaconst',title='Distribución del área privada de los inmuebles',color_discrete_sequence=['#68c8ed'])
+                fig.update_layout(title_x=0.3,height=500, xaxis_title=None, yaxis_title=None)
+                fig.update_layout({
+                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
+                    'title_font':dict(color='black'),
+                })    
+                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_traces(boxpoints=False)
+                with col1:
+                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                
+        if 'prevetustz' in data:
+            df = data.copy()
+            df = df[df['prevetustz']>0]
+            if not df.empty and len(df)>1:
+                fig = px.box(df,y='prevetustz',title='Distribución de la antgiuedad de los inmuebles',color_discrete_sequence=['#68c8ed'])
+                fig.update_layout(title_x=0.3,height=500, xaxis_title=None, yaxis_title=None)
+                fig.update_layout({
+                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
+                    'title_font':dict(color='black'),
+                })    
+                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_traces(boxpoints=False)
+                with col2:
+                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                
+                
 @st.cache_data(show_spinner=False)
 def mergegeodata(data,tipovariable='conteo'):
     if not data.empty and 'scacodigo' in data:
@@ -184,7 +329,7 @@ def mergegeodata(data,tipovariable='conteo'):
 
         lista     = "','".join(data['scacodigo'].astype(str).unique())
         query     = f" scacodigo IN ('{lista}')"
-        datashape = pd.read_sql_query(f"SELECT scacodigo, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_barriocatastro_simplify WHERE {query}" , engine)
+        datashape = pd.read_sql_query(f"SELECT scacodigo,scanombre, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_barriocatastro_simplify WHERE {query}" , engine)
 
         if not datashape.empty:
             datamerge = datashape.drop_duplicates(subset='scacodigo',keep='first')
@@ -285,6 +430,53 @@ def getportafolio():
     return data
        
 @st.cache_data(show_spinner=False)
+def matchdata(data):
+    if not data.empty:
+        user     = st.secrets["user_bigdata"]
+        password = st.secrets["password_bigdata"]
+        host     = st.secrets["host_bigdata"]
+        schema   = st.secrets["schema_bigdata"]
+        engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
+
+        datasearch = pd.DataFrame()
+        datachip   = pd.DataFrame()
+        
+        #---------------------------------------------------------------------#
+        # Data General Barmanpre
+        query = ""
+        if 'barmanpre' in data:
+            datapaso = data[data['barmanpre'].notnull()]
+            if not datapaso.empty:
+                lista = "','".join(datapaso['barmanpre'].unique())
+                query = f" barmanpre IN ('{lista}')"
+
+        if query!="":
+            datasearch = pd.read_sql_query(f"SELECT barmanpre,precuso,predios_precuso,preaconst_precuso,preaterre_precuso,preaconst as preaconst_total,preaterre as preaterre_total, connpisos, connsotano, nombre_conjunto, avaluomt2, predialmt2,valormt2_transacciones,transacciones FROM {schema}.bogota_barmanpre_general WHERE {query}" , engine)
+        
+        #---------------------------------------------------------------------#
+        # Data Chip
+        query = ""
+        if 'chip' in data:
+            datapaso = data[data['chip'].notnull()]
+            if not datapaso.empty:
+                lista = "','".join(datapaso['chip'].unique())
+                query = f" chip IN ('{lista}')"
+                
+        if query!="":
+            datachip = pd.read_sql_query(f"SELECT chip,impuesto_predial,avaluo_catastral FROM {schema}.data_bogota_shd_2024 WHERE {query}" , engine)
+            
+        if not datasearch.empty:
+            datamerge = datasearch.drop_duplicates(subset=['barmanpre','precuso'],keep='first')
+            data      = data.merge(datamerge,on=['barmanpre','precuso'],how='left',validate='m:1')
+            
+        if not datachip.empty:
+            datamerge = datachip.drop_duplicates(subset=['chip'],keep='first')
+            data      = data.merge(datamerge,on=['chip'],how='left',validate='m:1')
+            
+        engine.dispose()
+    return data
+
+@st.cache_data(show_spinner=False)
 def data2geopandas(data):
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
@@ -294,18 +486,19 @@ def data2geopandas(data):
         data             = gpd.GeoDataFrame(data, geometry='geometry')
         data['popup']    = None
         data.index       = range(len(data))
+        
+        data['color']    = '#A16CFF'
         if 'color' not in data: data['color'] = '#5A189A'
         for idd,items in data.iterrows():
             
             popuptext = ""
-            try:    popuptext += f"""<b>Valor transacciones mt2:</b> ${items['valormt2_transacciones']:,.0f} m²<br>"""
-            except: pass
-            try:    popuptext += f"""<b>Número de transacciones:</b> {items['transacciones']}<br>"""
-            except: pass
             try:
                 if isinstance(items['scacodigo'], str) and items['scacodigo']!="":
-                    popuptext += f"""<b>Barrio catastral:</b> {items['scacodigo']}<br>"""
+                    popuptext += f"""<b>Barrio catastral:</b> {items['scanombre']}<br>"""
             except: pass
+            try:    popuptext += f"""<b># Inmuebles:</b> {items['variable']}<br>"""
+            except: pass
+        
             popup_content =  f'''
             <!DOCTYPE html>
             <html>
@@ -328,9 +521,164 @@ def geopointsdata(data):
     if not data.empty and 'latitud' in data and 'longitud' in data:
         data['geometry'] = data.apply(lambda x: Point(x['longitud'],x['latitud']),axis=1)
         data             = gpd.GeoDataFrame(data, geometry='geometry')
-        data      = data[['geometry']]
-        geojson   = data.to_json()
+        data             = data[['geometry']]
+        data['color']    = '#A16CFF'
+        geojson          = data.to_json()
     return geojson
+
+@st.cache_data(show_spinner=False)
+def convert_df(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+def download_excel(df):
+    excel_file = df.to_excel('data_completa.xlsx', index=False)
+    with open('data_completa.xlsx', 'rb') as f:
+        data = f.read()
+    st.download_button(
+        label="Haz clic aquí para descargar",
+        data=data,
+        file_name='data_completa.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    
+def htmltable(data=pd.DataFrame()):
+    
+    tablaresumen = ""
+    #---------------------------------------------------------------------#
+    # Seccion ubicacion
+    if not data.empty:
+        
+        precioventamt2 = 'Sin información'
+        idd            = (data['precioventa'].notnull()) & (data['preaconst'].notnull())
+        if sum(idd)>0: 
+            precioventamt2 = data[idd]['precioventa']/data[idd]['preaconst']
+            precioventamt2 = f"${precioventamt2.median():,.0f}" 
+        
+        preciorentamt2 = 'Sin información'
+        idd            = (data['preciorenta'].notnull()) & (data['preaconst'].notnull())
+        if sum(idd)>0: 
+            preciorentamt2 = data[idd]['preciorenta']/data[idd]['preaconst']
+            preciorentamt2 = f"${preciorentamt2.median():,.0f}" 
+        
+        precioventa = f"${data['precioventa'].median():,.0f}" if 'precioventa' in data and sum(data['precioventa']>0)>0 else 'Sin información'
+        preciorenta = f"${data['preciorenta'].median():,.0f}" if 'preciorenta' in data and sum(data['preciorenta']>0)>0 else 'Sin información'
+        formato     = [
+            {'variable':'# de inmuebles','value':len(data)},
+            {'variable':'Precio de venta promedio ','value':precioventa},
+            {'variable':'Precio de venta promedio por m²','value':precioventamt2},
+            {'variable':'Precio de renta promedio','value':preciorenta},
+            {'variable':'Precio de renta promedio por m²','value':preciorentamt2},         
+            ]
+        
+        html_paso = ""
+        for i in formato: 
+            key  = i['variable']
+            value = i['value']
+            if value is not None:
+                html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
+        if html_paso!="":
+            labeltable     = "Resumen:"
+            tablaresumen = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablaresumen = f"""<div class="col-md-12"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablaresumen}</tbody></table></div></div>"""
+            
+    style = """
+    <style>
+        .css-table {
+            overflow-x: auto;
+            overflow-y: auto;
+            width: 100%;
+            height: 100%;
+        }
+        .css-table table {
+            width: 100%;
+            padding: 0;
+            table-layout: fixed; 
+            border-collapse: collapse;
+        }
+        .css-table td {
+            text-align: left;
+            padding: 0;
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+        .css-table h6 {
+            line-height: 1; 
+            font-size: 50px;
+            padding: 0;
+        }
+        .css-table td[colspan="labelsection"] {
+          text-align: left;
+          font-size: 15px;
+          color: #A16CFF;
+          font-weight: bold;
+          border: none;
+          border-bottom: 2px solid #A16CFF;
+          margin-top: 20px;
+          display: block;
+          font-family: 'Inter';
+          width: 100%
+        }
+        .css-table td[colspan="labelsectionborder"] {
+          text-align: left;
+          border: none;
+          border-bottom: 2px solid blue;
+          margin-top: 20px;
+          display: block;
+          padding: 0;
+          width: 100%;
+        }
+        
+        #top {
+            position: absolute;
+            top: 0;
+        }
+        
+        #top:target::before {
+            content: '';
+            display: block;
+            height: 100px; 
+            margin-top: -100px; 
+        }
+    </style>
+    """
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <link href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/nucleo-icons.css" rel="stylesheet">
+      <link href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/nucleo-svg.css" rel="stylesheet">
+      <link id="pagestyle" href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/soft-ui-dashboard.css?v=1.0.7" rel="stylesheet">
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      {style}
+    </head>
+    <body>
+      <div class="container-fluid py-4" style="margin-bottom: 0px;margin-top: -50px;">
+        <div class="row">
+          <div class="col-md-12 mb-md-0 mb-2">
+            <div class="card h-100">
+              <div class="card-body p-3">
+                <div class="container-fluid py-4">
+                  <div class="row" style="margin-bottom: 0px;margin-top: 0px;">
+                    {tablaresumen}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    return html
 
 if __name__ == "__main__":
     main()

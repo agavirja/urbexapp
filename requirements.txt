@@ -1,5 +1,7 @@
+area
 beautifulsoup4
 boto3
+botocore
 folium
 geopandas
 matplotlib
@@ -20,6 +22,7 @@ streamlit_option_menu
 streamlit_vertical_slider
 streamlit-toggle
 streamlit_aggrid
+streamlit_cookies_controller
 PyMySQL
 unidecode
 openpyxl

@@ -24,16 +24,21 @@ def main(data):
                 lambda x: re.sub('[^0-9a-zA-Z]', '', x),
                 lambda x: re.sub('[^0-9a-zA-Z]', '', x).lstrip('0'),
                 lambda x: re.sub('[^0-9a-zA-Z]', '', x).lstrip('0')[3:],
-                lambda x: f"0{x.replace('-', '')}",
-                lambda x: x.replace('-', ''),
-                lambda x: x.split('-')[-1]
+                lambda x: x.split('-')[-1],
+                lambda x: x.replace('-','0'),
+                lambda x: x.replace('-','0').lstrip('0'),
+                lambda x: x.replace('-','0').lstrip('0')[3:],
+                lambda x: procesar_matricula(x),
             ]
             for transformacion in transformaciones:
                 datapaso              = datacopy.copy()
                 datapaso['matricula'] = datapaso['matricula'].apply(transformacion)
                 datam                 = pd.concat([datam, datapaso])
-            datam = datam.drop_duplicates(subset=['matricula'],keep='first')
-            
+            datam0 = datam.copy()
+            datam0['matricula'] = datam0['matricula'].apply(lambda x: '0'+x)
+            datam  = pd.concat([datam,datam0])
+            datam  = datam.drop_duplicates(subset=['matricula'],keep='first')
+
             lista = "','".join(datam['matricula'].astype(str).unique())
             query = f" matriculainmobiliaria IN ('{lista}')"
             data1 = pd.read_sql_query(f"SELECT chip,matriculainmobiliaria as matricula FROM  bigdata.data_bogota_shd_objetocontrato WHERE {query} " , engine)
@@ -60,7 +65,7 @@ def main(data):
         if not datam.empty:
             lista = "','".join(datam['chip'].unique())
             query = f" prechip IN ('{lista}')"
-            datacatastro = pd.read_sql_query(f"SELECT barmanpre,predirecc,latitud,longitud,prechip as chip,precbarrio as scacodigo, prenbarrio as barrio FROM  bigdata.data_bogota_catastro WHERE {query}" , engine)
+            datacatastro = pd.read_sql_query(f"SELECT barmanpre,predirecc,latitud,longitud,prechip as chip,precbarrio as scacodigo, prenbarrio as barrio,preaconst,preaterre,prevetustz,preusoph,estrato,precuso,precdestin  FROM  bigdata.data_bogota_catastro WHERE {query}" , engine)
             datamerge    = datacatastro.drop_duplicates(subset='chip',keep='first')
             datamerge['mpio_ccdgo'] = '11001'
             data         = data.merge(datamerge,on='chip',how='left',validate='m:1')
@@ -85,7 +90,14 @@ def main(data):
              
         for i in ['latitud','longitud','scacodigo','barrio','localidad','mpio_ccdgo']:
             if i not in data: data[i] = None
-        
         engine.dispose()
-
     return data
+
+def procesar_matricula(matricula):
+    try:
+        matricula_limpia = re.sub(r'[^a-zA-Z0-9]', '', matricula)
+        prefijo          = matricula_limpia[:3]
+        resto            = matricula_limpia[3:]
+        resto_completo   = resto.zfill(8)
+        return prefijo + resto_completo
+    except: return matricula

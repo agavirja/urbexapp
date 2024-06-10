@@ -22,7 +22,6 @@ def main(chip=None,barmanpre=None,vartype=None,infilter=True,descargar=True):
             if st.button('Descargar Excel'):
                 download_excel(datavigencia_predio)
     
-@st.cache_data(show_spinner=False)
 def gethtml(chip=None,barmanpre=None,vartype=None,infilter=True,descargar=True):
     
     col1,col2,col3,col4  = st.columns([0.1,0.4,0.3,0.2],gap="small")

@@ -101,7 +101,6 @@ def landing(mapwidth,mapheight):
         #folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m1)
         folium.GeoJson(geojson,style_function=style_function_geojson).add_to(m)
 
-
     st_map = st_folium(m,width=mapwidth,height=mapheight)
 
     colb1,colb2,colb3  = st.columns(3)

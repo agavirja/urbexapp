@@ -95,8 +95,9 @@ def landing(mapwidth,mapheight):
 
     if st.session_state.show_owner_map and not st.session_state.data.empty:
         display_owner_map(st.session_state.data,latitud,longitud,mapwidth,mapheight)
-    else:
+    elif st.session_state.show_owner_map and st.session_state.data.empty:
         st.error('No se encontró información de predios')
+    
 
 def display_owner_map(data,latitud,longitud,mapwidth,mapheight):
     if not data.empty:
@@ -114,7 +115,9 @@ def display_owner_map(data,latitud,longitud,mapwidth,mapheight):
         geopoints = point2geopandas_owner(data)
         folium.GeoJson(geopoints).add_to(m)
         st_map = st_folium(m,width=mapwidth,height=mapheight)
-
+    else:
+        st.error('No se encontró información de predios')
+        
 @st.cache_data(show_spinner=False)
 def data2geopandas_owner(data):
     

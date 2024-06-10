@@ -64,6 +64,9 @@ def style():
         
         div[data-testid="stSpinner"] {{
             color: #000000;
+            background-color: #F0F0F0; 
+            padding: 10px; 
+            border-radius: 5px;
             }}
         
         a[href="#responsive-table"] {{
@@ -157,7 +160,10 @@ def style():
             font-family: 'Aptos Narrow';
         }}
         
-
+        span[data-baseweb="tag"] {{
+          background-color: #5F59EB;
+        }}
+        
         </style>
         """,
         unsafe_allow_html=True

@@ -488,6 +488,7 @@ def builddata(polygon=None):
     #-------------------------------------------------------------------------#
     # Transacciones
     if not datatransacciones.empty:
+        datatransacciones['fecha_documento_publico_original'] = datatransacciones['fecha_documento_publico'].copy()
         datatransacciones['fecha_documento_publico'] = pd.to_datetime(datatransacciones['fecha_documento_publico'])
         datatransacciones['fecha_documento_publico'] = datatransacciones['fecha_documento_publico'].dt.strftime('%Y')
         datatransacciones = datatransacciones[datatransacciones['fecha_documento_publico']>'2018']
