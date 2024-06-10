@@ -22,6 +22,7 @@ streamlit_option_menu
 streamlit_vertical_slider
 streamlit-toggle
 streamlit_aggrid
+streamlit-cookies
 streamlit_cookies_controller
 PyMySQL
 unidecode
