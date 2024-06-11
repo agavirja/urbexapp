@@ -406,10 +406,7 @@ def landing(barmanpre,mapwidth,mapheight):
         numcluster           = cluster_counts[cluster_counts['count']==cluster_counts['count'].max()]['cluster'].iloc[0]
         dfrango              = df[df['cluster']==numcluster]
         v = {'min':dfrango['preaconst'].min(),'max':dfrango['preaconst'].max(),'median':dfrango['preaconst'].median(),'mean':dfrango['preaconst'].mean(),'median_value':dfrango['valormt2_transacciones'].median()}
-
-        
-
-
+       
     
     # poner todos los demas edificios en 3D
     # poner en el resumen altura de las placas 
