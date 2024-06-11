@@ -1,9 +1,12 @@
 import streamlit as st
+import warnings
 
 from modulos._proyectos_nuevos  import main as _proyectos_nuevos
 
 from data.getuser import getuser
 from display.style_white import style 
+
+warnings.filterwarnings("ignore")
 
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_icon="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_favicon.png")
 

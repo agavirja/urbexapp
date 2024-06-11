@@ -1,7 +1,6 @@
 import streamlit as st
-import pandas as pd
+import warnings
 from streamlit_option_menu import option_menu
-from sqlalchemy import create_engine
 
 from modulos._lotes_desarrollo_busqueda_lotes import main as _lotes_desarrollo_busqueda_lotes
 from modulos._lotes_desarrollo_manzanas import main as _lotes_desarrollo_manzanas
@@ -9,6 +8,8 @@ from modulos._lotes_desarrollo_consolidacion import main as _lotes_desarrollo_co
 
 from data.getuser import getuser
 from display.style_white import style 
+
+warnings.filterwarnings("ignore")
 
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_icon="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_favicon.png")
 

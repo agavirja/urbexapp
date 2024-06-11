@@ -1,4 +1,5 @@
 import streamlit as st
+import warnings
 
 from modulos._busqueda_avanzada_default  import main as _busqueda_avanzada_default
 from modulos._busqueda_avanzada_predio   import main as _busqueda_avanzada_predio
@@ -6,6 +7,8 @@ from modulos._busqueda_avanzada_lote     import main as _busqueda_avanzada_lote
 
 from data.getuser import getuser
 from display.style_white import style 
+
+warnings.filterwarnings("ignore")
 
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_icon="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_favicon.png")
 
