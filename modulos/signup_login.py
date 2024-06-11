@@ -6,7 +6,6 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from streamlit_js_eval import streamlit_js_eval
 from botocore.exceptions import ClientError
-from streamlit_cookies_controller import CookieController
 
 user     = st.secrets["user_bigdata"]
 password = st.secrets["password_bigdata"]
@@ -97,22 +96,16 @@ def main():
                     
                 if submit:
                     with st.spinner('Verificando'):
-                        token,acceso_manual = datos_usuario(email)
-                        try:
-                            controller = CookieController()
-                            try: controller.remove("token")
-                            except: pass
-                            controller.set("token",f"{token}")
-                        except: pass
+                        st.session_state.token,st.session_state.access = datos_usuario(email)
                         r = sign_in(email, password)
-                        if r['status']==200 and acceso_manual:
+                        if r['status']==200 and st.session_state.access:
                             st.success(r['message'])
                             st.session_state.access = True
                             st.session_state.login  = False
                             st.session_state.signin = False
                             st.session_state.forgot = False
                             st.rerun()
-                        elif r['status']==200 and acceso_manual is False:
+                        elif r['status']==200 and st.session_state.access is False:
                             st.session_state.access = False
                             st.session_state.login  = True
                             st.session_state.signin = False

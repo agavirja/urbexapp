@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from streamlit_option_menu import option_menu
 from sqlalchemy import create_engine
-from streamlit_cookies_controller import CookieController
 
 from modulos._lotes_desarrollo_busqueda_lotes import main as _lotes_desarrollo_busqueda_lotes
 from modulos._lotes_desarrollo_manzanas import main as _lotes_desarrollo_manzanas
@@ -24,15 +23,7 @@ for key,value in formato.items():
  
 if 'token' in st.query_params: 
     st.session_state.token = st.query_params['token']
-
-with st.spinner('Loading'):
-    controller = CookieController()
-    cookies    = controller.getAll()
-    try:    token = controller.get('token')
-    except: token = "" 
-    if isinstance(st.session_state.token,str) and st.session_state.token=="" and isinstance(token,str) and token!="":
-        st.session_state.token  = token
-        
+ 
 if st.session_state.access is False and isinstance(st.session_state.token, str) and st.session_state.token!='':
     st.session_state.access = getuser(st.session_state.token)
 

@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_cookies_controller import CookieController
 
 from modulos._heatmap_default  import main as _heatmap_default
 
@@ -22,14 +21,6 @@ for key,value in formato.items():
 if 'token' in st.query_params: 
     st.session_state.token = st.query_params['token']
 
-with st.spinner('Loading'):
-    controller = CookieController()
-    cookies    = controller.getAll()
-    try:    token = controller.get('token')
-    except: token = "" 
-    if isinstance(st.session_state.token,str) and st.session_state.token=="" and isinstance(token,str) and token!="":
-        st.session_state.token = token
-        
 if st.session_state.access is False and isinstance(st.session_state.token, str) and st.session_state.token!='':
     st.session_state.access = getuser(st.session_state.token)
 
