@@ -236,7 +236,7 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
             
     #-------------------------------------------------------------------------#
     # Reporte unidad:
-    datacatastro_predio,datausosuelo_predio,datavigencia_predio = [pd.DataFrame()]*3 
+    datacatastro_predio,datausosuelo_predio,datavigencia_predio,datatransacciones_predio = [pd.DataFrame()]*4 
     if predio:
         if isinstance(chip, str):
             if not datacatastro.empty:
