@@ -117,6 +117,10 @@ def main(code=None):
             elif len(datapaso)==1:  tableH = 100
             else: tableH = 100
             
+            for icol in ['predirecc','usosuelo','prechip','matriculainmobiliaria','precedcata','preaconst','preaterre']:
+                if icol not in datapaso:
+                    datapaso[icol] = ''
+                    
             html_paso    = ""
             for _,items in datapaso.iterrows():
                 html_paso += f"""
