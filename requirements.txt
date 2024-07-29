@@ -4,6 +4,7 @@ boto3
 botocore
 folium
 geopandas
+geojson
 matplotlib
 mysql_connector_repackaged
 mysql-connector-python
