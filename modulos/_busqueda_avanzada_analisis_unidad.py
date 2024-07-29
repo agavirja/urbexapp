@@ -392,7 +392,7 @@ def main(chip=None,barmanpre=None,vartype=None):
                         })    
                         fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
                         fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                        st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                        st.plotly_chart(fig, use_container_width=True, theme="streamlit")
 
 @st.cache_data(show_spinner=False)
 def principal_table(datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),datavigencia=pd.DataFrame()):

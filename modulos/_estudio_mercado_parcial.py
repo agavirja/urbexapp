@@ -213,7 +213,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             with cols1:
-                st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                st.plotly_chart(fig, use_container_width=True, theme="streamlit")
                 
             fig = px.bar(df, x="fecha", y="value", text="value", title='Valor promedio de las transacciones por m²')
             fig.update_traces(texttemplate='$%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
@@ -226,7 +226,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             with cols2:
-                st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                st.plotly_chart(fig, use_container_width=True, theme="streamlit")
         
         #---------------------------------------------------------------------#
         # Destino<>uso del suelo + Transacciones
@@ -249,7 +249,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             fig.update_layout(legend=dict(font=dict(color='black')))
             with cols1:
-                st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                st.plotly_chart(fig, use_container_width=True, theme="streamlit")
 
     if not datatransacciones.empty:
         df         = datatransacciones.groupby(tiposelected).agg({'valormt2_transacciones':['median']}).reset_index()
@@ -270,7 +270,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             with cols2:
-                st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                st.plotly_chart(fig, use_container_width=True, theme="streamlit")
 
         #---------------------------------------------------------------------#
         # Avaluo catastral y predial
@@ -294,7 +294,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             with cols1:
-                st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                st.plotly_chart(fig, use_container_width=True, theme="streamlit")
                 
         df         = datacatastro.groupby(tiposelected).agg({'predialmt2':['median']}).reset_index()
         df.columns = ['variable','value']
@@ -314,7 +314,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
             fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
             with cols2:
-                st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                st.plotly_chart(fig, use_container_width=True, theme="streamlit")
                 
         #---------------------------------------------------------------------#
         # Analisis demografico
@@ -342,7 +342,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
         fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
         fig.update_yaxes(showgrid=False, zeroline=False)
         with cols1:
-            st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+            st.plotly_chart(fig, use_container_width=True, theme="streamlit")
         
         variables = [x for x in ['0 a 9 años', '10 a 19 años', '20 a 29 años', '30 a 39 años', '40 a 49 años', '50 a 59 años', '60 a 69 años', '70 a 79 años', '80 años o más'] if x in datacensodane]
         df = datacensodane[variables].copy()
@@ -361,7 +361,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
         fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
         fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
         with cols2:
-            st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+            st.plotly_chart(fig, use_container_width=True, theme="streamlit")
         
         #---------------------------------------------------------------------#
         # Tipologia de los inmuebles
@@ -408,7 +408,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
                 fig.update_traces(boxpoints=False)
                 with col[s]:
-                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                    st.plotly_chart(fig, use_container_width=True, theme="streamlit")
                 s+=1
     
         #---------------------------------------------------------------------#
@@ -439,7 +439,7 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
                 fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
                 with col[s]:
-                    st.plotly_chart(fig, use_container_width=True,sharing="streamlit", theme="streamlit")
+                    st.plotly_chart(fig, use_container_width=True, theme="streamlit")
                 s +=1
                 
                 
