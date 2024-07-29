@@ -185,7 +185,7 @@ def main(code=None,polygon=None,latitud=None,longitud=None,precuso=None,metros_d
             folium.GeoJson(geopoints,style_function=style_function_geojson,marker=marker).add_to(m)
             
         if not datalotes.empty:
-            geojson = data2geopandas(datalotes)
+            geojson = data2geopandas(datalotes,barmanpreref=code)
             popup   = folium.GeoJsonPopup(
                 fields=["popup"],
                 aliases=[""],
@@ -193,6 +193,7 @@ def main(code=None,polygon=None,latitud=None,longitud=None,precuso=None,metros_d
                 labels=True,
             )
             folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
+            
         with colm2:
             st.write('')
             titulo = 'Mapa de comparables'
@@ -253,10 +254,13 @@ def main(code=None,polygon=None,latitud=None,longitud=None,precuso=None,metros_d
         df = datacatastro.groupby(tiposelected)['prechip'].count().reset_index()
         df.columns = ['variable','value']
         df.index = range(len(df))
+        
+        color_sequence = ["#66CCFF", "#99EEFF", "#FFEE99", "#FFCC66", "#FF9933"]
         if not df.empty:
             graphtit = f'Número de matrículas por {titulo}'
-            # color_discrete_sequence=px.colors.sequential.RdBu[::-1]
-            fig      = px.pie(df,  values="value", names="variable", title=graphtit,color_discrete_sequence=px.colors.sequential.Purples[::-1],height=500)
+            color_sequence=px.colors.sequential.RdBu[::-1]
+            # color_sequence=px.colors.sequential.Purples[::-1]
+            fig      = px.pie(df,  values="value", names="variable", title=graphtit,color_discrete_sequence=color_sequence,height=500)
             fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
             fig.update_layout({
                 'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
@@ -550,18 +554,27 @@ def latlngFrombarmanpre(barmanpre):
     return latitud,longitud,precuso
 
 @st.cache_data(show_spinner=False)
-def data2geopandas(data):
+def data2geopandas(data,barmanpreref=None):
     
     urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]
+        
+    lista = []
+    if barmanpreref is not None and isinstance(barmanpreref,str) and barmanpreref!="":
+        lista = barmanpreref.split('|')
+        
     if not data.empty:
         data['geometry'] = gpd.GeoSeries.from_wkt(data['wkt'])
         data             = gpd.GeoDataFrame(data, geometry='geometry')
         data['color']    = '#5A189A' #'#003F2D'
         data['popup']    = None
         data.index       = range(len(data))
+        idd              = data['barmanpre'].isin(lista)
+        if sum(idd)>0:
+            data.loc[idd,'color'] ='#003F2D'
+            
         for idd,items in data.iterrows():
 
             infoprecuso = ""

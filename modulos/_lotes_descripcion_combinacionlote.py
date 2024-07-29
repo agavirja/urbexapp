@@ -3,19 +3,19 @@ import pandas as pd
 import geopandas as gpd
 import shapely.wkt as wkt
 import folium
-from sqlalchemy import create_engine 
 from streamlit_folium import st_folium
 from streamlit_js_eval import streamlit_js_eval
 from bs4 import BeautifulSoup
 
-from data.combinacion_poligonos import combinapolygons
 from data.googleStreetView import mapstreetview,mapsatelite
-from data.datacomplemento import main as datacomplemento
 from data.getdatabuilding import main as getdatabuilding
+from data.datacomplemento import main as datacomplemento
 from data.data_listings import buildingMarketValues
+from data.getlicencias import getlicencias
 
 from modulos._propietarios import main as _propietarios
 from modulos._busqueda_avanzada_descripcion_lote import gruoptransactions,analytics_transacciones,shwolistings
+from data.getdatalotescombinacion import getdatacombinacionlotes,mergedatabybarmanpre
 
 from display.stylefunctions  import style_function_geojson
 
@@ -35,107 +35,212 @@ def main(code=None):
     #-------------------------------------------------------------------------#
     # Buscar data
     #-------------------------------------------------------------------------#
-    with st.spinner('Buscando lotes'):
-        
-        datapredios,datalotescatastro,datalong,datausosuelo = getdatacombinacionlotes(code)
-    
-        #-------------------------------------------------------------------------#
-        # Seleccionar la combinacion de lotes
-        #-------------------------------------------------------------------------#
-        datapaso = pd.DataFrame()
-        if not datapredios.empty:
-            datapredios.index = range(1,len(datapredios)+1)
-            if len(datapredios)>1:
-                col1,col2   = st.columns(2)
-                with col1:
-                    comb     = st.selectbox('Ver combinaciones de lotes:',options = datapredios.index.unique())
-                    datapaso = datapredios.iloc[[comb-1]].copy()
-                    st.write('')
-                    st.write('')
-            else:
-                datapaso = datapredios.copy()
-            
+    with st.spinner('Consolidando lotes'):
+        datapredios,datalotescatastro,datausosuelo = getdatacombinacionlotes(code)
         #-------------------------------------------------------------------------#
         # Mapa
         #-------------------------------------------------------------------------#
         col1,col2,col3,col4,col5   = st.columns([0.2,0.02,0.2,0.05,0.5])
         latitud,longitud = [None]*2
-        if not datapaso.empty:
-            
+        if not datapredios.empty:
             try:
-                polygon  = wkt.loads(datapaso['wkt'].iloc[0]) 
+                polygon  = wkt.loads(datapredios['wkt'].iloc[0]) 
                 latitud  = polygon.centroid.y
                 longitud = polygon.centroid.x
             except: pass
-        
-            if (isinstance(latitud, float) or isinstance(latitud, int)) and (isinstance(longitud, float) or isinstance(longitud, int)):
-               
-                m  = folium.Map(location=[latitud, longitud], zoom_start=18,tiles="cartodbpositron")
-                
-                folium.GeoJson(polygon, style_function=style_function).add_to(m)
-                
-                df = pd.DataFrame()
-                if not datalong.empty: df = datalong[datalong['id']==datapaso['id'].iloc[0]]
-                if not df.empty:
-                    geojson = data2geopandas(df)
-                    popup   = folium.GeoJsonPopup(
-                        fields=["popup"],
-                        aliases=[""],
-                        localize=True,
-                        labels=True,
-                    )
-                    folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
-                with col5:
-                    st_map = st_folium(m,width=1000,height=400)
+            
+        if (isinstance(latitud, float) or isinstance(latitud, int)) and (isinstance(longitud, float) or isinstance(longitud, int)):
     
+            m = folium.Map(location=[latitud, longitud], zoom_start=18,tiles="cartodbpositron")
+        
+            if not datapredios.empty:
+                folium.GeoJson(wkt.loads(datapredios['wkt'].iloc[0]), style_function=style_function_consolidacion).add_to(m)
+        
+            if not datalotescatastro.empty:
+                geojson = data2geopandas(datalotescatastro)
+                popup   = folium.GeoJsonPopup(
+                    fields=["popup"],
+                    aliases=[""],
+                    localize=True,
+                    labels=True,
+                )
+                folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
+                
+            with col5:
+                st_map = st_folium(m,width=1000,height=400)
+        
         #-------------------------------------------------------------------------#
         # Google maps streetview
         #-------------------------------------------------------------------------#
-        with col3:
+        with col1:
             if (isinstance(latitud, float) or isinstance(latitud, int)) and (isinstance(longitud, float) or isinstance(longitud, int)):
                 html = mapstreetview(latitud,longitud)
                 st.components.v1.html(html, width=int(mapwidth*0.8), height=mapheight)
-        with col1:
+        with col3:
             if (isinstance(latitud, float) or isinstance(latitud, int)) and (isinstance(longitud, float) or isinstance(longitud, int)):
                 html = mapsatelite(latitud,longitud)
                 st.components.v1.html(html, width=int(mapwidth*0.8), height=mapheight)
-    
+            
         #-------------------------------------------------------------------------#
-        # Reporte
+        # Data vigencia y transacciones
         #-------------------------------------------------------------------------#
         barmanpre = None
-        datavigencia,datatransacciones,datadirecciones,datavalues = [pd.DataFrame()]*4
+        datavigencia,datatransacciones,datadirecciones,datactl,_du,_dl = [pd.DataFrame()]*6
         input_transacciones = {}
-        if not datapaso.empty:
-            barmanpre = [x.strip() for x in datapaso['barmanpre'].iloc[0].split('|')]
-            datadirecciones,_du,_dl,datavigencia,datatransacciones = getdatabuilding(barmanpre)
-        
-        if not datavigencia.empty:
-            datavalues = datavigencia.sort_values(by=['chip','vigencia'],ascending=False).drop_duplicates(subset='chip',keep='first')
-            datavalues = datavalues.groupby(['chip']).agg({'valorAutoavaluo':'max','valorImpuesto':'max'}).reset_index()
-            datavalues.columns = ['chip','avaluo','predial']
-            datavalues['ind']  = 1 
-            datavalues = datavalues.groupby('ind').agg({'avaluo':'sum','predial':'sum'}).reset_index()
-            datavalues.columns = ['ind','avaluocatastral','predial']
-
+        if isinstance(code, str) and code!='':
+            barmanpre = code.split('|')
+            datadirecciones,_du,_dl,datavigencia,datatransacciones,datactl = getdatabuilding(barmanpre)
+            datalotescatastro = mergedatabybarmanpre(datalotescatastro.copy(),_du.copy(),['prenbarrio','formato_direccion','construcciones','prevetustzmin'])
+            
         if not datatransacciones.empty and not datavigencia.empty:
             input_transacciones = analytics_transacciones(datatransacciones,datavigencia)
-            
-        analisis_combinacion_lote(code,datacombinacion=datapaso,datausosuelo=datausosuelo,datalong=datalong,datavalues=datavalues,input_transacciones=input_transacciones,latitud=latitud,longitud=longitud)
+                
+        #-------------------------------------------------------------------------#
+        # Data complemento
+        #-------------------------------------------------------------------------#
+        precuso    = None
+        direccion  = None
+        polygonstr = None
         
+        if not _du.empty and 'formato_direccion' in _du:
+            direccion = list(_du['formato_direccion'].unique())
+    
+        if not datapredios.empty:
+            polygonstr = datapredios['wkt'].iloc[0]
+      
+        if not datausosuelo.empty and 'precuso' in datausosuelo: 
+            precuso = list(datausosuelo['precuso'].unique())
+            
+        input_complemento = datacomplemento(barmanpre=code,latitud=latitud,longitud=longitud,direccion=direccion,polygon=polygonstr,precuso=precuso)
+        try:    input_complemento['direcciones'] = ' | '.join(direccion)
+        except: input_complemento['direcciones'] = ''
+    
+        html,conteo = principal_table(datapredios=datapredios,datausosuelo=datausosuelo,input_complemento=input_complemento,input_transacciones=input_transacciones)
+        st.components.v1.html(html,height=int(conteo*600/26),scrolling=True)
+    
+        #-------------------------------------------------------------------------#
+        # Tabla Lotes
+        #-------------------------------------------------------------------------#
+        if not datalotescatastro.empty and len(datalotescatastro)>1:       
+            
+            col1,col2,col3,col4 = st.columns([0.04,0.2,0.5,0.26])
+            with col3:
+                st.write('')
+                titulo = 'Lotes que conforman el terreno'
+                html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                texto  = BeautifulSoup(html, 'html.parser')
+                st.markdown(texto, unsafe_allow_html=True)
+                
+            if   len(datalotescatastro)>=10: tableH = 450
+            elif len(datalotescatastro)>=5:  tableH = int(len(datalotescatastro)*45)
+            elif len(datalotescatastro)>1:   tableH = int(len(datalotescatastro)*60)
+            elif len(datalotescatastro)==1:  tableH = 100
+            else: tableH = 100
+            
+            html_paso = ""
+            for _,items in datalotescatastro.iterrows():
+                try:    barrio = f"{items['prenbarrio']}"
+                except: barrio = ''  
+                try:    direccion = f"{items['formato_direccion']}"
+                except: direccion = ''
+                try:    areaconstruida = f"{round(items['preaconst'],2)}"
+                except: areaconstruida = ''     
+                try:    areaterreno = f"{round(items['preaterre'],2)}"
+                except: areaterreno = ''
+                try:    estrato = f"{int(items['estrato'])}"
+                except: estrato = ""
+                try:    predios = f"{int(items['predios'])}"
+                except: predios = ""
+                try:    pisos = f"{int(items['pisos'])}"
+                except: pisos = ""
+                try:    sotanos = f"{int(items['sotanos'])}"
+                except: sotanos = ""
+                try:    construcciones = f"{int(items['construcciones'])}"
+                except: construcciones = ""
+                try:    antiguedadmin = f"{int(items['prevetustzmin'])}"
+                except: antiguedadmin = ""                
+                try:    link = f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}"
+                except: link = ""
+                html_paso += f"""
+                <tr>
+                    <td class="align-middle text-center text-sm" style="border: none;padding: 8px;">
+                       <a href="{link}" target="_blank">
+                       <img src="https://iconsapp.nyc3.digitaloceanspaces.com/lupa.png" alt="link" width="20" height="20">
+                       </a>                    
+                    </td>
+                    <td>{barrio}</td>
+                    <td>{direccion}</td>
+                    <td>{areaterreno}</td> 
+                    <td>{areaconstruida}</td>
+                    <td>{estrato}</td>
+                    <td>{predios}</td>
+                    <td>{pisos}</td>
+                    <td>{sotanos}</td>
+                    <td>{construcciones}</td>
+                    <td>{antiguedadmin}</td>
+                </tr>
+                """
+            html_paso = f"""
+            <thead>
+                <tr>
+                    <th>Link</th>
+                    <th>Barrio</th>
+                    <th>Dirección</th>
+                    <th>Área de terreno</th>
+                    <th>Área construida</th>
+                    <th>Estrato</th>
+                    <th>Predios</th>
+                    <th>Pisos Máx</th>
+                    <th>Sotanos</th>
+                    <th>Construcciones</th>
+                    <th>Antiguedad</th>            
+                </tr>
+            </thead>
+            <tbody>
+            {html_paso}
+            </tbody>
+            """
+            style = tablestyle()
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            {style}
+            </head>
+            <body>
+                <div class="table-wrapper table-background">
+                    <div class="table-scroll">
+                        <table class="fl-table">
+                        {html_paso}
+                        </table>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            st.components.v1.html(html,height=tableH)     
+                
         #-------------------------------------------------------------------------#
         # Tabla Transacciones
         #-------------------------------------------------------------------------#
         if not datatransacciones.empty:       
             
             datatransacciones_paso = gruoptransactions(datatransacciones)
-
+    
             st.write('')
             titulo = 'Transacciones'
             html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
             texto  = BeautifulSoup(html, 'html.parser')
             st.markdown(texto, unsafe_allow_html=True)
-
+    
+            if   len(datatransacciones_paso)>=10: tableH = 450
+            elif len(datatransacciones_paso)>=5:  tableH = int(len(datatransacciones_paso)*45)
+            elif len(datatransacciones_paso)>1:   tableH = int(len(datatransacciones_paso)*60)
+            elif len(datatransacciones_paso)==1:  tableH = 100
+            else: tableH = 100
+                
             html_paso = ""
             for _,items in datatransacciones_paso.iterrows():
                 
@@ -208,158 +313,67 @@ def main(code=None):
             </body>
             </html>
             """
-            st.components.v1.html(html,height=int(len(datatransacciones_paso)*50)) 
+            st.components.v1.html(html,height=tableH) 
             
         #-------------------------------------------------------------------------#
-        # Propietarios
-        #-------------------------------------------------------------------------#  
-        if barmanpre is not None:
-            titulo = 'Propietarios'
-            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-            texto  = BeautifulSoup(html, 'html.parser')
-            st.markdown(texto, unsafe_allow_html=True)
-            _propietarios(chip=None,barmanpre=barmanpre,vartype=None,infilter=False,descargar=False)
-
+        # Tabla CTL
         #-------------------------------------------------------------------------#
-        # Listings
-        #-------------------------------------------------------------------------#
-        if not datadirecciones.empty:
-            with st.spinner('Buscando listings'):
-                datalistings = pd.DataFrame()
-                direccion    = datadirecciones['predirecc'].to_list()
-                if isinstance(direccion, list):
-                    datalistings = buildingMarketValues(direccion,precuso=None,mpioccdgo=None)
-                
-                if not datalistings.empty:   
-                    datapaso = datalistings[datalistings['tipo']=='activos']
-                    if not datapaso.empty:
-                        titulo   = 'Listings activos'
-                        html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-                        texto    = BeautifulSoup(html, 'html.parser')
-                        st.markdown(texto, unsafe_allow_html=True)
-                        datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                        html  = shwolistings(datapaso)
-                        texto = BeautifulSoup(html, 'html.parser')
-                        st.markdown(texto, unsafe_allow_html=True)
-                        
-                    datapaso = datalistings[datalistings['tipo']=='historico']
-                    if not datapaso.empty:
-                        titulo   = 'Listings históricos'
-                        html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-                        texto    = BeautifulSoup(html, 'html.parser')
-                        st.markdown(texto, unsafe_allow_html=True)
-                        datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                        html  = shwolistings(datapaso)
-                        texto = BeautifulSoup(html, 'html.parser')
-                        st.markdown(texto, unsafe_allow_html=True)
-
-@st.cache_data(show_spinner=False)
-def analisis_combinacion_lote(code,datacombinacion=pd.DataFrame(),datausosuelo=pd.DataFrame(),datalong=pd.DataFrame(),datavalues=pd.DataFrame(),input_transacciones={},latitud=None,longitud=None):
-        #-------------------------------------------------------------------------#
-        # Data complemento
-        #-------------------------------------------------------------------------#
-        precuso   = None
-        direccion = None
-        if not datausosuelo.empty and 'precuso' in datausosuelo: 
-            precuso = list(datausosuelo['precuso'].unique())
-        
-        if latitud is None and longitud is None and not datausosuelo.empty and 'latitud' in datausosuelo and 'longitud' in datausosuelo:
-            latitud  = datausosuelo['latitud'].iloc[0]
-            longitud = datausosuelo['longitud'].iloc[0]
-        
-        if not datalong.empty and 'formato_direccion' in datalong:
-            direccion = list(datalong['formato_direccion'].unique())
-    
-        polygonstr = None
-        if not datacombinacion.empty and 'wkt' in datacombinacion:
-            polygonstr = str(datacombinacion['wkt'].iloc[0])
-        input_complemento = datacomplemento(barmanpre=code,latitud=latitud,longitud=longitud,direccion=direccion,polygon=polygonstr,precuso=precuso)
-        
-        #-------------------------------------------------------------------------#
-        # Tabla descriptiva
-        #-------------------------------------------------------------------------# 
-        col1, col2 = st.columns(2)       
-        datalotesparticulares = pd.DataFrame()
-        if not datalong.empty: datalotesparticulares = datalong[datalong['id']==datacombinacion['id'].iloc[0]]
-        html,conteo = principal_table(datalotegeneral=datacombinacion.copy(),datalotesparticulares=datalotesparticulares,input_complemento=input_complemento,input_transacciones=input_transacciones,datavalues=datavalues)
-        st.components.v1.html(html,height=int(conteo*600/26),scrolling=True)
-    
-        #-------------------------------------------------------------------------#
-        # Tabla Lotes
-        #-------------------------------------------------------------------------#
-        if not datalotesparticulares.empty and len(datalotesparticulares)>1:       
+        if not datactl.empty:
             
-            col1,col2,col3,col4 = st.columns([0.04,0.2,0.5,0.26])
+            datapaso = datactl.copy()
+            col1,col2,col3,col4 = st.columns([0.04,0.26,0.5,0.2])
+            with col2:
+                options = ['Todos'] + list(datactl['predirecc'].unique())
+                filtro = st.selectbox('Filtro por predio: ',key='filtro_direccion_tabla3',options=options,placeholder='Seleccionar un predio')
+            
             with col3:
                 st.write('')
-                titulo = 'Combinacion de lotes'
+                titulo = 'Certificados de libertad y tradición'
                 html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
                 texto  = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
-                
-            tableH    = 60*len(datalotesparticulares)
+
+            if 'todo' not in filtro.lower():
+                datapaso = datactl[datactl['predirecc']==filtro]
+
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
+            
             html_paso = ""
-            for _,items in datalotesparticulares.iterrows():
-                try:    barrio = f"{items['prenbarrio']}"
-                except: barrio = ''  
-                try:    direccion = f"{items['formato_direccion']}"
-                except: direccion = ''
+            for _,items in datapaso.iterrows():
                 try:    areaconstruida = f"{round(items['preaconst'],2)}"
                 except: areaconstruida = ''     
                 try:    areaterreno = f"{round(items['preaterre'],2)}"
-                except: areaterreno = ''
-                try:    estrato = f"{int(items['estrato'])}"
-                except: estrato = ""
-                try:    predios = f"{int(items['predios'])}"
-                except: predios = ""
-                try:    pisos = f"{int(items['connpisos'])}"
-                except: pisos = ""
-                try:    sotanos = f"{int(items['connsotano'])}"
-                except: sotanos = ""
-                try:    construcciones = f"{int(items['construcciones'])}"
-                except: construcciones = ""
-                try:    antiguedadmin = f"{int(items['prevetustzmin'])}"
-                except: antiguedadmin = ""
-                try: 
-                    antiguedadmax = items['prevetustzmax'] if 'prevetustzmax' in items and 'prevetustzmin' in items and items['prevetustzmax']>items['prevetustzmin'] else ""
-                    antiguedadmax = f"{int(items['antiguedadmax'])}"
-                except: antiguedadmax = ""
-                
-                try:    link = f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}"
-                except: link = ""
+                except: areaterreno = ''  
+
                 html_paso += f"""
-                <tr>
+                <tr> 
                     <td class="align-middle text-center text-sm" style="border: none;padding: 8px;">
-                       <a href="{link}" target="_blank">
-                       <img src="https://iconsapp.nyc3.digitaloceanspaces.com/lupa.png" alt="link" width="20" height="20">
+                       <a href="{items['url']}" target="_blank">
+                       <img src="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/publicimg/pdf.png" alt="link" width="20" height="20">
                        </a>                    
                     </td>
-                    <td>{barrio}</td>
-                    <td>{direccion}</td>
-                    <td>{areaterreno}</td> 
+                    <td>{items['last_fecha']}</td>
+                    <td>{items['predirecc']}</td>
+                    <td>{items['matriculainmobiliaria']}</td>
                     <td>{areaconstruida}</td>
-                    <td>{estrato}</td>
-                    <td>{predios}</td>
-                    <td>{pisos}</td>
-                    <td>{sotanos}</td>
-                    <td>{construcciones}</td>
-                    <td>{antiguedadmin}</td>
+                    <td>{areaterreno}</td>
+                    <td>{items['usosuelo']}</td>            
                 </tr>
                 """
             html_paso = f"""
             <thead>
                 <tr>
                     <th>Link</th>
-                    <th>Barrio</th>
+                    <th>Fecha</th>
                     <th>Dirección</th>
-                    <th>Área de terreno</th>
+                    <th>Matrícula</th>
                     <th>Área construida</th>
-                    <th>Estrato</th>
-                    <th>Predios</th>
-                    <th>Pisos Máx</th>
-                    <th>Sotanos</th>
-                    <th>Construcciones</th>
-                    <th>Antiguedad</th>            
+                    <th>Área de terreno</th>
+                    <th>Uso del suelo</th>             
                 </tr>
             </thead>
             <tbody>
@@ -386,57 +400,63 @@ def analisis_combinacion_lote(code,datacombinacion=pd.DataFrame(),datausosuelo=p
             </body>
             </html>
             """
-            st.components.v1.html(html,height=tableH)       
+            st.components.v1.html(html,height=tableH) 
             
-        
-@st.cache_data(show_spinner=False)
-def getdatacombinacionlotes(code):
+        #-------------------------------------------------------------------------#
+        # Propietarios
+        #-------------------------------------------------------------------------#  
+        if barmanpre is not None:
+            titulo = 'Propietarios'
+            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+            texto  = BeautifulSoup(html, 'html.parser')
+            st.markdown(texto, unsafe_allow_html=True)
+            _propietarios(chip=None,barmanpre=barmanpre,vartype=None,infilter=False,descargar=False)
     
-    user     = st.secrets["user_bigdata"]
-    password = st.secrets["password_bigdata"]
-    host     = st.secrets["host_bigdata_lectura"]
-    schema   = st.secrets["schema_bigdata"]
-    engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
+        #-------------------------------------------------------------------------#
+        # Licencias
+        #-------------------------------------------------------------------------# 
+        barmanprelist = str(code).split('|')
+        datalicencias,html,tableh = getlicencias(barmanprelist)
+        if html!="":
+            titulo      = 'Licencias del lote'
+            html_titulo = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+            texto  = BeautifulSoup(html_titulo, 'html.parser')
+            st.markdown(texto, unsafe_allow_html=True)
+            st.components.v1.html(html,height=tableh)
+            
+    #-------------------------------------------------------------------------#
+    # Listings
+    #-------------------------------------------------------------------------#
+    if not datadirecciones.empty:
+        with st.spinner('Buscando listings'):
+            datalistings = pd.DataFrame()
+            direccion    = datadirecciones['predirecc'].to_list()
+            if isinstance(direccion, list):
+                datalistings = buildingMarketValues(direccion,precuso=None,mpioccdgo=None)
+            
+            if not datalistings.empty:   
+                datapaso = datalistings[datalistings['tipo']=='activos']
+                if not datapaso.empty:
+                    titulo   = 'Listings activos'
+                    html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                    texto    = BeautifulSoup(html, 'html.parser')
+                    st.markdown(texto, unsafe_allow_html=True)
+                    datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
+                    html  = shwolistings(datapaso)
+                    texto = BeautifulSoup(html, 'html.parser')
+                    st.markdown(texto, unsafe_allow_html=True)
+                    
+                datapaso = datalistings[datalistings['tipo']=='historico']
+                if not datapaso.empty:
+                    titulo   = 'Listings históricos'
+                    html     = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                    texto    = BeautifulSoup(html, 'html.parser')
+                    st.markdown(texto, unsafe_allow_html=True)
+                    datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
+                    html  = shwolistings(datapaso)
+                    texto = BeautifulSoup(html, 'html.parser')
+                    st.markdown(texto, unsafe_allow_html=True)
 
-    datapredios       = pd.DataFrame()
-    datalotescatastro = pd.DataFrame()
-    datalong          = pd.DataFrame()
-    try: 
-        lista = str(code).split('|')
-        query       = "','".join(lista)
-        query       = f" id IN ('{query}')"   
-        datapredios = pd.read_sql_query(f"SELECT * FROM  bigdata.bogota_consolidacion_lotes_2000 WHERE {query}" , engine)
-    except: pass
-
-    if not datapredios.empty:
-        barmanprelist = datapredios['barmanpre'].str.split('|')
-        barmanprelist = [codigo for sublist in barmanprelist for codigo in sublist]
-        barmanprelist = list(set(barmanprelist))
-        
-        query = "','".join(barmanprelist)
-        query = f" lotcodigo IN ('{query}')"   
-        datalotescatastro = pd.read_sql_query(f"SELECT lotcodigo as barmanpre, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_lotes WHERE {query}" , engine)
-        datalotescatastro = datalotescatastro.drop_duplicates(subset='barmanpre',keep='first')
-        datapredios       = combinapolygons(datapredios.copy(),datalotescatastro.copy())
-
-        query = "','".join(barmanprelist)
-        query = f" barmanpre IN ('{query}')"   
-        datacompacta = pd.read_sql_query(f"SELECT barmanpre,prenbarrio,formato_direccion,preaconst,preaterre,prevetustzmin,prevetustzmax,estrato,predios,connpisos,connsotano,construcciones FROM  bigdata.bogota_catastro_compacta WHERE {query}" , engine)
-        dataprecuso  = pd.read_sql_query(f"SELECT precuso,predios_precuso,preaconst_precuso,preaterre_precuso,preaconst_total,preaterre_total,predios_total FROM  bigdata.bogota_catastro_compacta_precuso WHERE {query}" , engine)
-        
-    if not datacompacta.empty and not datalotescatastro.empty:
-        datamerge    = datalotescatastro.drop_duplicates(subset='barmanpre',keep='first')
-        datacompacta = datacompacta.merge(datamerge[['barmanpre','wkt']],on='barmanpre',how='left',validate='m:1')
-        
-    if not datapredios.empty and  not datacompacta.empty:
-        datamerge       = datacompacta.drop_duplicates(subset='barmanpre',keep='first')
-        datalong              = datapredios.copy()
-        datalong['barmanpre'] = datalong['barmanpre'].str.split('|')
-        datalong              = datalong.explode('barmanpre')
-        datalong              = datalong[['id','barmanpre']].merge(datamerge,on='barmanpre',how='left',validate='m:1')
-       
-    return datapredios,datalotescatastro,datalong,dataprecuso
-    
 @st.cache_data(show_spinner=False)
 def data2geopandas(data):
     
@@ -467,20 +487,22 @@ def data2geopandas(data):
             except: pass
             try:    infopopup += f"""<b> Estrato:</b> {int(items['estrato'])}<br> """
             except: pass
-            try:    infopopup += f"""<b> Pisos:</b> {int(items['connpisos'])}<br> """
+            try:    infopopup += f"""<b> Pisos:</b> {int(items['pisos'])}<br> """
+            except: pass
+            try:    infopopup += f"""<b> Sotanos:</b> {int(items['pisos'])}<br> """
             except: pass
             try:    infopopup += f"""<b> Antiguedad:</b> {int(items['prevetustzmin'])}<br>"""
             except: pass            
-            try:    infopopup += f"""<b> Total de matriculas:</b> {int(items['predios'])}<br> """
+            try:    infopopup += f"""<b> Total de predios:</b> {int(items['predios'])}<br> """
             except: pass            
-            try:    infopopup += f"""<b> Construcciones:</b> {int(items['construcciones'])}<br> """
-            except: pass               
+            try:    infopopup += f"""<b> Propietarios:</b> {int(items['propietarios'])}<br> """
+            except: pass            
 
             popup_content =  f'''
             <!DOCTYPE html>
             <html>
                 <body>
-                    <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;">
+                    <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;font-size: 12px;">
                         <a href="{urllink}" target="_blank" style="color: black;">
                             {infopopup}
                         </a>
@@ -494,73 +516,146 @@ def data2geopandas(data):
     return geojson
 
 @st.cache_data(show_spinner=False)
-def principal_table(datalotegeneral=pd.DataFrame(),datalotesparticulares=pd.DataFrame(),input_complemento={},input_transacciones={},datavalues=pd.DataFrame()):
+def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input_complemento={},input_transacciones={}):
+   
+    conteo = 0
+    labelbarrio = ""
+    try:
+        if isinstance(input_complemento['barrio'], str): 
+            labelbarrio = f"[{input_complemento['barrio'].title()}]"
+    except: pass
 
     #---------------------------------------------------------------------#
-    # Seccion ubicacion
-    conteo         = 0
+    # Seccion Tipologias
     tablaubicacion = ""
-    try:    barrio = datalotesparticulares['prenbarrio'].iloc[0]
-    except: barrio = None
-    try:    direccion = datalotesparticulares['formato_direccion'].iloc[0]
-    except: direccion = None
-    try:    estrato = int(datalotesparticulares['estrato'].iloc[0])
-    except: estrato = None
-    try:    localidad = input_complemento['localidad'] if isinstance(input_complemento['localidad'], str) else None
-    except: localidad = None
-    try:    codigoupl = input_complemento['codigoupl'] if isinstance(input_complemento['codigoupl'], str) else None
-    except: codigoupl = None       
-    try:    upl = input_complemento['upl'] if isinstance(input_complemento['upl'], str) else None
-    except: upl = None      
-    
-    formato   = {'Dirección:':direccion,'Localidad:':localidad,'Código UPL:':codigoupl,'UPL:':upl,'Barrio:':barrio,'Estrato:':estrato}
     html_paso = ""
-    for key,value in formato.items():
-        if value is not None:
-            html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
-            conteo    += 1
-    if html_paso!="":          
+    try:    
+        html_paso += f"""
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Dirección:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['direcciones']}</h6></td>
+        </tr>"""
+        conteo += 1
+    except: pass
+    try:    
+        html_paso += f"""
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Localidad:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['localidad']}</h6></td>
+        </tr>"""
+        conteo += 1
+    except: pass
+    try:    
+        html_paso += f"""
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Barrio:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['barrio']}</h6></td>
+        </tr>"""
+        conteo += 1
+    except: pass
+    try:    
+        html_paso += f"""
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Código UPL:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['codigoupl']}</h6></td>
+        </tr>"""
+        conteo += 1
+    except: pass
+    try:    
+        html_paso += f"""
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">UPL:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['upl']}</h6></td>
+        </tr>"""
+        conteo += 1
+    except: pass
+    try:    
+        html_paso += f"""
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Estrato:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{int(datapredios['estrato'].iloc[0])}</h6></td>
+        </tr>"""
+        conteo += 1
+    except: pass
+    try:    
+        html_paso += f"""
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">LatLng:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['latlng']}</h6></td>
+        </tr>"""
+        conteo += 1
+    except: pass
+    
+    if html_paso!="":
+        html_paso = f"""
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;"></h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;"></h6></td>
+        {html_paso}
+        """
+    if html_paso!="":
+        
         labeltable     = "Ubicación"
         tablaubicacion = f"""
-        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
         <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
         {html_paso}
         <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
         """
-        tablaubicacion = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablaubicacion}</tbody></table></div></div>"""
-        
+        tablaubicacion = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0" style="table-layout: auto; width: 100%;"><tbody>{tablaubicacion}</tbody></table></div></div>"""
+
+
     #---------------------------------------------------------------------#
-    # Informacion del terreno
-    tabladescripcion = ""
-    html_paso        = ""
-    try:    nlotes = f"{len(datalotesparticulares)}" 
-    except: nlotes = None
-    try:    areaterreno = f"{round(datalotegeneral['preaterre'].iloc[0],2)} m²"
-    except: areaterreno = None    
-    try:    areaconstruida = f"{round(datalotegeneral['preaconst'].iloc[0],2)} m²"
-    except: areaconstruida = None  
-    try:    predios = f"{int(datalotegeneral['predios'].iloc[0])}"
-    except: predios = None  
-    try:    maxpisos = f"{int(datalotegeneral['maxpisos'].iloc[0])}"
-    except: maxpisos = None  
-    try:    esquinero = 'Si' if datalotegeneral['esquinero'].iloc[0]==1 else 'No'
-    except: esquinero = None  
+    # Terreno consildado
+    tablaterreno = ""
+    html_paso = ""
     
-    formato   = {'# de Lotes que conforman el terreno:':nlotes,'Predios:':predios,'Área de terreno:':areaterreno,'Área construida:':areaconstruida,'Pisos máximos construidos':maxpisos,'Esquinero':esquinero}
+    try:    preaterre = f"{round(datapredios['preaterre'].iloc[0],2)}" 
+    except: preaterre = None
+    try:    preaconst = f"{round(datapredios['preaconst'].iloc[0],2)}" 
+    except: preaconst = None
+    try:    lotes = f"{int(datapredios['lotes'].iloc[0])}" 
+    except: lotes = None
+    try:    prediostotal = f"{int(datapredios['predios_total'].iloc[0])}" 
+    except: prediostotal = None
+    try:    pisos = f"{int(datapredios['pisos'].iloc[0])}" 
+    except: pisos = None
+    try:    sotanos = f"{int(datapredios['sotanos'].iloc[0])}" 
+    except: sotanos = None
+    try:    propietarios = f"{int(datapredios['propietarios'].iloc[0])}" 
+    except: propietarios = None
+    try:    avaluo = f"${int(datapredios['avaluo_catastral'].iloc[0]):,.0f}" 
+    except: avaluo = None
+    try:    predial = f"${int(datapredios['predial'].iloc[0]):,.0f}" 
+    except: predial = None
+    try:    esquinero = "Si" if datapredios['predial'].iloc[0]==1 else "No"
+    except: esquinero = None
+    try:    viaprincipal = "Si" if datapredios['tipovia'].iloc[0]==1 else "No"
+    except: viaprincipal = None
+    
+    formato = {"Área de terreno":preaterre,"Área construida":preaconst,"Número de lotes":lotes,
+               "Total de predios":prediostotal,"Pisos máximos":pisos,"Sotanos máximos":sotanos,
+               "Esquinero":esquinero,"Vía principal":viaprincipal,
+               "Propietarios":propietarios,"Avaúo catastral total":avaluo,"Predial total":predial,
+               }
+    
     for key,value in formato.items():
-        if value is not None:
-            html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
-            conteo    += 1
+        if value is not None: 
+            html_paso += f"""
+            <tr>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}:</h6></td>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{value}</h6></td>
+            </tr>"""
+            conteo += 1
     if html_paso!="":
-        labeltable     = "Información del Terreno"
-        tabladescripcion = f"""
-        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        labeltable     = "Terreno consolidado"
+        tablaterreno = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
         <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
         {html_paso}
         <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
         """
-        tabladescripcion = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tabladescripcion}</tbody></table></div></div>"""
-        
+        tablaterreno = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0" style="table-layout: auto; width: 100%;"><tbody>{tablaterreno}</tbody></table></div></div>"""
+
     #-------------------------------------------------------------------------#
     # Seccion Transacciones
     tablatransacciones = ""
@@ -601,31 +696,53 @@ def principal_table(datalotegeneral=pd.DataFrame(),datalotesparticulares=pd.Data
         """
         tablatransacciones = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablatransacciones}</tbody></table></div></div>"""
     
-    
-    #-------------------------------------------------------------------------#
-    # Data avaluos y prediales
-    tablavalores = ""
-    try:    avaluo = f"${datavalues['avaluocatastral'].iloc[0]:,.0f}"
-    except: avaluo = None
-    try:    predial = f"${datavalues['predial'].iloc[0]:,.0f}"
-    except: predial = None
-     
-    formato   = {'Avalúo catastral:':avaluo,'Predial:':predial}
-    html_paso = ""
-    for key,value in formato.items():
-        if value is not None:
-            html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
+    #---------------------------------------------------------------------#
+    # Seccion Tipologias
+    datausosuelo.index = range(len(datausosuelo))
+    tablatipologia     = ""
+    if len(datausosuelo)>0:
+        html_paso = ""
+        areatotalconstruida = datausosuelo['preaconst_precuso'].sum()
+        for i in range(len(datausosuelo)):
+            try:    usosuelo = datausosuelo['usosuelo'].iloc[i]
+            except: usosuelo = ''            
+            try:    areaconstruida = round(datausosuelo['preaconst_precuso'].iloc[i],2)
+            except: areaconstruida = ''       
+            try:    areaterreno = round(datausosuelo['preaterre_precuso'].iloc[i],2)
+            except: areaterreno = '' 
+            try:    predios = int(datausosuelo['predios_precuso'].iloc[i])
+            except: predios = ''                 
+            try:    proporcion = f"{round(datausosuelo['preaconst_precuso'].iloc[i]/areatotalconstruida,2):,.1%}" 
+            except: proporcion = ''
             conteo    += 1
-    if html_paso!="":          
-        labeltable     = "Avalúo catastral"
-        tablavalores = f"""
-        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
-        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            html_paso += f"""
+            <tr>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{usosuelo}</h6></td>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{predios}</h6></td>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{areaconstruida}</h6></td>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{proporcion}</h6></td>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{areaterreno}</h6></td>
+            </tr>
+            """
+        html_paso = f"""
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;"></h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Predios</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Área construida</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Proporción</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Área de terreno</h6></td>
         {html_paso}
-        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
         """
-        tablavalores = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablavalores}</tbody></table></div></div>"""
-        
+        if html_paso!="":
+            labeltable     = "Tipologías de activos"
+            tablatipologia = f"""
+            <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            {html_paso}
+            <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+            """
+            tablatipologia = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0" style="table-layout: auto; width: 100%;"><tbody>{tablatipologia}</tbody></table></div></div>"""
+
+    
     #---------------------------------------------------------------------#
     # POT
     tablapot = ""
@@ -659,13 +776,46 @@ def principal_table(datalotegeneral=pd.DataFrame(),datalotesparticulares=pd.Data
             tablapot = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0" style="table-layout: auto; width: 100%;"><tbody>{tablapot}</tbody></table></div></div>"""
         
     #---------------------------------------------------------------------#
+    # Seccion Condiciones de mercado
+    tablavalorizacion = ""
+    if 'valorizacion' in input_complemento and isinstance(input_complemento['valorizacion'], list):
+        html_paso     = ""
+        df            = pd.DataFrame(input_complemento['valorizacion'])
+        colnull       = df.columns[df.isnull().all()]
+        df            = df.drop(columns=colnull)
+        variables     = [var for var in list(df) if var not in ['tipoinmueble']]
+        tipoinmuebles = list(df['tipoinmueble'].unique())
+        k             = len(tipoinmuebles)
+        if 'valormt2'     in df: df['valormt2']     = df['valormt2'].apply(lambda x:     f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Valor promedio m²:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">${x:,.0f} m²</h6></td></tr>""" if not pd.isnull(x) and (isinstance(x, float) or isinstance(x, int)) else '')
+        if 'valorizacion' in df: df['valorizacion'] = df['valorizacion'].apply(lambda x: f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">Valorización:</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{x:.2%}</h6></td></tr>"""   if not pd.isnull(x) and (isinstance(x, float) or isinstance(x, int)) else '')
+        if 'tiponegocio'  in df: df['tiponegocio']  = df['tiponegocio'].apply(lambda x:  f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;">{x.title()}:</h6></td></tr>"""   if not pd.isnull(x) and isinstance(x, str)  else '')
+
+        for i in tipoinmuebles:
+            datapaso           = df[df['tipoinmueble']==i]
+            datapaso['output'] = df[variables].apply(lambda x: ''.join(x), axis=1)
+            titulo = ""
+            if k>1: titulo = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #000;text-align: center;">{i.title()}:</h6></td></tr>"""
+            conteo    += 1
+            html_paso += f"""
+            {titulo}
+            <tr><td style="border: none;"><h6></h6></td></tr>
+            {'<tr><td style="border: none;"><h6></h6></td></tr>'.join(datapaso['output'].unique())}
+            <tr><td style="border: none;"><h6></h6></td></tr>
+            """
+    if html_paso!="":
+        labeltable         = f"Precios de referencia {labelbarrio}"
+        tablavalorizacion = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablavalorizacion = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablavalorizacion}</tbody></table></div></div>"""
+
+
+    #---------------------------------------------------------------------#
     # Seccion Demografica
     tablademografica = ""
-    labelbarrio = ""
-    try:
-        if isinstance(barrio, str): 
-            labelbarrio = f'[{barrio.title()}]'
-    except: pass
     if 'dane' in input_complemento:
         html_paso = ""
         for key,value in input_complemento['dane'].items():
@@ -726,7 +876,6 @@ def principal_table(datalotegeneral=pd.DataFrame(),datalotesparticulares=pd.Data
         """
         tablavias = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablavias}</tbody></table></div></div>"""
         conteo    += 1
-        
     style = """
     <style>
         .css-table {
@@ -807,10 +956,11 @@ def principal_table(datalotegeneral=pd.DataFrame(),datalotesparticulares=pd.Data
                 <div class="container-fluid py-4">
                   <div class="row" style="margin-bottom: 0px;margin-top: 0px;">
                     {tablaubicacion}
-                    {tabladescripcion}
+                    {tablaterreno}
                     {tablatransacciones}
-                    {tablavalores}
+                    {tablatipologia}
                     {tablapot}
+                    {tablavalorizacion}
                     {tablademografica}
                     {tablatransporte}
                     {tablasitp}
@@ -826,15 +976,7 @@ def principal_table(datalotegeneral=pd.DataFrame(),datalotesparticulares=pd.Data
     </html>
     """
     return html,conteo
-
-def style_function(feature):
-    return {
-        'fillColor': '#fff',
-        'color': 'blue',
-        'weight': 2,
-        'dashArray': '3, 3'
-    }
-
+        
 @st.cache_data
 def tablestyle():
     return """
@@ -977,6 +1119,14 @@ def tablestyle():
             }
         </style>
         """
-    
+        
+def style_function_consolidacion(feature):
+    return {
+        'fillColor': '#006400',
+        'color': 'blue',
+        'weight': 3,
+        'dashArray': '6, 6'
+    }
+
 if __name__ == "__main__":
     main()

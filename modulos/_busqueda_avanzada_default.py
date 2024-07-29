@@ -108,6 +108,7 @@ def landing(mapwidth,mapheight):
 #-----------------------------------------------------------------------------#        
 def ifPolygon(formato,mapwidth,mapheight):
     
+    colt1,colt2,colt3    = st.columns([0.025,0.3,0.675])
     colm1,colm2,colm3    = st.columns([0.025,0.95,0.025])
     colf1,colf2          = st.columns(2)
 
@@ -171,7 +172,12 @@ def ifPolygon(formato,mapwidth,mapheight):
                     folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function).add_to(m)
                 else:
                     folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function_color).add_to(m)
-        
+            else:
+                with colt2:
+                    html = pasosApp("Dibuja el poligono para realziar la busqueda de lotes","1")
+                    html = BeautifulSoup(html, 'html.parser')
+                    st.markdown(html, unsafe_allow_html=True)
+                    
             if not st.session_state.datalotes_busqueda_avanzada_default.empty:
                 geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default,seleccion)
                 popup   = folium.GeoJsonPopup(
@@ -540,6 +546,69 @@ def buildinglist():
     data = data[~data['nombre_conjunto'].str.contains(r'^\d+$')]
     data = pd.concat([pd.DataFrame([{'nombre_conjunto':'','coddir':''}]),data])
     return data 
+
+def pasosApp(texto,numero):
+    style = """
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+    
+        .step-container {
+            background-color: #fff;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            padding: 10px 20px; /* Reducir el padding */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            height: 30px;
+        }
+    
+        .circle {
+            background-color: #A16CFF;
+            color: #fff;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 10px;
+            font-size: 0.8em; /* Reducir el tamaño de la fuente */
+        }
+    
+        .step {
+            color: #B241FA;
+            font-size: 0.8em; /* Reducir el tamaño de la fuente */
+            margin: 0;
+        }
+    </style>
+    """
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+        {style}
+    </head>
+    <body>
+        <div class="step-container" style="margin-bottom: 20px;">
+            <div class="circle">{numero}</div>
+            <p class="step">{texto}</p>
+        </div>
+    </body>
+    </html>
+    """
+    return html
 
 if __name__ == "__main__":
     main()

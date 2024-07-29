@@ -28,7 +28,7 @@ def main(code=None):
     col1,col2  = st.columns([0.75,0.25],gap="small")
 
     with st.spinner('Buscando información'):
-        datacatastro,datausosuelo,datalote,datavigencia,datatransacciones = getdatabuilding(code)
+        datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(code)
 
         #-------------------------------------------------------------------------#
         # Latitud y longitud
@@ -111,11 +111,12 @@ def main(code=None):
                 st.markdown(texto, unsafe_allow_html=True)
                 
             datapaso = datacatastro.copy()
-            tableH   = 450
-            if 'todo' not in filtro.lower():
-                datapaso = datacatastro[datacatastro['predirecc']==filtro]
-                tableH   = 150
-                
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
+            
             html_paso    = ""
             for _,items in datapaso.iterrows():
                 html_paso += f"""
@@ -195,11 +196,15 @@ def main(code=None):
                 texto  = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 
-            tableH   = 450
             if 'todo' not in filtro.lower():
                 datapaso = datatransacciones[datatransacciones['predirecc']==filtro]
-                tableH   = 150
                 
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
+        
             html_paso = ""
             for _,items in datapaso.iterrows():
                 
@@ -274,6 +279,92 @@ def main(code=None):
             """
             st.components.v1.html(html,height=tableH)       
             
+        #-------------------------------------------------------------------------#
+        # Tabla CTL
+        #-------------------------------------------------------------------------#
+        if not datactl.empty:
+            
+            datapaso = datactl.copy()
+            col1,col2,col3,col4 = st.columns([0.04,0.26,0.5,0.2])
+            with col2:
+                options = ['Todos'] + list(datactl['predirecc'].unique())
+                filtro = st.selectbox('Filtro por predio: ',key='filtro_direccion_tabla3',options=options,placeholder='Seleccionar un predio')
+            
+            with col3:
+                st.write('')
+                titulo = 'Certificados de libertad y tradición'
+                html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                texto  = BeautifulSoup(html, 'html.parser')
+                st.markdown(texto, unsafe_allow_html=True)
+
+            if 'todo' not in filtro.lower():
+                datapaso = datactl[datactl['predirecc']==filtro]
+
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
+            
+            html_paso = ""
+            for _,items in datapaso.iterrows():
+                try:    areaconstruida = f"{round(items['preaconst'],2)}"
+                except: areaconstruida = ''     
+                try:    areaterreno = f"{round(items['preaterre'],2)}"
+                except: areaterreno = ''  
+
+                html_paso += f"""
+                <tr> 
+                    <td class="align-middle text-center text-sm" style="border: none;padding: 8px;">
+                       <a href="{items['url']}" target="_blank">
+                       <img src="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/publicimg/pdf.png" alt="link" width="20" height="20">
+                       </a>                    
+                    </td>
+                    <td>{items['last_fecha']}</td>
+                    <td>{items['predirecc']}</td>
+                    <td>{items['matriculainmobiliaria']}</td>
+                    <td>{areaconstruida}</td>
+                    <td>{areaterreno}</td>
+                    <td>{items['usosuelo']}</td>            
+                </tr>
+                """
+            html_paso = f"""
+            <thead>
+                <tr>
+                    <th>Link</th>
+                    <th>Fecha</th>
+                    <th>Dirección</th>
+                    <th>Matrícula</th>
+                    <th>Área construida</th>
+                    <th>Área de terreno</th>
+                    <th>Uso del suelo</th>             
+                </tr>
+            </thead>
+            <tbody>
+            {html_paso}
+            </tbody>
+            """
+            style = tablestyle()
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            {style}
+            </head>
+            <body>
+                <div class="table-wrapper table-background">
+                    <div class="table-scroll">
+                        <table class="fl-table">
+                        {html_paso}
+                        </table>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            st.components.v1.html(html,height=tableH) 
     #-------------------------------------------------------------------------#
     # Listings
     #-------------------------------------------------------------------------#
@@ -361,7 +452,7 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
         except: upl = None      
         try:    nombre_conjunto = input_complemento['nombre_conjunto'] if isinstance(input_complemento['nombre_conjunto'], str) else None
         except: nombre_conjunto = None  
-        try:    latlng = f"{round(latitud,2)}|{round(longitud,2)}"
+        try:    latlng = f"{round(latitud,2)} | {round(longitud,2)}"
         except: latlng = None
         
         if 'direccion' in input_complemento and isinstance(input_complemento['direccion'], str): 

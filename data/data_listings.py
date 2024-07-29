@@ -1,15 +1,8 @@
 import streamlit as st
 import pandas as pd
-import shapely.wkt as wkt
 from sqlalchemy import create_engine 
-from shapely.geometry import Polygon
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
 from data.coddir import coddir
-from data.point2POT import main as point2POT
-from data.datadane import main as censodane
-from data.formato_direccion import formato_direccion
 from data.inmuebleANDusosuelo import usosuelo2inmueble
 
 user     = st.secrets["user_bigdata"]

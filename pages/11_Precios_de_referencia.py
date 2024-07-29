@@ -23,14 +23,14 @@ for key,value in formato.items():
 if 'token' in st.query_params: 
     st.session_state.token = st.query_params['token']
 
-#if st.session_state.access is False and isinstance(st.session_state.token, str) and st.session_state.token!='':
-#    st.session_state.access = getuser(st.session_state.token)
+if st.session_state.access is False and isinstance(st.session_state.token, str) and st.session_state.token!='':
+    st.session_state.access = getuser(st.session_state.token)
 
-#if st.session_state.access:
-#    _precios_referencia()
-#else:
-#    from modulos.signup_login import main as signup_login
-#    signup_login()
+if st.session_state.access:
+    _precios_referencia()
+else:
+    from modulos.signup_login import main as signup_login
+    signup_login()
 
-from display.html_construccion import html as construccion
-st.components.v1.html(construccion(), height=400)
+#from display.html_construccion import html as construccion
+#st.components.v1.html(construccion(), height=400)

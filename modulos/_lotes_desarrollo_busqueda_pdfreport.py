@@ -187,7 +187,7 @@ def reportehtml(code=None,building=False,market=False,logo=None,tipodestino=None
                 input_transacciones = {}
                 if not datapaso.empty:
                     barmanpre = [x.strip() for x in datapaso['barmanpre'].iloc[0].split('|')]
-                    datadirecciones,_du,_dl,datavigencia,datatransacciones = getdatabuilding(barmanpre)
+                    datadirecciones,_du,_dl,datavigencia,datatransacciones,datactl = getdatabuilding(barmanpre)
                 
                 if not datavigencia.empty:
                     datavalues = datavigencia.sort_values(by=['chip','vigencia'],ascending=False).drop_duplicates(subset='chip',keep='first')

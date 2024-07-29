@@ -1,11 +1,7 @@
-import folium
 import re
 import streamlit as st
 import pandas as pd
-import shapely.wkt as wkt
 import hashlib
-import plotly.express as px
-from bs4 import BeautifulSoup
 
 from data.getdatabuilding import main as getdatabuilding
 
@@ -30,7 +26,7 @@ def gethtml(chip=None,barmanpre=None,vartype=None,infilter=True,descargar=True):
     datavigencia_predio = pd.DataFrame()
     if isinstance(barmanpre, str) or isinstance(barmanpre, list):
         with st.spinner('Buscando información'):
-            datacatastro,datausosuelo,datalote,datavigencia,datatransacciones = getdatabuilding(barmanpre)
+            datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(barmanpre)
             
         if not datavigencia.empty: 
             datavigencia['link']  = datavigencia.apply(lambda x: linkPredial(x['chip'],x['vigencia'],x['idSoporteTributario']),axis=1)
@@ -145,7 +141,7 @@ def gethtml(chip=None,barmanpre=None,vartype=None,infilter=True,descargar=True):
                     <th>Co-propiedad</th>
                     <th>Área construida</th>
                     <th>Tipo de propietario</th>
-                    <th>Tipo de documento/th>
+                    <th>Tipo de documento</th>
                     <th>Propietario</th>
                     <th>Contacto</th>
                     <th>Email</th>

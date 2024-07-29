@@ -3,7 +3,6 @@ import re
 import json
 import pandas as pd
 from sqlalchemy import create_engine 
-from datetime import datetime
 from unidecode import unidecode
 
 user     = st.secrets["user_bigdata"]

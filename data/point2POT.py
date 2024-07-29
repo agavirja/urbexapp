@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import mysql.connector as sql
 from sqlalchemy import create_engine 
 
 @st.cache_data(show_spinner=False)

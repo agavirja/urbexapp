@@ -1,16 +1,11 @@
-import folium
 import re
 import streamlit as st
 import pandas as pd
-import shapely.wkt as wkt
 import hashlib
 import plotly.express as px
 from bs4 import BeautifulSoup
-from streamlit_folium import st_folium
 from streamlit_js_eval import streamlit_js_eval
 
-from data.getlatlng import getlatlng
-from data.datacomplemento import main as datacomplemento
 from data.getdatabuilding import main as getdatabuilding
 
 def main(chip=None,barmanpre=None,vartype=None):
@@ -31,12 +26,13 @@ def main(chip=None,barmanpre=None,vartype=None):
 
     if isinstance(barmanpre, str):
         with st.spinner('Buscando información'):
-            datacatastro,datausosuelo,datalote,datavigencia,datatransacciones = getdatabuilding(barmanpre)
+            datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(barmanpre)
             
         if not datacatastro.empty:
             datacatastro = datacatastro.sort_values(by=['predirecc','prechip'],ascending=True)
 
-        if not datavigencia.empty: 
+        if not datavigencia.empty:
+            datavigencia          = datavigencia.sort_values(by='vigencia',ascending=False)
             datavigencia['link']  = datavigencia.apply(lambda x: linkPredial(x['chip'],x['vigencia'],x['idSoporteTributario']),axis=1)
             datavigencia['name']  = datavigencia.apply(lambda x: buildname(x['primerNombre'],x['segundoNombre'],x['primerApellido'],x['segundoApellido']),axis=1)
             varphones             = [x for x in ['telefono1','telefono2','telefono3','telefono4','telefono5'] if x in datavigencia]
@@ -62,7 +58,8 @@ def main(chip=None,barmanpre=None,vartype=None):
         datavigencia_predio      = pd.DataFrame()
         datatransacciones_predio = pd.DataFrame()
         datausosuelo_predio      = pd.DataFrame()
-        
+        datactl_predio           = pd.DataFrame()
+
         if isinstance(chip, str):
             if not datacatastro.empty:
                 datacatastro_predio = datacatastro[datacatastro['prechip']==chip]
@@ -72,7 +69,9 @@ def main(chip=None,barmanpre=None,vartype=None):
                 datatransacciones_predio = datatransacciones[datatransacciones['prechip']==chip]
             if not datacatastro_predio.empty and not datausosuelo.empty:
                 datausosuelo_predio = datausosuelo[datausosuelo['precuso']==datacatastro_predio['precuso'].iloc[0]]
-        
+            if not datactl.empty:
+                datactl_predio = datactl[datactl['prechip']==chip]
+            
         html,elementos = principal_table(datacatastro=datacatastro_predio,datausosuelo=datausosuelo_predio,datavigencia=datavigencia_predio)
         st.components.v1.html(html,height=int(elementos*600/30),scrolling=True)
                     
@@ -89,6 +88,12 @@ def main(chip=None,barmanpre=None,vartype=None):
             html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
             texto  = BeautifulSoup(html, 'html.parser')
             st.markdown(texto, unsafe_allow_html=True)
+            
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
             
             html_paso    = ""
             for _,items in datapaso.iterrows():
@@ -144,7 +149,7 @@ def main(chip=None,barmanpre=None,vartype=None):
                     <th>Predial</th>
                     <th>Co-propiedad</th>
                     <th>Tipo de propietario</th>
-                    <th>Tipo de documento/th>
+                    <th>Tipo de documento</th>
                     <th>Propietario</th>
                     <th>Contacto</th>
                     <th>Email</th>
@@ -174,7 +179,7 @@ def main(chip=None,barmanpre=None,vartype=None):
             </body>
             </html>
             """
-            st.components.v1.html(html,height=500)       
+            st.components.v1.html(html,height=tableH)       
         
         #-------------------------------------------------------------------------#
         # Tabla Transacciones
@@ -190,13 +195,19 @@ def main(chip=None,barmanpre=None,vartype=None):
             texto  = BeautifulSoup(html, 'html.parser')
             st.markdown(texto, unsafe_allow_html=True)
             
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
+            
             ngroup = len(list(datapaso['group'].unique())) if 'group' in datapaso else 1
             html_paso = ""
             for _,items in datapaso.iterrows():
                 
                 group = "<td></td>"
                 if ngroup>1:
-                    try:    group = "<td>{items['group']}</td>"
+                    try:    group = f"<td>{items['group']}</td>"
                     except: group = "<td></td>"
                 try:    cuantia = f"${items['cuantia']:,.0f}"
                 except: cuantia = ''
@@ -267,9 +278,87 @@ def main(chip=None,barmanpre=None,vartype=None):
             </body>
             </html>
             """
-            st.components.v1.html(html,height=250)   
+            st.components.v1.html(html,height=tableH)   
             
+        #-------------------------------------------------------------------------#
+        # Tabla CTL
+        #-------------------------------------------------------------------------#
+        if not datactl_predio.empty:    
             
+            datapaso = datactl_predio.copy()
+
+            st.write('')
+            titulo = 'Certificados de libertad y tradición'
+            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+            texto  = BeautifulSoup(html, 'html.parser')
+            st.markdown(texto, unsafe_allow_html=True)
+                 
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
+            
+            html_paso = ""
+            for _,items in datapaso.iterrows():
+                try:    areaconstruida = f"{round(items['preaconst'],2)}"
+                except: areaconstruida = ''     
+                try:    areaterreno = f"{round(items['preaterre'],2)}"
+                except: areaterreno = ''  
+
+                html_paso += f"""
+                <tr> 
+                    <td class="align-middle text-center text-sm" style="border: none;padding: 8px;">
+                       <a href="{items['url']}" target="_blank">
+                       <img src="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/publicimg/pdf.png" alt="link" width="20" height="20">
+                       </a>                    
+                    </td>
+                    <td>{items['last_fecha']}</td>
+                    <td>{items['predirecc']}</td>
+                    <td>{items['matriculainmobiliaria']}</td>
+                    <td>{areaconstruida}</td>
+                    <td>{areaterreno}</td>
+                    <td>{items['usosuelo']}</td>            
+                </tr>
+                """
+            html_paso = f"""
+            <thead>
+                <tr>
+                    <th>Link</th>
+                    <th>Fecha</th>
+                    <th>Dirección</th>
+                    <th>Matrícula</th>
+                    <th>Área construida</th>
+                    <th>Área de terreno</th>
+                    <th>Uso del suelo</th>             
+                </tr>
+            </thead>
+            <tbody>
+            {html_paso}
+            </tbody>
+            """
+            style = tablestyle()
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            {style}
+            </head>
+            <body>
+                <div class="table-wrapper table-background">
+                    <div class="table-scroll">
+                        <table class="fl-table">
+                        {html_paso}
+                        </table>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            st.components.v1.html(html,height=tableH) 
+
         #-------------------------------------------------------------------------#
         # Graficas: Estadisticas
         #-------------------------------------------------------------------------#
@@ -410,7 +499,10 @@ def principal_table(datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),data
             tablacatastro = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablacatastro}</tbody></table></div></div>"""
         
         # Propietarios
+        datapaso = datavigencia.sort_values(by='vigencia',ascending=False)
+        datapaso = datapaso[datapaso['tipoDocumento'].notnull()]
         if not datapaso.empty:
+            datapaso = datapaso.iloc[[0]]
             datapaso.idnex         = range(len(datapaso))
             html_propietarios_paso = ""
             k                      = len(datapaso)
@@ -597,7 +689,7 @@ def buildphone(row):
             vector.append(x)
     if vector!=[]:
         vector = list(set(vector))
-        result = '|'.join(vector)
+        result = ' | '.join(vector)
     return result
 
 def buildemail(row):
@@ -611,7 +703,7 @@ def buildemail(row):
     if vector!=[]:
         vector = [x.lower().strip() for x in vector]
         vector = list(set(vector))
-        result = '|'.join(vector)
+        result = ' | '.join(vector)
     return result
 
 @st.cache_data

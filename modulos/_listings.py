@@ -1,5 +1,4 @@
 import streamlit as st
-import copy
 import folium
 import pandas as pd
 import geopandas as gpd
@@ -7,10 +6,8 @@ from streamlit_folium import st_folium
 from folium.plugins import Draw
 from shapely.geometry import Polygon,Point,mapping,shape
 from streamlit_js_eval import streamlit_js_eval
-from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
 
-from data.getdatamarket import getdatamarket
 from data.data_listings import listingsPolygonActive
 
 from display.stylefunctions  import style_function,style_function_geojson

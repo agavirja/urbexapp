@@ -3,9 +3,6 @@ import pandas as pd
 import geopandas as gpd
 from sqlalchemy import create_engine 
 
-from data.inmuebleANDusosuelo import inmueble2usosuelo
-from data.getuso_destino import getuso_destino
-
 @st.cache_data(show_spinner=False)
 def main(inputvar):
     

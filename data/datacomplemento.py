@@ -3,7 +3,6 @@ import pandas as pd
 import shapely.wkt as wkt
 from sqlalchemy import create_engine 
 from shapely.geometry import Polygon
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from data.coddir import coddir
@@ -108,59 +107,66 @@ def main(barmanpre=None,latitud=None,longitud=None,direccion=None,polygon=None,p
                 datasitp['distance'] = datasitp['distance'].astype(int)
                 datasitp['match']    = datasitp.apply(lambda x: f"{x['direccpar']} a {x['distance']} mt ",axis=1)
                 outputs.update({'sitp':'| '.join(datasitp['match'].unique())})
-            except: 
-                pass
-            
+            except:  pass
 
     #-------------------------------------------------------------------------#
     # Barmanpre
+    datalote    = pd.DataFrame()
+    datafrente  = pd.DataFrame()
+    direcciones = pd.DataFrame()
     if isinstance(barmanpre, str):
-        
-        #---------------------------------------------------------------------#
-        # Vias
-        datalote = pd.read_sql_query(f"SELECT  esquinero, nombre, nombretipo, tipo_via FROM bigdata.bogota_via_lote WHERE barmanpre='{barmanpre}'" , engine)
-        if not datalote.empty:
-            esquinero    = datalote['esquinero'].max()
-            esquinero    = 'Si' if esquinero==1 else 'No'
-            viaprincipal = 'No' 
-            idd          = datalote['nombretipo'].str.lower().str.contains('principal')
-            if sum(idd)>0: viaprincipal = 'Si' 
-            outputs.update({'esquinero':esquinero,'viaprincipal':viaprincipal})
-            
-            vias = datalote[datalote['nombre'].notnull()]
-            if not vias.empty:
-                vias = "| ".join(vias['nombre'].astype(str).unique())
-                outputs.update({'vias':vias})
-
-        #---------------------------------------------------------------------#
-        # Fondo
-        datafrente = pd.read_sql_query(f"SELECT arealinea as areafrente, areapolygon as areaterreno FROM bigdata.bogota_frente_fondo_esquinero WHERE barmanpre='{barmanpre}'" , engine)
-        if not datafrente.empty:
-            try:    areapoligono = round(datafrente['areaterreno'].iloc[0],2)
-            except: areapoligono = None
-            try:    areafrente   = round(datafrente['areafrente'].iloc[0],2)
-            except: areafrente   = None
-            try:    areafondo    = round(areapoligono/areafrente,2)
-            except: areafondo    = None
-            outputs.update({'areapoligono':areapoligono,'areafrente':areafrente,'areafondo':areafondo})
-                        
-        #---------------------------------------------------------------------#
-        # Direcciones
+        datalote    = pd.read_sql_query(f"SELECT  esquinero, nombre, nombretipo, tipo_via FROM bigdata.bogota_via_lote WHERE barmanpre='{barmanpre}'" , engine)
+        datafrente  = pd.read_sql_query(f"SELECT arealinea as areafrente, areapolygon as areaterreno FROM bigdata.bogota_frente_fondo_esquinero WHERE barmanpre='{barmanpre}'" , engine)
         direcciones = pd.read_sql_query(f"SELECT coddir, MIN(predirecc) as formato_direccion, MIN(preusoph) as preusoph FROM bigdata.data_bogota_catastro WHERE barmanpre='{barmanpre}' GROUP BY coddir" , engine)
-        if not direcciones.empty and len(direcciones)>1:
-            direcciones['formato_direccion'] = direcciones['formato_direccion'].apply(lambda x: formato_direccion(x))
-            direccion = list(direcciones['formato_direccion'].unique())
-            outputs.update({'direccion':' | '.join(direccion)})
+    elif isinstance(barmanpre, list):
+        query       = "','".join(barmanpre)
+        query       = f" barmanpre IN ('{query}')"
+        datalote    = pd.read_sql_query(f"SELECT  esquinero, nombre, nombretipo, tipo_via FROM bigdata.bogota_via_lote WHERE {query}" , engine)
+        datafrente  = pd.read_sql_query(f"SELECT arealinea as areafrente, areapolygon as areaterreno FROM bigdata.bogota_frente_fondo_esquinero WHERE {query}" , engine)
+        direcciones = pd.read_sql_query(f"SELECT coddir, MIN(predirecc) as formato_direccion, MIN(preusoph) as preusoph FROM bigdata.data_bogota_catastro WHERE {query} GROUP BY coddir" , engine)
+
+    #---------------------------------------------------------------------#
+    # Vias
+    if not datalote.empty:
+        esquinero    = datalote['esquinero'].max()
+        esquinero    = 'Si' if esquinero==1 else 'No'
+        viaprincipal = 'No' 
+        idd          = datalote['nombretipo'].str.lower().str.contains('principal')
+        if sum(idd)>0: viaprincipal = 'Si' 
+        outputs.update({'esquinero':esquinero,'viaprincipal':viaprincipal})
         
-        #---------------------------------------------------------------------#
-        # PH
-        if not direcciones.empty:
-            direcciones['preusophr'] = direcciones['preusoph'].replace({'S': 1, 'N': 0})
-            direcciones['preusoph']  = direcciones['preusoph'].replace({'S': 'Si', 'N': 'No'})
-            direcciones              = direcciones.sort_values(by='preusophr',ascending=False)
-            direcciones.reset_index(drop=True, inplace=True)
-            outputs.update({'ph':direcciones['preusoph'].iloc[0]})
-            
+        vias = datalote[datalote['nombre'].notnull()]
+        if not vias.empty:
+            vias = "| ".join(vias['nombre'].astype(str).unique())
+            outputs.update({'vias':vias})
+
+    #---------------------------------------------------------------------#
+    # Fondo
+    if not datafrente.empty:
+        try:    areapoligono = round(datafrente['areaterreno'].iloc[0],2)
+        except: areapoligono = None
+        try:    areafrente   = round(datafrente['areafrente'].iloc[0],2)
+        except: areafrente   = None
+        try:    areafondo    = round(areapoligono/areafrente,2)
+        except: areafondo    = None
+        outputs.update({'areapoligono':areapoligono,'areafrente':areafrente,'areafondo':areafondo})
+                    
+    #---------------------------------------------------------------------#
+    # Direcciones
+    if not direcciones.empty and len(direcciones)>1:
+        direcciones['formato_direccion'] = direcciones['formato_direccion'].apply(lambda x: formato_direccion(x))
+        direccion = list(direcciones['formato_direccion'].unique())
+        outputs.update({'direccion':' | '.join(direccion)})
+    
+    #---------------------------------------------------------------------#
+    # PH
+    if not direcciones.empty:
+        direcciones['preusophr'] = direcciones['preusoph'].replace({'S': 1, 'N': 0})
+        direcciones['preusoph']  = direcciones['preusoph'].replace({'S': 'Si', 'N': 'No'})
+        direcciones              = direcciones.sort_values(by='preusophr',ascending=False)
+        direcciones.reset_index(drop=True, inplace=True)
+        outputs.update({'ph':direcciones['preusoph'].iloc[0]})
+        
     #-------------------------------------------------------------------------#
     # Direccion
     if isinstance(direccion, list):
@@ -211,7 +217,6 @@ def main(barmanpre=None,latitud=None,longitud=None,direccion=None,polygon=None,p
             datavalorizacion = datavalorizacion[['tiponegocio', 'tipoinmueble', 'valormt2', 'valorizacion']]
             outputs.update({'valorizacion':datavalorizacion.to_dict(orient='records')})
 
-    
     engine.dispose()
     return outputs
 

@@ -4,14 +4,12 @@ import pandas as pd
 import geopandas as gpd
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
-from folium.plugins import Draw
-from shapely.geometry import Polygon,mapping
 from streamlit_js_eval import streamlit_js_eval
 
-from data.data_pot_manzana import builddata,getmanzanasfromlatlng,consolidacionlotesselected,getmanzanadescripcion,getscacodigofromlatlng,getconfiguracionmanazana
+from data.data_pot_manzana import builddata,getmanzanasfromlatlng,getmanzanadescripcion,getscacodigofromlatlng,getconfiguracionmanazana
 from modulos._propietarios import main as getpropietarios
 
-from display.stylefunctions  import style_function,style_function_geojson
+from display.stylefunctions  import style_function_geojson
 
 def main():
     initialformat = {

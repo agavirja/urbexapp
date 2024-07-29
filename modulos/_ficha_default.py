@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
 from modulos._ficha_report  import main as _ficha_report
 from display.style_white import style 

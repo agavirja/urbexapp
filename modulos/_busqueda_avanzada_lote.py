@@ -6,26 +6,36 @@ from bs4 import BeautifulSoup
 
 from modulos._lotes_descripcion_combinacionlote import main as _descripcion_combinacionlote
 from modulos._lotes_desarrollo_busqueda_pdfreport import main as _lotes_busqueda_pdfreport
+from modulos._cabida_lotes import main as _cabida_lotes
+
 from data.data_estudio_mercado_general import main as _estudio_mercado_parcial
 
 def main(code=None):
 
+    col1,col2,col3 = st.columns([6,1,1])
+    with col2:
+        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
+        
     default_index = 0
     #-------------------------------------------------------------------------#
     # Header
-    selectedmod = option_menu(None, ["Lotes", "Estudio de mercado","Reporte PDF","Nueva búsqueda"], 
+    selectedmod = option_menu(None, ["Descripción","Cabida","Estudio de mercado","Reporte PDF","Nueva búsqueda"], 
         default_index=default_index, orientation="horizontal",icons=['hexagon','magic','file-earmark-pdf','arrow-counterclockwise'], 
         styles={
             "nav-link-selected": {"background-color": "#A16CFF"},
         })
         
+        
     precuso,latitud,longitud = getlatlngPrecuso(code)
     
-    if "Lotes" in selectedmod:
+    if "Descripción" in selectedmod:
         _descripcion_combinacionlote(code)
-    
+        
+    elif "Cabida" in selectedmod:
+        _cabida_lotes(code)
+  
     elif "Estudio de mercado" in selectedmod:
-        _estudio_mercado_parcial(code=None,latitud=latitud,longitud=longitud,precuso=precuso) # barmanpre
+        _estudio_mercado_parcial(code=code,latitud=latitud,longitud=longitud,precuso=precuso)
   
     elif "Reporte PDF" in selectedmod:
         _lotes_busqueda_pdfreport(code=code,latitud=latitud,longitud=longitud,precuso=precuso)
@@ -63,7 +73,7 @@ def main(code=None):
             st.markdown(html, unsafe_allow_html=True)
             
 @st.cache_data(show_spinner=False)
-def getlatlngPrecuso(code):
+def getlatlngPrecuso(code=None):
     
     user     = st.secrets["user_bigdata"]
     password = st.secrets["password_bigdata"]
@@ -72,26 +82,15 @@ def getlatlngPrecuso(code):
     engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
 
     precuso,latitud,longitud = [None]*3
-    try: 
-        lista       = str(code).split('|')
+    if code is not None and isinstance(code,str):
+        lista       = code.split('|')
         query       = "','".join(lista)
-        query       = f" id IN ('{query}')"   
-        datapredios = pd.read_sql_query(f"SELECT barmanpre FROM  bigdata.bogota_consolidacion_lotes_2000 WHERE {query}" , engine)
-    
-        if not datapredios.empty:
-            barmanprelist = datapredios['barmanpre'].str.split('|')
-            barmanprelist = [codigo for sublist in barmanprelist for codigo in sublist]
-            barmanprelist = list(set(barmanprelist))
-    
-            query = "','".join(barmanprelist)
-            query = f" barmanpre IN ('{query}')"   
-            dataprecuso = pd.read_sql_query(f"SELECT precuso,latitud,longitud FROM  bigdata.bogota_catastro_compacta_precuso WHERE {query}" , engine)
-
-            if not dataprecuso.empty:
-                precuso  = list(dataprecuso['precuso'].unique())
-                latitud  = dataprecuso['latitud'].mean()
-                longitud = dataprecuso['longitud'].mean()
-    except: pass
+        query       = f" barmanpre IN ('{query}')"
+        dataprecuso = pd.read_sql_query(f"SELECT precuso,latitud,longitud FROM  bigdata.bogota_catastro_compacta_precuso WHERE {query}" , engine)
+        if not dataprecuso.empty:
+            precuso  = list(dataprecuso['precuso'].unique())
+            latitud  = dataprecuso['latitud'].mean()
+            longitud = dataprecuso['longitud'].mean()
     return precuso,latitud,longitud
 
 if __name__ == "__main__":

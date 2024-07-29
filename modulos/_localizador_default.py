@@ -1,19 +1,15 @@
 import streamlit as st
-import copy
 import folium
 import pandas as pd
 import geopandas as gpd
 from streamlit_folium import st_folium
-from folium.plugins import Draw
-from shapely.geometry import Polygon,Point,mapping,shape
+from shapely.geometry import Point
 from streamlit_js_eval import streamlit_js_eval
-from sqlalchemy import create_engine 
-from bs4 import BeautifulSoup
 
 from data.getdataBrands import getoptions,getdatabrans
 from data.getpropertiesbyID import main as getpropertiesbyID
 
-from display.stylefunctions  import style_function,style_function_geojson
+from display.stylefunctions  import style_function_geojson
 
 def main():
     

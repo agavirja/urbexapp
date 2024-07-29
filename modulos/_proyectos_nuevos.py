@@ -9,7 +9,6 @@ from folium.plugins import Draw
 from shapely.geometry import Polygon,Point,mapping,shape
 from streamlit_js_eval import streamlit_js_eval
 from sqlalchemy import create_engine 
-from bs4 import BeautifulSoup
 
 from data.coddir import coddir
 

@@ -50,6 +50,8 @@ def main(chip):
     if not datashd2024.empty and not datavigencia.empty:
         datashd2024  = datashd2024.drop_duplicates()
         datavigencia = pd.concat([datashd2024,datavigencia])
+    elif not datashd2024.empty and datavigencia.empty:
+        datavigencia = datashd2024.copy()
         
     if not datavigencia.empty:
         listaid = datavigencia[datavigencia['nroIdentificacion'].notnull()]['nroIdentificacion'].astype(str).unique()
@@ -74,6 +76,10 @@ def main(chip):
     
     if not datavigencia.empty and not datapropietarios.empty and 'nroIdentificacion' in datavigencia and 'nroIdentificacion' in datapropietarios:
         datavigencia = datavigencia.merge(datapropietarios,on='nroIdentificacion',how='left',validate='m:1')
+    
+    if not datavigencia.empty and 'idSoporteTributario' not in datavigencia:
+        datavigencia['idSoporteTributario'] = None
+        
     return datavigencia
 
 def downloadData(query):

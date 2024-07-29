@@ -87,8 +87,8 @@ def main(chip=None,barmanpre=None):
                 with st.spinner('Generando reporte, por favor espera un momento'):
                     html = reportehtml(barmanpre=barmanpre,chip=chip,building=building,market=market,predio=predio,logo=logo,tipodestino=precdestin,tipouso=precuso,metros=metros,listingsA=listingsA,listingsNA=listingsNA)
                     
-                    API_KEY      = '1a7a2a64fcce84bcb9e1dbb0a7363b75'
-                    pdfcrowduser = 'agavirja3'
+                    API_KEY      = 'e03f4c6097c664281d195cb71357a2a4'
+                    pdfcrowduser = 'urbexventas'
                     wd, pdf_temp_path = tempfile.mkstemp(suffix=".pdf")       
                     
                     if 'token' not in st.session_state: 
@@ -133,7 +133,7 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
     
     #-------------------------------------------------------------------------#
     # Reporte general:
-    datacatastro,datausosuelo,datalote,datavigencia,datatransacciones = getdatabuilding(barmanpre)
+    datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(barmanpre)
     latitud   = datalote['latitud'].iloc[0]  if 'latitud'  in datalote and isinstance(datalote['latitud'].iloc[0], float)  else None
     longitud  = datalote['longitud'].iloc[0] if 'longitud' in datalote and isinstance(datalote['longitud'].iloc[0], float) else None
     polygon   = None

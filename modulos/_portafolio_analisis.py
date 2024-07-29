@@ -10,7 +10,7 @@ from streamlit_folium import st_folium
 from sqlalchemy import create_engine 
 from datetime import datetime
 from shapely.geometry import Point
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, ColumnsAutoSizeMode, AgGridTheme
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, AgGridTheme
 from st_aggrid.shared import JsCode
 from streamlit_js_eval import streamlit_js_eval
 

@@ -7,7 +7,6 @@ from streamlit_folium import st_folium
 from folium.plugins import Draw
 from shapely.geometry import Polygon,mapping,shape
 from streamlit_js_eval import streamlit_js_eval
-from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
 
 from data.getdatalotes import main as getdatalotes
@@ -156,7 +155,7 @@ def landing(mapwidth,mapheight):
         with st.spinner('Buscando información'):
             barmanprelist = st.session_state.data_consolidacion['barmanpre'].to_list()
             datageneral,datageneraluso = consolidacion_data_lotes(barmanprelist)
-            datacatastro,datausosuelo,datalote,datavigencia,datatransacciones = getdatabuilding(barmanprelist)
+            datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(barmanprelist)
 
     latitud,longitud = [None]*2
     if not datageneral.empty and 'wkt' in datageneral:

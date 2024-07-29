@@ -2,15 +2,10 @@ import streamlit as st
 import pdfcrowd
 import pandas as pd
 import re
-import folium
 import tempfile
-import time
 from sqlalchemy import create_engine 
-from streamlit_folium import st_folium
 from bs4 import BeautifulSoup
-from sqlalchemy import create_engine
 from datetime import datetime
-import mapbox
 
 def main(code=None,tipoinmueble=None,tiponegocio=None):
 

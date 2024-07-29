@@ -3,10 +3,15 @@ import pandas as pd
 from streamlit_js_eval import streamlit_js_eval
 from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
 
 from data.getlatlng import getlatlng
 from data.forecastModels import main as forecast
 from data.datacomplemento import main as datacomplemento
+from data.getdatabuilding import main as getdatabuilding
+from data.getuso_destino import getuso_destino
+from data.inmuebleANDusosuelo import inmueble2usosuelo
+
 from modulos._busqueda_avanzada_default import direccion2barmanpre
 
 def main():
@@ -86,14 +91,77 @@ def landing(mapwidth,mapheight):
     with col1:
         if st.button('Calcular valores de referencia'):
             with st.spinner('Calculando valores de referencia'):
-                input_complemento =  datacomplemento(barmanpre=barmanpre,latitud=latitud,longitud=longitud,direccion=direccion,polygon=None,precuso=None)
-                inputvar         = {'tipoinmueble': tipoinmueble,'areaconstruida': areaconstruida,'scacodigo':scacodigo,'habitaciones':habitaciones,'banos':banos,'garajes':garajes}
-                result           = forecast(inputvar)
                 
+                inputvarventa = {'forecast_xg':0,
+                                 'forecast_transacciones':0,
+                                 'forecast_listings_activos':0,
+                                 'forecast_listings_historicos':0
+                                 }
+                
+                inputvarrenta = {'forecast_xg':0,
+                                 'forecast_transacciones':0,
+                                 'forecast_listings_activos':0,
+                                 'forecast_listings_historicos':0
+                                 }
+                
+                #-------------------------------------------------------------#
+                # Listings activos e historicos
+                input_complemento =  datacomplemento(barmanpre=barmanpre,latitud=latitud,longitud=longitud,direccion=direccion,polygon=None,precuso=None)
+                if 'market_venta' in input_complemento:
+                    for i in input_complemento['market_venta']:
+                        if 'index' in i and 'valor' in i['index']:
+                            if 'activos' in i and i['activos']>0:
+                                inputvarventa['forecast_listings_activos'] = i['activos']*areaconstruida
+                            if 'historico' in i and i['historico']>0:
+                                inputvarventa['forecast_listings_historicos'] = i['historico']*areaconstruida
+                if 'market_arriendo' in input_complemento:
+                    for i in input_complemento['market_arriendo']:
+                        if 'index' in i and 'valor' in i['index']:
+                            if 'activos' in i and i['activos']>0:
+                                inputvarrenta['forecast_listings_activos'] = i['activos']*areaconstruida
+                            if 'historico' in i and i['historico']>0:
+                                inputvarrenta['forecast_listings_historicos'] = i['historico']*areaconstruida
+ 
+                #-------------------------------------------------------------#
+                # Modelo
+                inputvar = {'tipoinmueble': tipoinmueble,'areaconstruida': areaconstruida,'scacodigo':scacodigo,'habitaciones':habitaciones,'banos':banos,'garajes':garajes}
+                result   = forecast(inputvar)
+                
+                if 'xg_forecast_venta' in result: 
+                    inputvarventa['forecast_xg'] = result['xg_forecast_venta']
+                if 'xg_forecast_venta' in result: 
+                    inputvarrenta['forecast_xg'] = result['xg_forecast_arriendo']
+                    
+                #-------------------------------------------------------------#
+                # Cifras generales
+                datacatastro,datausosuelo,datalote,datavigencia,datatransacciones = [pd.DataFrame()]*5
+                if barmanpre is not None:
+                    datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(barmanpre)
+                
+                if not datatransacciones.empty:
+                    datapaso = datatransacciones[datatransacciones['codigo'].isin(['125','126','168','169','0125','0126','0168','0169'])]
+                    dataprecuso,dataprecdestin = getuso_destino()
+                    dataprecuso.rename(columns={'codigo':'precuso','tipo':'usosuelo','descripcion':'desc_usosuelo'},inplace=True)
+                    datapaso = datapaso.merge(dataprecuso,on='precuso',how='left',validate='m:1')
+                    
+                    precuso  = inmueble2usosuelo(tipoinmueble)
+                    datapaso = datapaso[datapaso['precuso'].isin(precuso)]
+                    datapaso['fecha_documento_publico'] = pd.to_datetime(datapaso['fecha_documento_publico'])
+                    
+                    filtrofecha = datetime.now() - timedelta(days=365)
+                    datapaso    = datapaso[datapaso['fecha_documento_publico']>=filtrofecha]
+                    datapaso    = datapaso.sort_values(by='fecha_documento_publico',ascending=False)
+                    datapaso    = datapaso.drop_duplicates(subset='docid',keep='first')
+                    
+                    if not datapaso.empty:
+                        datapaso['valormt2']   = datapaso['cuantia']/(datapaso['preaconst']*1.06)
+                        valortransaccionesmt2  = datapaso['valormt2'].median()
+                        inputvarventa['forecast_transacciones'] = valortransaccionesmt2*areaconstruida
+
     if result!={}:
+        st.write('')
+        st.write('')
         html = principal_table(result=result,input_complemento=input_complemento)
-        #texto = BeautifulSoup(html, 'html.parser')
-        #st.markdown(texto, unsafe_allow_html=True)
         st.components.v1.html(html,height=300,scrolling=True)
         
         if barmanpre is not None:
@@ -169,11 +237,18 @@ def principal_table(result={},input_complemento={}):
     html_paso = ""
     for key,value in formato.items():
         if value is not None:
-            html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr>"""
+            html_paso += f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{key}</h6></td><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td></tr><tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>"""
     if html_paso!="":
-        tablaforecast = f"""<div class="css-table"><table class="table align-items-center mb-0"><tbody><tr><td colspan="labelsection" style="margin-bottom: 20px;font-family: 'Inter';">Precio de referencia</td></tr>{html_paso}</tbody></table></div>"""
-        tablaforecast = f"""<div class="col-md-6">{tablaforecast}</div>"""
-   
+        labeltable = "Precio de referencia"
+        tablaforecast  = f"""
+        <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        {html_paso}
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        """
+        tablaforecast = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0"><tbody>{tablaforecast}</tbody></table></div></div>"""
+        
+        
     style = """
     <style>
         .css-table {
@@ -185,10 +260,14 @@ def principal_table(result={},input_complemento={}):
         .css-table table {
             width: 100%;
             padding: 0;
+            table-layout: fixed; 
+            border-collapse: collapse;
         }
         .css-table td {
             text-align: left;
             padding: 0;
+            overflow: hidden; 
+            text-overflow: ellipsis; 
         }
         .css-table h6 {
             line-height: 1; 
@@ -198,13 +277,14 @@ def principal_table(result={},input_complemento={}):
         .css-table td[colspan="labelsection"] {
           text-align: left;
           font-size: 15px;
-          color: #6EA4EE;
+          color: #A16CFF;
           font-weight: bold;
           border: none;
-          border-bottom: 2px solid #6EA4EE;
+          border-bottom: 2px solid #A16CFF;
           margin-top: 20px;
           display: block;
           font-family: 'Inter';
+          width: 100%
         }
         .css-table td[colspan="labelsectionborder"] {
           text-align: left;
@@ -213,6 +293,7 @@ def principal_table(result={},input_complemento={}):
           margin-top: 20px;
           display: block;
           padding: 0;
+          width: 100%;
         }
         
         #top {

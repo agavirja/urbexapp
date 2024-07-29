@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine 
-from datetime import datetime
 
-from data.inmuebleANDusosuelo import inmueble2usosuelo
 from data.getuso_destino import getuso_destino
 
 from data.getdataTransactions import main as getdatatransactions
 from data.getdatavigencia import main as getdatavigencia
+from data.getdataCTL import main as getdatactl
 
 @st.cache_data(show_spinner=False)
 def main(barmanpre):
@@ -26,7 +25,11 @@ def main(barmanpre):
     # Informacion SNR #
     datatransacciones = getdatatransactions(barmanpre,typesearch='barmanpre')
     
-    return datacatastro,datausosuelo,datalote,datavigencia,datatransacciones
+    #-----------------#
+    # CTL             #
+    datactl = getdatactl(datacatastro)
+    
+    return datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl
     
 
 @st.cache_data(show_spinner=False)
