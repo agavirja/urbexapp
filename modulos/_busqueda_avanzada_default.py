@@ -108,7 +108,7 @@ def landing(mapwidth,mapheight):
 #-----------------------------------------------------------------------------#        
 def ifPolygon(formato,mapwidth,mapheight):
     
-    colt1,colt2,colt3    = st.columns([0.025,0.3,0.675])
+    colt1,colt2,colt3    = st.columns([0.025,0.475,0.50])
     colm1,colm2,colm3    = st.columns([0.025,0.95,0.025])
     colf1,colf2          = st.columns(2)
 

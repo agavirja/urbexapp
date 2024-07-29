@@ -67,7 +67,7 @@ def landing(mapwidth,mapheight):
         if key not in st.session_state: 
             st.session_state[key] = value
             
-    colt1,colt2,colt3    = st.columns([0.025,0.3,0.675])
+    colt1,colt2,colt3    = st.columns([0.025,0.475,0.50])
     colm1,colm2,colm3    = st.columns([0.025,0.95,0.025])
     colmsn1,colmsn2      = st.columns([0.95,0.05])
     colmap1,colmap2      = st.columns([0.7,0.3])

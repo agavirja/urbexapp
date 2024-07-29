@@ -14,11 +14,11 @@ def main(data):
     datactl   = pd.DataFrame()
     datamatch = pd.DataFrame()
     
-    if not data.empty:
+    if not data.empty and 'matriculainmobiliaria' in data:
         data = data[data['matriculainmobiliaria'].notnull()]
         data['matriculainmobiliaria'] = data['matriculainmobiliaria'].astype(str)
         
-    if not data.empty:
+    if not data.empty and 'matriculainmobiliaria' in data:
         data['idmatch']   = range(len(data))
         data['codigo']    = data['matriculainmobiliaria'].apply(lambda x: x[0:4])
         data['matchcode'] = None
