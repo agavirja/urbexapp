@@ -171,8 +171,8 @@ def ifPolygon(formato,mapwidth,mapheight):
             else:
                 with colt2:
                     html = pasosApp("Dibuja el poligono para realziar la busqueda de lotes","1")
-                    #html = BeautifulSoup(html, 'html.parser')
-                    #st.markdown(html, unsafe_allow_html=True)
+                    html = BeautifulSoup(html, 'html.parser')
+                    st.markdown(html, unsafe_allow_html=True)
                     
             if not st.session_state.datalotes_busqueda_avanzada_default.empty:
                 geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default,seleccion)
@@ -184,7 +184,7 @@ def ifPolygon(formato,mapwidth,mapheight):
                 )
                 folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
                 
-            st_map = st_folium(m,width=int(mapwidth*0.95),height=mapheight)
+            st_map = st_folium(m,width=int(mapwidth*0.95),height=500)
     
             if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
                 if st_map['all_drawings']!=[]:
