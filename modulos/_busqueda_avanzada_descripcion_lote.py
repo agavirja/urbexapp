@@ -80,7 +80,7 @@ def main(code=None):
             html = mapstreetview(latitud,longitud)
             st.components.v1.html(html, height=400)
         with col3:
-            html = mapsatelite(latitud,longitud)
+            html = mapsatelite(latitud,longitud,polygon=str(polygon) if polygon is not None else None)
             st.components.v1.html(html, height=400)
             
         #-------------------------------------------------------------------------#

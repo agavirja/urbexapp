@@ -27,7 +27,7 @@ def main(code=None,typesearch=None,datamatricula=pd.DataFrame(),polygon=None):
     elif isinstance(polygon, str) and not 'none' in polygon.lower() :
         datacatastro = pd.read_sql_query(f"""SELECT barmanpre,precuso,prechip,precedcata,predirecc,preaterre,preaconst FROM bigdata.data_bogota_catastro WHERE ST_CONTAINS(ST_GEOMFROMTEXT("{polygon}"), POINT(longitud, latitud))""" , engine)
 
-    if not datacatastro.empty:
+    if not datacatastro.empty and 'prechip' in datacatastro:
         lista  = "','".join(datacatastro['prechip'].unique())
         query  = f" chip IN ('{lista}')"
         datamatricula = pd.read_sql_query(f"SELECT chip,matriculainmobiliaria FROM bigdata.data_bogota_shd_objetocontrato WHERE {query}" , engine)
@@ -37,7 +37,7 @@ def main(code=None,typesearch=None,datamatricula=pd.DataFrame(),polygon=None):
             datamatricula = datamatricula.merge(datamerge[['prechip','precuso','predirecc','preaterre','preaconst']],left_on='chip',right_on='prechip',how='left',validate='m:1')
             datamatricula = datamatricula[datamatricula['matriculainmobiliaria'].notnull()]
             
-    if not datamatricula.empty:
+    if not datamatricula.empty and 'matriculainmobiliaria' in datamatricula:
         datamatricula            = datamatricula[datamatricula['matriculainmobiliaria'].notnull()]
         datamatricula['codigos'] = datamatricula['matriculainmobiliaria'].apply(lambda x: x[0:4] if isinstance(x,str) else None)
         datamatricula['oficina'] = None
@@ -51,7 +51,7 @@ def main(code=None,typesearch=None,datamatricula=pd.DataFrame(),polygon=None):
                 datamatricula.loc[idd,'codoficina'] = codigo
         datamatricula = datamatricula[datamatricula['codoficina'].notnull()]
         
-    if not datamatricula.empty:
+    if not datamatricula.empty and 'matriculainmobiliaria' in datamatricula:
         
         datamatricula['matricula']      = datamatricula.apply(lambda x: x['matriculainmobiliaria'].split(x['codoficina'],1)[-1].strip(),axis=1)
         datamatricula['matricula']      = datamatricula['matricula'].apply(lambda x: x.lstrip('0'))

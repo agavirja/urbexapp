@@ -27,3 +27,15 @@ def usobydestino():
     data   = pd.read_sql_query(f"SELECT * FROM  {schema}.data_bogota_destinouso" , engine)
     engine.dispose()
     return data
+
+@st.cache_data(show_spinner=False)
+def usosuelo_class():
+    user     = st.secrets["user_bigdata"]
+    password = st.secrets["password_bigdata"]
+    host     = st.secrets["host_bigdata_lectura"]
+    schema   = st.secrets["schema_bigdata"]
+    
+    engine = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
+    data   = pd.read_sql_query(f"SELECT * FROM  {schema}.data_bogota_usosuelo" , engine)
+    engine.dispose()
+    return data

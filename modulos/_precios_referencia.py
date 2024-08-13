@@ -11,8 +11,7 @@ from data.datacomplemento import main as datacomplemento
 from data.getdatabuilding import main as getdatabuilding
 from data.getuso_destino import getuso_destino
 from data.inmuebleANDusosuelo import inmueble2usosuelo
-
-from modulos._busqueda_avanzada_default import direccion2barmanpre
+from data.coddir import coddir 
 
 def main():
     
@@ -42,10 +41,6 @@ def main():
     
 def landing(mapwidth,mapheight):
     
-    col1,col2,col3 = st.columns([6,1,1])
-    with col2:
-        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
-        
     #-------------------------------------------------------------------------#
     # Variables  
     formato = {
@@ -370,6 +365,22 @@ def getscacodigo(latitud=None,longitud=None):
             scacodigo = databarrio['scacodigo'].iloc[0]
     engine.dispose()
     return scacodigo
+
+@st.cache_data(show_spinner=False)
+def direccion2barmanpre(direccion):
+    barmanpre = None
+    if direccion is not None and direccion!="" and isinstance(direccion,str):
+        user     = st.secrets["user_bigdata"]
+        password = st.secrets["password_bigdata"]
+        host     = st.secrets["host_bigdata_lectura"]
+        schema   = st.secrets["schema_bigdata"]
+        engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
+        query    = f"coddir='{coddir(direccion)}'"
+        data     = pd.read_sql_query(f"SELECT distinct( barmanpre) as barmanpre FROM  bigdata.data_bogota_catastro WHERE {query} AND ( precdestin<>'65' AND precdestin<>'66') LIMIT 1" , engine)
+        if not data.empty:
+            barmanpre = data['barmanpre'].iloc[0]
+        engine.dispose()
+    return barmanpre
 
 if __name__ == "__main__":
     main()

@@ -8,25 +8,31 @@ from modulos._lotes_descripcion_combinacionlote import main as _descripcion_comb
 from modulos._lotes_desarrollo_busqueda_pdfreport import main as _lotes_busqueda_pdfreport
 from modulos._cabida_lotes import main as _cabida_lotes
 
-from data.data_estudio_mercado_general import main as _estudio_mercado_parcial
+from modulos._estudio_mercado_parcial import main as _estudio_mercado_parcial
 
-def main(code=None):
+def main(code=None,precuso=None,selectoption=None):
 
     col1,col2,col3 = st.columns([6,1,1])
     with col2:
         st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
         
     default_index = 0
+    if isinstance(selectoption,str) and selectoption!="":
+        if 'edm' in selectoption:
+            default_index = 2
+            
     #-------------------------------------------------------------------------#
     # Header
     selectedmod = option_menu(None, ["Descripción","Cabida","Estudio de mercado","Reporte PDF","Nueva búsqueda"], 
-        default_index=default_index, orientation="horizontal",icons=['hexagon','magic','file-earmark-pdf','arrow-counterclockwise'], 
+        default_index=default_index, orientation="horizontal",icons=['info-circle','magic','graph-up','file-earmark-pdf','search'], 
         styles={
             "nav-link-selected": {"background-color": "#A16CFF"},
         })
         
-        
-    precuso,latitud,longitud = getlatlngPrecuso(code)
+    precuso_output,latitud,longitud = getlatlngPrecuso(code)
+    
+    if precuso is None or isinstance(precuso,list) and precuso==[]:
+        precuso = precuso_output.copy()
     
     if "Descripción" in selectedmod:
         _descripcion_combinacionlote(code)

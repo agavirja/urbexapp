@@ -9,8 +9,23 @@ from data.getdatavigencia import main as getdatavigencia
 from data.getdataCTL import main as getdatactl
 
 @st.cache_data(show_spinner=False)
-def main(barmanpre):
+def main(barmanpre,chip=None):
     
+    #-----------------------------------------#
+    # Si se tiene infomarcion del chip o chips#
+    if isinstance(chip,str) and chip!="":
+        chip = chip.split('|')
+    if isinstance(chip,list):
+        barmanpre_add = chip2barmanpre(chip)
+        if isinstance(barmanpre_add,list) and barmanpre_add!=[]:
+            if barmanpre is None or (isinstance(barmanpre,str) and barmanpre==''):
+                barmanpre = []
+            if isinstance(barmanpre,str):
+                barmanpre = barmanpre.split('|')
+            if isinstance(barmanpre,list): 
+                barmanpre = barmanpre+barmanpre_add
+                barmanpre = list(set(barmanpre))
+
     #-----------------------#
     # Informacion Catastral #
     datacatastro,datausosuelo,datalote = _databuilding(barmanpre)
@@ -45,13 +60,13 @@ def _databuilding(barmanpre):
     datalote     = pd.DataFrame()
     
     if isinstance(barmanpre, str) and len(barmanpre)>10:
-        datacatastro = pd.read_sql_query(f"SELECT barmanpre,precuso,prechip,precedcata,predirecc,preaterre,preaconst,latitud,longitud FROM  bigdata.data_bogota_catastro WHERE barmanpre='{barmanpre}'" , engine)
+        datacatastro = pd.read_sql_query(f"SELECT barmanpre,precuso,prechip,precedcata,predirecc,preaterre,preaconst,prevetustz,latitud,longitud FROM  bigdata.data_bogota_catastro WHERE barmanpre='{barmanpre}'" , engine)
         datalote     = pd.read_sql_query(f"SELECT lotcodigo as barmanpre, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_lotes WHERE lotcodigo ='{barmanpre}'" , engine)
         
     elif isinstance(barmanpre, list) and barmanpre!=[]:
         lista        = "','".join(barmanpre)
         query        = f" barmanpre IN ('{lista}')"
-        datacatastro = pd.read_sql_query(f"SELECT barmanpre,precuso,prechip,precedcata,predirecc,preaterre,preaconst,latitud,longitud FROM  bigdata.data_bogota_catastro WHERE {query}" , engine)
+        datacatastro = pd.read_sql_query(f"SELECT barmanpre,precuso,prechip,precedcata,predirecc,preaterre,preaconst,prevetustz,latitud,longitud FROM  bigdata.data_bogota_catastro WHERE {query}" , engine)
         
         query        = f" lotcodigo IN ('{lista}')"
         datalote     = pd.read_sql_query(f"SELECT lotcodigo as barmanpre, ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_lotes WHERE {query}" , engine)
@@ -90,3 +105,20 @@ def _databuilding(barmanpre):
 
     engine.dispose()
     return datacatastro,datausosuelo,datalote
+
+@st.cache_data(show_spinner=False)
+def chip2barmanpre(chip):
+    user      = st.secrets["user_bigdata"]
+    password  = st.secrets["password_bigdata"]
+    host      = st.secrets["host_bigdata_lectura"]
+    schema    = st.secrets["schema_bigdata"]
+    engine    = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
+    barmanpre = []
+    if isinstance(chip, list) and chip!=[]:
+        lista        = "','".join(chip)
+        query        = f" prechip IN ('{lista}')"
+        datacatastro = pd.read_sql_query(f"SELECT distinct(barmanpre) as barmanpre FROM  bigdata.data_bogota_catastro WHERE {query}" , engine)
+        if not datacatastro.empty:
+            barmanpre = list(datacatastro['barmanpre'].unique())
+    engine.dispose()
+    return barmanpre

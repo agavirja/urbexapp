@@ -8,8 +8,7 @@ from modulos._busqueda_avanzada_descripcion_lote import main as _descripcion_lot
 from modulos._busqueda_avanzada_analisis_unidad import main as _analisis_unidad
 from modulos._busqueda_avanzada_pdfreport import main as _busqueda_avanzada_pdfreport
 from modulos._propietarios import main as _propietarios
-
-from data.data_estudio_mercado_general import main as _estudio_mercado_parcial
+from modulos._estudio_mercado_parcial import main as _estudio_mercado_parcial
 
 def main(code=None,vartype=None):
     
@@ -62,7 +61,7 @@ def main(code=None,vartype=None):
         
     elif "Nueva búsqueda" in selectedmod:
         
-        col1,col2,col3 = st.columns([0.15,0.2,0.65])
+        col1,col2,col3 = st.columns([0.3,0.4,0.3])
         style_button_dir = """
         <style>
         .custom-button {

@@ -164,6 +164,14 @@ def style():
           background-color: #5F59EB;
         }}
         
+        [data-testid="stDateInput"] {{
+            border: 5px solid #F0F0F0;
+            background-color: #F0F0F0;
+            border-radius: 5px;
+            padding: 5px; 
+        }}
+            
+        
         </style>
         """,
         unsafe_allow_html=True

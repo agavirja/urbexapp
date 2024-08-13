@@ -71,19 +71,3 @@ def mergedatabybarmanpre(d1,d2,variables):
             variables = ['barmanpre']+variables
         d1 = d1.merge(datamerge[variables],on='barmanpre',how='left',validate='m:1')
     return d1
-
-
-@st.cache_data(show_spinner=False)
-def getPOTantejardin(polygon):
-    
-    user     = st.secrets["user_bigdata"]
-    password = st.secrets["password_bigdata"]
-    host     = st.secrets["host_bigdata_lectura"]
-    schema   = st.secrets["schema_bigdata"]
-    engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
-    data     = pd.DataFrame()
-    if isinstance(polygon, str) and not 'none' in polygon.lower() :
-        query = f' ST_CONTAINS(ST_GEOMFROMTEXT("{polygon}"), geometry) OR ST_INTERSECTS(ST_GEOMFROMTEXT("{polygon}"), geometry) OR ST_TOUCHES(ST_GEOMFROMTEXT("{polygon}"), geometry)'
-        data  = pd.read_sql_query(f"SELECT dimension,observacio as observacion,nota,fechaacto FROM  pot.bogota_antejardin WHERE {query}" , engine)
-    engine.dispose()
-    return data

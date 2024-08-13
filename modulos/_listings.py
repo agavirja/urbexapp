@@ -40,15 +40,10 @@ def main():
     
 def landing(mapwidth,mapheight):
 
-    col1,col2,col3 = st.columns([6,1,1])
-    with col2:
-        st.image('https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png',width=200)
-        
     #-------------------------------------------------------------------------#
     # Variables 
     formato = {
-               'polygon_mls':None,
-               'geojson_data_mls':None,
+               'polygon_am':None,
                'data_mls':pd.DataFrame(),
                'zoom_start':12,
                'latitud':4.652652, 
@@ -116,8 +111,8 @@ def landing(mapwidth,mapheight):
                 )
     draw.add_to(m)
     
-    if st.session_state.geojson_data_mls is not None:
-        folium.GeoJson(st.session_state.geojson_data_mls, style_function=style_function).add_to(m)
+    if st.session_state.polygon_am is not None:
+        folium.GeoJson(mapping(st.session_state.polygon_am), style_function=style_function).add_to(m)
 
     if not st.session_state.data_mls.empty:
         geojson = data2geopandas(st.session_state.data_mls,tiponegocio=tiponegocio)
@@ -139,18 +134,18 @@ def landing(mapwidth,mapheight):
                 polygonType = st_map['all_drawings'][0]['geometry']['type']
         
     if 'polygon' in polygonType.lower():
-        coordenadas                       = st_map['all_drawings'][0]['geometry']['coordinates']
-        st.session_state.polygon_mls      = Polygon(coordenadas[0])
-        st.session_state.geojson_data_mls = mapping(st.session_state.polygon_mls)
-        polygon_shape                     = shape(st.session_state.geojson_data_mls)
-        centroid                          = polygon_shape.centroid
-        st.session_state.latitud          = centroid.y
-        st.session_state.longitud         = centroid.x
-        st.session_state.zoom_start       = 16
+        coordenadas                 = st_map['all_drawings'][0]['geometry']['coordinates']
+        st.session_state.polygon_am = Polygon(coordenadas[0])
+        geojson_data_mls            = mapping(st.session_state.polygon_am)
+        polygon_shape               = shape(geojson_data_mls)
+        centroid                    = polygon_shape.centroid
+        st.session_state.latitud    = centroid.y
+        st.session_state.longitud   = centroid.x
+        st.session_state.zoom_start = 16
         st.rerun()
 
-    if st.session_state.polygon_mls is not None:        
-        polygon = str(st.session_state.polygon_mls)
+    if st.session_state.polygon_am is not None:        
+        polygon = str(st.session_state.polygon_am)
         with col1:
             if st.button('Buscar'):
                 with st.spinner('Buscando información'):

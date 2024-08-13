@@ -25,12 +25,12 @@ def main():
     #-------------------------------------------------------------------------#
     # Tamano de la pantalla 
     screensize = 1920
-    mapwidth   = int(screensize*0.85)
-    mapheight  = int(screensize*0.25)
+    mapwidth   = int(screensize)
+    mapheight  = int(screensize)
     try:
         screensize = streamlit_js_eval(js_expressions='screen.width', key = 'SCR')
-        mapwidth   = int(screensize*0.85)
-        mapheight  = int(screensize*0.25)
+        mapwidth   = int(screensize)
+        mapheight  = int(screensize)
     except: pass
  
     if st.session_state.access:
@@ -39,7 +39,7 @@ def main():
         st.error('Por favor iniciar sesión para poder tener acceso a la plataforma de Urbex')
     
 def landing(mapwidth,mapheight):
-    
+
     #-------------------------------------------------------------------------#
     # Variables 
     formato = {
@@ -70,7 +70,7 @@ def landing(mapwidth,mapheight):
     colt1,colt2,colt3    = st.columns([0.025,0.475,0.50])
     colm1,colm2,colm3    = st.columns([0.025,0.95,0.025])
     colmsn1,colmsn2      = st.columns([0.95,0.05])
-    colmap1,colmap2      = st.columns([0.7,0.3])
+    colmap1,colmap2      = st.columns([0.6,0.4])
     colf1,colf2          = st.columns(2)
     colb1,colb2          = st.columns(2)
 
@@ -84,6 +84,7 @@ def landing(mapwidth,mapheight):
         maxpredios           = 0
         maxpropietario       = 0 
         maxavaluo            = 0 
+        frente               = 0
         loteesquinero        = 'Todos'
         viaprincipal         = 'Todos'
         usodelsuelo          = 'Todos'
@@ -98,14 +99,13 @@ def landing(mapwidth,mapheight):
         with colf1: tratamiento          = st.multiselect('Tratamiento P.O.T',['CONSOLIDACION', 'DESARROLLO', 'RENOVACION', 'CONSERVACION', 'MEJORAMIENTO INTEGRAL'])
         with colf2: actuacionestrategica = st.selectbox('Actuación estrategica', options=['Todos','Si','No'])
         with colf1: areaactividad        = st.multiselect('Área de actividad P.O.T',['Área de Actividad Grandes Servicios Metropolitanos - AAGSM', 'Área de Actividad de Proximidad - AAP- Generadora de soportes urbanos', 'Área de Actividad de Proximidad - AAP - Receptora de soportes urbanos', 'Área de Actividad Estructurante - AAE - Receptora de vivienda de interés social', 'Plan Especial de Manejo y Protección -PEMP BIC Nacional: se rige por lo establecido en la Resolución que lo aprueba o la norma que la modifique o sustituya', 'Área de Actividad Estructurante - AAE - Receptora de actividades económicas'])
-        with colf2: maxpropietario       = st.number_input('Número máximo de propietarios',value=0,min_value=0)
-        with colf1: loteesquinero        = st.selectbox('Lote esquinero', options=['Todos','Si','No'])
-        with colf2: viaprincipal         = st.selectbox('Sobre vía principal', options=['Todos','Si','No'])
-        with colf1: frente               = st.number_input('Área de frente mínima',value=0,min_value=0)
+        with colf2: maxpropietario       = st.number_input('Número máximo de propietarios por lote',value=0,min_value=0)
         with colf1: maxavaluo            = st.number_input('Valor máximo de avalúo catastral',value=0,min_value=0)
         with colf2: maxpredios           = st.number_input('Número máximo de predios actuales en el lote',value=0,min_value=0)
-        #usodelsuelo   = st.selectbox('Uso del suelo', options=['Todos','Si','No'])
-        
+        #usodelsuelo                      = st.selectbox('Uso del suelo', options=['Todos','Si','No'])
+        #with colf1: loteesquinero        = st.selectbox('Lote esquinero', options=['Todos','Si','No'])
+        #with colf2: viaprincipal         = st.selectbox('Sobre vía principal', options=['Todos','Si','No'])
+        #with colf1: frente               = st.number_input('Área de frente mínima',value=0,min_value=0)
         st.session_state.areamin = areamin
         st.session_state.areamax = areamax
         
@@ -150,10 +150,10 @@ def landing(mapwidth,mapheight):
     
     if st.session_state.showterreno:
         with colmap1:
-            st_map = st_folium(m,width=mapwidth,height=mapheight)
+            st_map = st_folium(m,width=int(mapwidth*0.7),height=600)
     else:
         with colm2:
-            st_map = st_folium(m,width=mapwidth,height=mapheight)
+            st_map = st_folium(m,width=int(mapwidth*0.9),height=600)
 
     if 'search' in st.session_state.estado:
         if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
@@ -190,7 +190,7 @@ def landing(mapwidth,mapheight):
                                         centroid                               = st.session_state.polygon_consolidacion.centroid
                                         st.session_state.latitud               = centroid.y
                                         st.session_state.longitud              = centroid.x
-                                        st.session_state.zoom_start            = 20
+                                        st.session_state.zoom_start            = 18
                                         st.session_state.showterreno           = True
                                         
                                         idd = st.session_state.datapredios['barmanpre'].isin(datapaso['barmanpre'])

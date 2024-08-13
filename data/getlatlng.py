@@ -36,5 +36,5 @@ def getlatlngfromcatastro(direccion):
         
         if not data.empty and 'latitud' in data and 'longitud' in data:
             latitud  = data['latitud'].iloc[0]
-            longitud = data['longitud'].iloc[0]
+            longitud = data['longitud'].iloc[0]        
     return latitud,longitud

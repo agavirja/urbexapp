@@ -2,27 +2,37 @@ import streamlit as st
 import pandas as pd
 import shapely.wkt as wkt
 import plotly.express as px
+import geojson as geojsonlib
 import tempfile
 import pdfcrowd
+from shapely.geometry import mapping
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine 
+from streamlit_js_eval import streamlit_js_eval
 
 from modulos._busqueda_avanzada_descripcion_lote import principal_table as html_descripcion_lote, shwolistings,gruoptransactions
 from modulos._busqueda_avanzada_analisis_unidad import principal_table as html_unidad, linkPredial,buildname,buildphone,buildemail
 
-from data.data_estudio_mercado_general import builddata as builddata_radio, data2geopandas, TransactionMarker
 from data.getlatlng import getlatlng
-from data.getuso_destino import usobydestino
 from data.getdatabuilding import main as getdatabuilding
-from data.getdatalotes import main as getdatalotes_radio
 from data.circle_polygon import circle_polygon
-from data.datadane import main as censodane
-from data.data_listings import listingsBypolygon
 from data.data_listings import buildingMarketValues
+from data.getdata_market_analysis import main as getdata_market_analysis
+from data.reporte_analisis_mercado import reporteHtml as reporteHtml_estudio_mercado, data2geopandas,TransactionMarker
+from data.getuso_destino import usosuelo_class
 
 def main(chip=None,barmanpre=None):
     
-    datadestinouso = usobydestino()
+    screensize = 1920
+    mapwidth   = int(screensize)
+    mapheight  = int(screensize)
+    try:
+        screensize = streamlit_js_eval(js_expressions='screen.width', key = 'SCR')
+        mapwidth   = int(screensize)
+        mapheight  = int(screensize)
+    except: pass
+
+    datadestinouso = usosuelo_class()
     datachips      = chipsfrombarmanpre(barmanpre=barmanpre)
     
     precdestin,precuso = [None]*2
@@ -59,13 +69,11 @@ def main(chip=None,barmanpre=None):
             market   = st.toggle("Estudio de mercado",value=False)
             if market==True:
                 st.write('Filtrar la información del estudio de mercado por:')
-                options    = ['Todos'] + list(sorted(datadestinouso[datadestinouso['destino'].notnull()]['destino'].unique()))
-                destino    = st.selectbox('Destino:',options=options)
+                options    = ['Todos'] + list(sorted(datadestinouso[datadestinouso['clasificacion'].notnull()]['clasificacion'].unique()))
+                destino    = st.selectbox('Tipo:',options=options)
                 if 'todo' not in destino.lower() :
-                    datadestinouso = datadestinouso[datadestinouso['destino']==destino]
-                    precdestin     = list(datadestinouso['precdestin'].unique())
-                
-                
+                    datadestinouso = datadestinouso[datadestinouso['clasificacion']==destino]
+
                 options  = ['Todos'] + list(sorted(datadestinouso[datadestinouso['usosuelo'].notnull()]['usosuelo'].unique()))
                 usosuelo = st.selectbox('Uso del suelo:',options=options)
                 if 'todo' not in usosuelo.lower():
@@ -85,7 +93,7 @@ def main(chip=None,barmanpre=None):
   
             if st.button('Generar PDF'):
                 with st.spinner('Generando reporte, por favor espera un momento'):
-                    html = reportehtml(barmanpre=barmanpre,chip=chip,building=building,market=market,predio=predio,logo=logo,tipodestino=precdestin,tipouso=precuso,metros=metros,listingsA=listingsA,listingsNA=listingsNA)
+                    html = reportehtml(barmanpre=barmanpre,chip=chip,building=building,market=market,predio=predio,logo=logo,precuso=precuso,metros=metros,listingsA=listingsA,listingsNA=listingsNA,mapwidth=mapwidth,mapheight=200)
                     
                     API_KEY      = 'e03f4c6097c664281d195cb71357a2a4'
                     pdfcrowduser = 'urbexventas'
@@ -127,8 +135,8 @@ def style_function_geojson(feature):
     }
 
 @st.cache_data(show_spinner=False)
-def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=False,logo=None,tipodestino=None,tipouso=None,metros=500,listingsA=False,listingsNA=False):
-    
+def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=False,logo=None,precuso=None,metros=500,listingsA=False,listingsNA=False,mapwidth=1920,mapheight=200):
+
     html = ""
     
     #-------------------------------------------------------------------------#
@@ -370,380 +378,83 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
     #-------------------------------------------------------------------------#
     # Estudio de mercado
     html_fig_market = []
-    if market:
-        metros = metros if isinstance(metros, int) else 500
-        if (isinstance(latitud, float) or isinstance(latitud, int)) or (isinstance(longitud, float) or isinstance(longitud, int)):
-            polygon  = str(circle_polygon(metros,latitud,longitud))
-            inputvar =  {
-                'polygon':polygon,
-                'latitud':latitud,
-                'longitud':longitud,
-                }
-            datalotes_radio                            = getdatalotes_radio(inputvar)
-            datacatastro_radio,datatransacciones_radio = builddata_radio(polygon=polygon)
-            datalistingsactivos_radio,datalistingshistoricos_radio = listingsBypolygon(str(polygon),precuso=None)
-            datacensodane_radio = censodane(str(polygon))
+    metros          = metros if isinstance(metros, int) else 500
+    polygon         = None
+    if (isinstance(latitud, float) or isinstance(latitud, int)) or (isinstance(longitud, float) or isinstance(longitud, int)):
+        polygon  = str(circle_polygon(metros,latitud,longitud))
             
-            geojson   = data2geopandas(datalotes_radio)
-            geopoints = TransactionMarker(datatransacciones_radio.copy(),datacatastro_radio.copy(),datalotes_radio.copy())
-            titulo = 'Estudio de mercado'
-            html += f"""<div class="header-container"><h1 class="header-title">{titulo}</h1></div>"""
+    if market and isinstance(polygon,str):
+        datapredios_estudio,datacatastro_estudio,datavigencia_estudio,datatransacciones_estudio,datamarket_estudio = getdata_market_analysis(polygon=polygon,precuso=precuso)
 
-            v = """
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 16
-            }).addTo(map);
-            """
-            html += f"""
-            <div id="map"></div>
-            <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-            <script>
-                var geojsonData = {geojson}
-                var geojsonPoints = {geopoints};
-    
-                var map = L.map('map').setView([{latitud}, {longitud}], 16);
-                {v}
-                
-                function style(feature) {{
-                    return {{
-                        color: feature.properties.color,
-                        weight: 1,
-                    }};
-                }}
+        dataoutput = datapredios_estudio.sort_values(by='transacciones',ascending=False).drop_duplicates(subset='barmanpre',keep='first')
+        geojson    = data2geopandas(dataoutput,barmanpreref=None)
+        geopoints  = TransactionMarker(datapredios_estudio.copy(),datatransacciones_estudio.copy())
+        geocircle  = geojsonlib.Feature(geometry=mapping(wkt.loads(polygon)), properties={"color": "#828DEE"})
+ 
         
-                function pointToLayer(feature, latlng) {{
-                            return L.circleMarker(latlng, {{
-                                radius: 2,
-                                color: feature.properties.color,
-                                weight: 1,
-                            }});
-                        }}
+        titulo     = 'Estudio de mercado'
+        html      += f"""<div class="header-container"><h1 class="header-title">{titulo}</h1></div>"""
+
+        v = """
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 16
+        }).addTo(map);
+        """
+        html += f"""
+        <div id="map"></div>
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+        <script>
+            var geojsonCircle = {geocircle};
+            var geojsonData = {geojson}
+            var geojsonPoints = {geopoints};
+            
+            var map = L.map('map').setView([{latitud}, {longitud}], 16);
+            {v}
+            
+            function style(feature) {{
+                return {{
+                    color: feature.properties.color,
+                    weight: 1,
+                }};
+            }}
     
-                L.geoJSON(geojsonData, {{
-                    style: style
-                }}).addTo(map);
-            
-                L.geoJSON(geojsonPoints, {{
-                    pointToLayer: pointToLayer
-                }}).addTo(map);
-            
-            </script>
-            """
-            if isinstance(tipodestino, list):
-                datacatastro_radio      = datacatastro_radio[datacatastro_radio['precdestin'].isin(tipodestino)]
-                datalotes_radio         = datalotes_radio[datalotes_radio['barmanpre'].isin(datacatastro_radio['barmanpre'])]
-                datatransacciones_radio = datatransacciones_radio[datatransacciones_radio['prechip'].isin(datatransacciones_radio['prechip'])]
+            function pointToLayer(feature, latlng) {{
+                        return L.circleMarker(latlng, {{
+                            radius: 2,
+                            color: feature.properties.color,
+                            weight: 1,
+                        }});
+                    }}
 
-            if isinstance(tipouso, list):
-                datacatastro_radio      = datacatastro_radio[datacatastro_radio['precuso'].isin(tipouso)]
-                datalotes_radio         = datalotes_radio[datalotes_radio['barmanpre'].isin(datacatastro_radio['barmanpre'])]
-                datatransacciones_radio = datatransacciones_radio[datatransacciones_radio['prechip'].isin(datacatastro_radio['prechip'])]
-                
-            tiposelected = 'destino'
-            titulo       = 'Destino'
-            
-                #---------------------------------------------------------------------#
-                # Transacciones
-            if not datatransacciones_radio.empty:
-                df = datatransacciones_radio.groupby('fecha_documento_publico').agg({'valormt2_transacciones':['count','median']}).reset_index()
-                df.columns = ['fecha','count','value']
-                df.index = range(len(df))
-                if not df.empty:
-                    fig = px.bar(df, x="fecha", y="count", text="count", title='Número de transacciones')
-                    fig.update_traces(texttemplate='%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                    fig.update_xaxes(tickmode='linear', dtick=1)
-                    fig.update_layout(title_x=0.5,height=350, xaxis_title=None, yaxis_title=None)
-                    fig.update_layout({
-                        'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                        'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                        'title_font':dict(color='black'),
-                        'legend':dict(bgcolor='black'),
-                    })    
-                    fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                    try:
-                        soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                        soup = soup.find('body')
-                        soup = str(soup.prettify())
-                        soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                        html_fig_market.append(soup)
-                    except: pass
-                
-                    fig = px.bar(df, x="fecha", y="value", text="value", title='Valor promedio de las transacciones por m²')
-                    fig.update_traces(texttemplate='$%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                    fig.update_layout(title_x=0.5,height=350, xaxis_title=None, yaxis_title=None)
-                    fig.update_layout({
-                        'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                        'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                        'title_font':dict(color='black'),
-                    })
-                    fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                    try:
-                        soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                        soup = soup.find('body')
-                        soup = str(soup.prettify())
-                        soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                        html_fig_market.append(soup)
-                    except: pass
-                        
-                #---------------------------------------------------------------------#
-                # Destino<>uso del suelo + Transacciones
-            if not datacatastro_radio.empty:
-                df = datacatastro_radio.groupby(tiposelected)['prechip'].count().reset_index()
-                df.columns = ['variable','value']
-                df.index = range(len(df))
-                if not df.empty and len(df)>1:
-                    graphtit = f'Número de matrículas por {titulo}'
-                    # color_discrete_sequence=px.colors.sequential.RdBu[::-1]
-                    fig      = px.pie(df,  values="value", names="variable", title=graphtit,color_discrete_sequence=px.colors.sequential.Purples[::-1],height=500)
-                    fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                    fig.update_layout({
-                        'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                        'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                        'title_font':dict(color='black'),
-                    })
-                    fig.update_traces(textinfo='percent+label', textfont_color='white',textposition='inside',)
-                    fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    fig.update_layout(legend=dict(font=dict(color='black')))
-                    html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                    try:
-                        soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                        soup = soup.find('body')
-                        soup = str(soup.prettify())
-                        soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                        html_fig_market.append(soup)
-                    except: pass
-                        
-            if not datatransacciones_radio.empty:
-                df         = datatransacciones_radio.groupby(tiposelected).agg({'valormt2_transacciones':['median']}).reset_index()
-                df.columns = ['variable','value']
-                df         = df[(df['value']>0) & (df['value']<100000000)]
-                df         = df.sort_values(by='value',ascending=True)
-                df.index   = range(len(df))
-                if not df.empty and len(df)>1:
-                    graphtit = f'Transacciones por {titulo}'
-                    fig = px.bar(df, x="value", y="variable", text="value", title=graphtit,orientation='h')
-                    fig.update_traces(texttemplate='$%{x:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                    fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                    fig.update_layout({
-                        'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                        'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                        'title_font':dict(color='black'),
-                    })
-                    fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                    try:
-                        soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                        soup = soup.find('body')
-                        soup = str(soup.prettify())
-                        soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                        html_fig_market.append(soup)
-                    except: pass
-                
-                #---------------------------------------------------------------------#
-                # Avaluo catastral y predial
-            if not datacatastro_radio.empty:
-                df = datacatastro_radio.groupby(tiposelected).agg({'avaluomt2':['median']}).reset_index()
-                df.columns = ['variable','value']
-                df         = df[(df['value']>0) & (df['value']<100000000)]
-                df         = df.sort_values(by='value',ascending=True)
-                df.index   = range(len(df))
-                if not df.empty:
-                    df  = df[df['value'].notnull()]
-                    fig = px.bar(df, x="value", y="variable", text="value", title='Avalúo catastral promedio por m²',orientation='h')
-                    fig.update_traces(texttemplate='$%{x:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                    fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                    fig.update_layout({
-                        'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                        'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                        'title_font':dict(color='black'),
-                    })    
-                    fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                    try:
-                        soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                        soup = soup.find('body')
-                        soup = str(soup.prettify())
-                        soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                        html_fig_market.append(soup)
-                    except: pass
-                
-                df         = datacatastro_radio.groupby(tiposelected).agg({'predialmt2':['median']}).reset_index()
-                df.columns = ['variable','value']
-                df         = df[(df['value']>0) & (df['value']<500000)]
-                df         = df.sort_values(by='value',ascending=True)
-                df.index   = range(len(df))
-                if not df.empty:
-                    df  = df[df['value'].notnull()]
-                    fig = px.bar(df, x="value", y="variable", text="value", title='Predial promedio por m²',orientation='h')
-                    fig.update_traces(texttemplate='$%{x:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                    fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                    fig.update_layout({
-                        'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                        'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                        'title_font':dict(color='black'),
-                    })    
-                    fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                    html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                    try:
-                        soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                        soup = soup.find('body')
-                        soup = str(soup.prettify())
-                        soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                        html_fig_market.append(soup)
-                    except: pass
+            L.geoJSON(geojsonData, {{
+                style: style
+            }}).addTo(map);
+        
+            L.geoJSON(geojsonPoints, {{
+                pointToLayer: pointToLayer
+            }}).addTo(map);
+        
+            L.geoJSON(geojsonCircle, {{
+                style: style
+            }}).addTo(map);
+        </script>
+        """
+        html_reporte_estudio = reporteHtml_estudio_mercado(datapredios=datapredios_estudio,datacatastro=datacatastro_estudio,datatransacciones=datatransacciones_estudio,datavigencia=datavigencia_estudio,datamarket=datamarket_estudio,mapwidth=mapwidth/(0.4),mapheight=200)
+        try:
+            soup = BeautifulSoup(html_reporte_estudio, 'html.parser')
+            soup = soup.find('body')
+            soup = str(soup.prettify())
+            soup = soup.replace('<body>','').replace('</body>','')
+            titulo = ""
+            html += f"""<div class="header-container"><h1 class="header-title">{titulo}</h1></div>"""
+            html += soup
+        except: pass
 
-                #---------------------------------------------------------------------#
-                # Tipologia de los inmuebles
-            df  = pd.DataFrame()
-            if not datacatastro_radio.empty:
-                formato = [{'variable':'preaconst','titulo':'Diferenciación por Área Privada'},
-                           {'variable':'prevetustz','titulo':'Diferenciación por Antigüedad'},]
-                for iiter in formato:
-                    variable = iiter['variable']
-                    titulo   = iiter['titulo']
-                    df         = datacatastro_radio.copy()
-                    df         = df[df[variable]>0]
-                    
-                    if not df.empty:
-                        q1         = df.groupby(tiposelected)[variable].quantile(0.25).reset_index()
-                        q1.columns = [tiposelected,'q1']
-                        q3         = df.groupby(tiposelected)[variable].quantile(0.75).reset_index()
-                        q3.columns = [tiposelected,'q3']
-                        
-                        # Remover outliers
-                        w         = q1.merge(q3,on=tiposelected,how='outer')
-                        w['iqr']  = w['q3']-w['q1']
-                        w['linf'] = w['q1'] - 1.5*w['iqr']
-                        w['lsup'] = w['q3'] + 1.5*w['iqr']
-                        df        = df.merge(w[[tiposelected,'linf','lsup']],on=tiposelected,how='left',validate='m:1')
-                        df        = df[(df[variable]>=df['linf']) & (df[variable]<=df['lsup'])]
-                        
-                        w         = df.groupby(tiposelected)['prechip'].count().reset_index() 
-                        w.columns = [tiposelected,'count']
-                        df        = df.merge(w,on=tiposelected,how='left',validate='m:1')
-                        df        = df[df['count']>2]
-                
-                    if not df.empty:
-                        fig = px.box(df,x=tiposelected,y=variable,title=titulo,color_discrete_sequence=['#68c8ed'])
-                        fig.update_layout(title_x=0.3,height=500, xaxis_title=None, yaxis_title=None)
-                        fig.update_layout({
-                            'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-                            'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                            'title_font':dict(color='black'),
-                        })    
-                        fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                        fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                        fig.update_traces(boxpoints=False)
-                        html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                        try:
-                            soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                            soup = soup.find('body')
-                            soup = str(soup.prettify())
-                            soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                            html_fig_market.append(soup)
-                        except: pass
-                    
-                #---------------------------------------------------------------------#
-                # Listings
-            if not datalistingsactivos_radio.empty:
-                df = datalistingsactivos_radio.groupby(['tiponegocio','tipoinmueble']).agg({'valormt2':['count','median']}).reset_index()
-                df.columns = ['tiponegocio','tipoinmueble','count','value']
-                df.index = range(len(df))
-                for tiponegocio in ['Venta','Arriendo']:
-                    dfiter = df[df['tiponegocio']==tiponegocio]
-                    dfiter = dfiter.sort_values(by='value',ascending=True)
-                    if not dfiter.empty:
-                        fig = px.bar(dfiter, x="value", y="tipoinmueble", text="value", title=f'Valor de {tiponegocio.lower()} por m² (listings activos)',orientation='h')
-                        fig.update_traces(texttemplate='$%{x:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                        fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                        fig.update_layout({
-                            'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                            'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                            'title_font':dict(color='black'),
-                        })    
-                        fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                        fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                        html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                        try:
-                            soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                            soup = soup.find('body')
-                            soup = str(soup.prettify())
-                            soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                            html_fig_market.append(soup)
-                        except: pass
-
-                #---------------------------------------------------------------------#
-                # Analisis demografico
-            if not datacensodane_radio.empty:
-                variables = [x for x in ['Total personas','Total viviendas','Hogares','Hombres','Mujeres'] if x in datacensodane_radio]
-                df = datacensodane_radio[variables].copy()
-                df = df.T.reset_index()
-                df.columns = ['name','value']
-                df.index = range(len(df))
-                fig      = px.bar(df, x="name", y="value", text="value", title="Análisis Demográfico (censo del DANE)")
-                fig.update_traces(texttemplate='%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                fig.update_xaxes(tickmode='linear', dtick=1)
-                fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                fig.update_layout({
-                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                    'title_font':dict(color='black'),
-                })
-                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                fig.update_yaxes(showgrid=False, zeroline=False)
-                html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                try:
-                    soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                    soup = soup.find('body')
-                    soup = str(soup.prettify())
-                    soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                    html_fig_market.append(soup)
-                except: pass
-            
-                variables = [x for x in ['0 a 9 años', '10 a 19 años', '20 a 29 años', '30 a 39 años', '40 a 49 años', '50 a 59 años', '60 a 69 años', '70 a 79 años', '80 años o más'] if x in datacensodane_radio]
-                df = datacensodane_radio[variables].copy()
-                df = df.T.reset_index()
-                df.columns = ['name','value']
-                df.index = range(len(df))
-                fig      = px.bar(df, x="name", y="value", text="value", title="Edades (censo del DANE)")
-                fig.update_traces(texttemplate='%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                fig.update_xaxes(tickmode='linear', dtick=1)
-                fig.update_layout(title_x=0.3,height=350, xaxis_title=None, yaxis_title=None)
-                fig.update_layout({
-                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                    'title_font':dict(color='black'),
-                })    
-                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                try:
-                    soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                    soup = soup.find('body')
-                    soup = str(soup.prettify())
-                    soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                    html_fig_market.append(soup)
-                except: pass
-
-    if isinstance(html_fig_market, list):
-        for graficas in html_fig_market:
-            html += f""" 
-            <div class="graph-container">
-                {graficas}
-            </div>
-            """
-            
+    #-------------------------------------------------------------------------#
+    # Data Listings
+    #-------------------------------------------------------------------------#
     datalistings = pd.DataFrame()
     if listingsA or listingsNA:
         if direccion is not None:
@@ -801,25 +512,133 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
     if html!='':
         style = f"""
         <style>
+            body, html {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+        
+            .card {{
+                --bs-card-spacer-y: 1rem;
+                --bs-card-spacer-x: 1rem;
+                --bs-card-title-spacer-y: 0.5rem;
+                --bs-card-title-color: #000;
+                --bs-card-subtitle-color: #6c757d;
+                --bs-card-border-width: 1px;
+                --bs-card-border-color: rgba(0, 0, 0, 0.125);
+                --bs-card-border-radius: 0.25rem;
+                --bs-card-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+                --bs-card-inner-border-radius: calc(0.25rem - 1px);
+                --bs-card-cap-padding-y: 0.5rem;
+                --bs-card-cap-padding-x: 1rem;
+                --bs-card-cap-bg: rgba(0, 123, 255, 0.03);
+                --bs-card-cap-color: #007bff;
+                --bs-card-height: auto;
+                --bs-card-color: #000;
+                --bs-card-bg: #fff;
+                --bs-card-img-overlay-padding: 1rem;
+                --bs-card-group-margin: 0.75rem;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+                height: var(--bs-card-height);
+                color: var(--bs-card-color);
+                word-wrap: break-word;
+                background-color: var(--bs-card-bg);
+                background-clip: border-box;
+                border: var(--bs-card-border-width) solid var(--bs-card-border-color);
+                border-radius: var(--bs-card-border-radius);
+                box-shadow: var(--bs-card-box-shadow);
+            }}
+        
+            .card-stats .icon-big {{
+                font-size: 3rem;
+                line-height: 1;
+                color: #fff;
+            }}
+        
+            .card-stats .icon-primary {{
+                background-color: #007bff;
+            }}
+        
+            .bubble-shadow-small {{
+                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+                border-radius: 50%;
+                padding: 1rem;
+            }}
+        
+            .card-stats .numbers {{
+                font-size: 2rem;
+                font-weight: bold;
+                text-align: center;
+            }}
+        
+            .card-stats .card-category {{
+                color: #6c757d;
+                font-size: 0.8rem;
+                margin: 0;
+                text-align: center;
+            }}
+        
+            .card-stats .card-title {{
+                margin: 0;
+                font-size: 1.2rem;
+                font-weight: bold;
+                text-align: center;
+            }}
+            
+            .small-text {{
+                font-size: 0.3rem; 
+                color: #6c757d; 
+            }}
+            
+            .graph-container {{
+                width: 100%;
+                height: 100%;
+                margin-bottom: 0;
+            }}
+        
+            .card-custom {{
+                height: 215px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+            }}
+        
+            .card-body-custom {{
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                text-align: center;
+            }}
+        
             .css-table {{
                 overflow-x: auto;
                 overflow-y: auto;
                 width: 100%;
                 height: 100%;
             }}
+        
             .css-table table {{
                 width: 100%;
                 padding: 0;
             }}
+        
             .css-table td {{
                 text-align: left;
                 padding: 0;
             }}
+        
             .css-table h6 {{
                 line-height: 1; 
                 font-size: 50px;
                 padding: 0;
             }}
+        
             .css-table td[colspan="labelsection"] {{
                 text-align: left;
                 font-size: 15px;
@@ -831,6 +650,7 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 display: block;
                 font-family: 'Inter';
             }}
+        
             .css-table td[colspan="labelsectionborder"] {{
                 text-align: left;
                 border: none;
@@ -839,66 +659,72 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 display: block;
                 padding: 0;
             }}
+        
             #top {{
                 position: absolute;
                 top: 0;
             }}
+        
             #top:target::before {{
                 content: '';
                 display: block;
                 height: 100px; 
                 margin-top: -100px; 
             }}
+        
             .map-container-wrapper, .graph-container-wrapper {{
                 display: flex;
                 justify-content: space-between;
                 gap: 10px; /* Separación pequeña entre elementos */
             }}  
+        
             .map-container-wrapper > div, .map-container-wrapper > img, .graph-container-wrapper > div {{
                 flex: 1;
                 height: 400px;
                 width: 48%;
             }}
+        
             #map-container {{
-                background-image: url('{streetview}');
+                background-image: url('{{streetview}}');
                 background-size: cover;
             }}
+        
             #map-container-sat {{
-                background-image: url('{satelital}');
+                background-image: url('{{satelital}}');
                 background-size: cover;
             }}
+        
             #map {{
                 width: 100%;
                 height: 600px;
             }}
+        
             .property-map {{
                 width: 100%;
                 height: 100%;
             }}
-            .graph-container {{
-                margin-bottom: 20px;
-            }}
-            
-            
-            
+        
             .property-image {{
                 width: 100%;
                 height: 250px;
                 overflow: hidden; 
                 margin-bottom: 10px;
             }}
+        
             .price-info {{
                 font-family: 'Roboto', sans-serif;
                 font-size: 20px;
                 margin-bottom: 2px;
                 text-align: center;
             }}
+        
             .caracteristicas-info {{
                 font-family: 'Roboto', sans-serif;
                 font-size: 12px;
                 margin-bottom: 2px;
                 text-align: center;
             }}
+        
             img {{
                 max-width: 100%;
                 width: 100%;
@@ -906,29 +732,30 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 object-fit: cover;
                 margin-bottom: 10px; 
             }}
-            
-            
-            
+        
             .header-container {{
                 width: 100%;
                 background-color: #f2f2f2; /* Gris muy claro */
                 padding: 20px 0; /* Espaciado arriba y abajo */
             }}
+        
             .header-title {{
                 color: #A16CFF; /* Azul claro */
                 text-align: center;
                 font-size: 24px; /* Tamaño de fuente del título */
                 margin: 0;
             }}
-            
+        
             body {{
                 font-family: Arial, sans-serif;
                 font-size: 10px; /* Reducir el tamaño de la fuente */
             }}
+        
             .table-wrapper {{
                 width: 100%;
                 margin: 0 auto;
             }}
+        
             .fl-table {{
                 border-collapse: collapse;
                 margin: 25px 0;
@@ -937,16 +764,18 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 border: 1px solid #ddd;
                 text-align: left;
             }}
+        
             .fl-table th, .fl-table td {{
                 padding: 8px 10px; /* Reducir el padding */
             }}
+        
             .fl-table th {{
                 background-color: #f2f2f2;
             }}
+        
             .fl-table tr:nth-child(even) {{
                 background-color: #f9f9f9;
             }}
-            
         </style>
         """
         html = f"""

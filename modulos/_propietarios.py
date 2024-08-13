@@ -8,7 +8,12 @@ from data.getdatabuilding import main as getdatabuilding
 def main(chip=None,barmanpre=None,vartype=None,infilter=True,descargar=True):
     
     html,datavigencia_predio = gethtml(chip=chip,barmanpre=barmanpre,vartype=vartype,infilter=infilter,descargar=descargar) 
-    st.components.v1.html(html,height=450)    
+    if   len(datavigencia_predio)>=13: tableH = 450
+    elif len(datavigencia_predio)>=5:  tableH = int(len(datavigencia_predio)*50)
+    elif len(datavigencia_predio)>1:   tableH = int(len(datavigencia_predio)*60)
+    elif len(datavigencia_predio)==1:  tableH = 100
+    else: tableH = 100
+    st.components.v1.html(html,height=tableH)    
     
     if descargar:
         col1,col2,col3 = st.columns([0.7,0.2,0.1])

@@ -24,12 +24,12 @@ def main(code=None):
     #-------------------------------------------------------------------------#
     # Tamano de la pantalla 
     screensize = 1920
-    mapwidth   = int(screensize*0.25)
-    mapheight  = int(screensize*0.20)
+    mapwidth   = int(screensize)
+    mapheight  = int(screensize)
     try:
         screensize = streamlit_js_eval(js_expressions='screen.width', key = 'SCR')
-        mapwidth   = int(screensize*0.25)
-        mapheight  = int(screensize*0.20)
+        mapwidth   = int(screensize)
+        mapheight  = int(screensize)
     except: pass
 
     #-------------------------------------------------------------------------#
@@ -42,6 +42,7 @@ def main(code=None):
         #-------------------------------------------------------------------------#
         col1,col2,col3,col4,col5   = st.columns([0.2,0.02,0.2,0.05,0.5])
         latitud,longitud = [None]*2
+        polygon          = None
         if not datapredios.empty:
             try:
                 polygon  = wkt.loads(datapredios['wkt'].iloc[0]) 
@@ -67,7 +68,7 @@ def main(code=None):
                 folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
                 
             with col5:
-                st_map = st_folium(m,width=1000,height=400)
+                st_map = st_folium(m,width=int(mapwidth*0.4),height=400)
         
         #-------------------------------------------------------------------------#
         # Google maps streetview
@@ -75,11 +76,11 @@ def main(code=None):
         with col1:
             if (isinstance(latitud, float) or isinstance(latitud, int)) and (isinstance(longitud, float) or isinstance(longitud, int)):
                 html = mapstreetview(latitud,longitud)
-                st.components.v1.html(html, width=int(mapwidth*0.8), height=mapheight)
+                st.components.v1.html(html, width=int(mapwidth*0.2), height=400)
         with col3:
             if (isinstance(latitud, float) or isinstance(latitud, int)) and (isinstance(longitud, float) or isinstance(longitud, int)):
-                html = mapsatelite(latitud,longitud)
-                st.components.v1.html(html, width=int(mapwidth*0.8), height=mapheight)
+                html = mapsatelite(latitud,longitud,polygon=str(polygon) if polygon is not None else None)
+                st.components.v1.html(html, width=int(mapwidth*0.2), height=400)
             
         #-------------------------------------------------------------------------#
         # Data vigencia y transacciones
@@ -700,8 +701,8 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
     # Seccion Tipologias
     datausosuelo.index = range(len(datausosuelo))
     tablatipologia     = ""
+    html_paso          = ""
     if len(datausosuelo)>0:
-        html_paso = ""
         areatotalconstruida = datausosuelo['preaconst_precuso'].sum()
         for i in range(len(datausosuelo)):
             try:    usosuelo = datausosuelo['usosuelo'].iloc[i]
@@ -717,7 +718,7 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
             conteo    += 1
             html_paso += f"""
             <tr>
-                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{usosuelo}</h6></td>
+                <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;font-size: 12px;">{usosuelo}</h6></td>
                 <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{predios}</h6></td>
                 <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{areaconstruida}</h6></td>
                 <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{proporcion}</h6></td>
@@ -742,12 +743,12 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
             """
             tablatipologia = f"""<div class="col-md-6"><div class="css-table"><table class="table align-items-center mb-0" style="table-layout: auto; width: 100%;"><tbody>{tablatipologia}</tbody></table></div></div>"""
 
-    
     #---------------------------------------------------------------------#
     # POT
-    tablapot = ""
+    tablapot  = ""
+    html_paso = ""
     if 'POT' in input_complemento and input_complemento['POT']!=[]:
-        html_paso = ""
+        
         for items in input_complemento['POT']:
             if 'data' in items:
                 if len(items['data'])>1:
@@ -766,8 +767,8 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
                 conteo += 1
             
         if html_paso!="":
-            labeltable     = "P.O.T"
-            tablapot = f"""
+            labeltable = "P.O.T"
+            tablapot   = f"""
             <tr><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;">{labeltable}</h6></td><td style="border-bottom: 2px solid #A16CFF;"><h6 class="mb-0 text-sm" style="font-family: 'Inter';color: #A16CFF;"> </h6></td></tr>
             <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
             {html_paso}
@@ -778,6 +779,7 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
     #---------------------------------------------------------------------#
     # Seccion Condiciones de mercado
     tablavalorizacion = ""
+    html_paso         = ""
     if 'valorizacion' in input_complemento and isinstance(input_complemento['valorizacion'], list):
         html_paso     = ""
         df            = pd.DataFrame(input_complemento['valorizacion'])
@@ -816,6 +818,7 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
     #---------------------------------------------------------------------#
     # Seccion Demografica
     tablademografica = ""
+    html_paso        = ""
     if 'dane' in input_complemento:
         html_paso = ""
         for key,value in input_complemento['dane'].items():
@@ -837,6 +840,7 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
     #---------------------------------------------------------------------#
     # Seccion Transporte
     tablatransporte = ""
+    html_paso       = ""
     if 'transmilenio' in input_complemento and isinstance(input_complemento['transmilenio'],str): 
         html_paso = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['transmilenio']}</h6></td></tr>"""
         labeltable     = "Transmilenio"
@@ -851,6 +855,7 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
     #---------------------------------------------------------------------#
     # Seccion SITP
     tablasitp = ""
+    html_paso = ""
     if 'sitp' in input_complemento and isinstance(input_complemento['sitp'],str): 
         html_paso = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['sitp']}</h6></td></tr>"""
         labeltable     = "SITP"
@@ -865,6 +870,7 @@ def principal_table(datapredios=pd.DataFrame(),datausosuelo=pd.DataFrame(),input
     #---------------------------------------------------------------------#
     # Seccion Vias
     tablavias = ""
+    html_paso = ""
     if 'vias' in input_complemento and isinstance(input_complemento['vias'],str): 
         html_paso = f"""<tr><td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{input_complemento['vias']}</h6></td></tr>"""
         labeltable     = "Vías"
