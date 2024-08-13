@@ -171,8 +171,8 @@ def ifPolygon(formato,mapwidth,mapheight):
             else:
                 with colt2:
                     html = pasosApp("Dibuja el poligono para realziar la busqueda de lotes","1")
-                    html = BeautifulSoup(html, 'html.parser')
-                    st.markdown(html, unsafe_allow_html=True)
+                    #html = BeautifulSoup(html, 'html.parser')
+                    #st.markdown(html, unsafe_allow_html=True)
                     
             if not st.session_state.datalotes_busqueda_avanzada_default.empty:
                 geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default,seleccion)

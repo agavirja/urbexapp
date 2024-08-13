@@ -42,7 +42,6 @@ if '_market_precuso' in st.query_params:
 if '_market_select' in st.query_params: 
     st.session_state._market_select = st.query_params['_market_select']
 
-
 if st.session_state.access is False and isinstance(st.session_state.token, str) and st.session_state.token!='':
     st.session_state.access = getuser(st.session_state.token)
 
