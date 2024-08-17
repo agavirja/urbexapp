@@ -55,34 +55,35 @@ def main(barmanpre):
     
 def landing(barmanpre,mapwidth,mapheight):
     
-    colm1,colm2 = st.columns([0.3,0.7])
-    
-    st.write('')
-    titulo = 'Variables'
-    html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-    texto  = BeautifulSoup(html, 'html.parser')
-    st.markdown(texto, unsafe_allow_html=True)
-    
-    colf1,colf2 = st.columns(2)
-    
-    st.write('')
-    titulo = 'Configuración'
-    html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-    texto  = BeautifulSoup(html, 'html.parser')
-    st.markdown(texto, unsafe_allow_html=True)
-    
-    colp1,colp2,colp3,colp4,colp5 = st.columns(5)
-    with colf1:
-        idc = st.number_input('índice de ocupación:',value=70,min_value=0,max_value=100)
-        
-    with colf2:
-        pac = st.number_input('Porcentaje de área común en la planta:',value=20,min_value=0,max_value=100)
-        pac = pac/100
-        
-    #-------------------------------------------------------------------------#
-    # Data
     with st.spinner('Construyendo la Cabida'):
+
+        colm1,colm2 = st.columns([0.3,0.7])
         
+        st.write('')
+        titulo = 'Variables'
+        html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+        texto  = BeautifulSoup(html, 'html.parser')
+        st.markdown(texto, unsafe_allow_html=True)
+        
+        colf1,colf2 = st.columns(2)
+        
+        st.write('')
+        titulo = 'Configuración'
+        html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+        texto  = BeautifulSoup(html, 'html.parser')
+        st.markdown(texto, unsafe_allow_html=True)
+        
+        colp1,colp2,colp3,colp4,colp5 = st.columns(5)
+        with colf1:
+            idc = st.number_input('índice de ocupación:',value=70,min_value=0,max_value=100)
+            
+        with colf2:
+            pac = st.number_input('Porcentaje de área común en la planta:',value=20,min_value=0,max_value=100)
+            pac = pac/100
+                
+        #-------------------------------------------------------------------------#
+        # Data
+
         datapredios,datalotescatastro,datausosuelo = getdatacombinacionlotes(barmanpre)
 
         polygon_wkt  = datapredios['wkt'].iloc[0]
@@ -147,11 +148,15 @@ def landing(barmanpre,mapwidth,mapheight):
                             msn = 'Al ser receptora de vivienda de interés social se puede duplicar el número de pisos'
                             if isinstance(alturamax,int) and alturamax>0:
                                 alturamax = int(alturamax*2)
-        
+        #-------------------------------------------------------------------------#
+        # Si no hay forma de sacar altura, que al menos la iguale con la altura max de lo construido en la manzana         
+        if alturamax is None: 
+            alturamax = int(input_complemento['alturamax']) if 'alturamax' in input_complemento and isinstance(input_complemento['alturamax'],(float,int)) else None
+
         with colf1:
             index = 0
             if isinstance(alturamax,int) and alturamax>0: index = alturamax
-            numero_pisos = st.selectbox('Número de pisos construidos:',options=range(21),index=index)
+            numero_pisos = st.selectbox('Número de pisos construidos:',options=range(25),index=index)
         
         with colf2:
             altura_pisos = st.number_input('Altura de placas (metros):',value=3.5,min_value=2.0,step=0.5)
@@ -178,7 +183,7 @@ def landing(barmanpre,mapwidth,mapheight):
             with colp2:
                 planta = st.text_input('Planta 1', disabled=True, placeholder='Planta 1', label_visibility="hidden", key=f'planta_1_{index}')
             with colp3:
-                tipoinmueble = st.selectbox('Tipo de inmueble:', options=['Áreas comunes','Apartamento', 'Bodega', 'Casa', 'Local', 'Oficina','Áreas comunes'], key=f'tipoinmueble_1_{index}')
+                tipoinmueble = st.selectbox('Tipo de inmueble:', options=['Áreas comunes','Apartamento', 'Bodega', 'Casa', 'Local', 'Oficina'], key=f'tipoinmueble_1_{index}')
             with colp4:
                 max_value = (1 - porcentajeacumulado) * 100.0
                 porcentaje = st.number_input('Porcentaje:', value=max_value, min_value=0.0, max_value=max_value, key=f'porcentaje_1_{index}') / 100
@@ -237,17 +242,17 @@ def landing(barmanpre,mapwidth,mapheight):
                 }
             }
             geojson_feature['geometry']['coordinates'] = [[list(coord) for coord in geojson_feature['geometry']['coordinates'][0]]]
-        
-            geojson_feature2 = {
+            
+            # Superficie
+            geojson_feature_superficie = {
                 'type': 'Feature',
                 'geometry': {
                     'type': 'Polygon',
                     'coordinates': [list(polygon.exterior.coords)]
                 }
             }
-            geojson_feature2['geometry']['coordinates'] = [[list(coord) for coord in geojson_feature2['geometry']['coordinates'][0]]]
-        
-        
+            geojson_feature_superficie['geometry']['coordinates'] = [[list(coord) for coord in geojson_feature_superficie['geometry']['coordinates'][0]]]
+
             access_token = 'pk.eyJ1IjoiYWdhdmlyaWFqIiwiYSI6ImNrYWQ4dXlvZzIyMXIyeW50aHJldGVtcmgifQ.j7XuNBmPQ8SlrUeTPWsrNQ'
             
             mapa = """
@@ -279,23 +284,43 @@ def landing(barmanpre,mapwidth,mapheight):
                 });
             
                 map.on('style.load', () => {
+                    const polygonsuperficie = geojsonsuperficie;
                     const polygon = geojsonpolygon;
-                    
-                    map.addSource('polygon', {
+            
+                    map.addSource('polygon-superficie', {
                         'type': 'geojson',
                         'data': {
                             'type': 'FeatureCollection',
-                            'features': [polygon]
+                            'features': [polygonsuperficie]
                         }
                     });
-                                
+            
+                    map.addLayer({
+                        'id': 'polygon-superficie-layer',
+                        'type': 'fill-extrusion',
+                        'source': 'polygon-superficie',
+                        'paint': {
+                            'fill-extrusion-color': '#DE5478',
+                            'fill-extrusion-height': 0,
+                            'fill-extrusion-opacity': 0.1
+                        }
+                    });
+            
                     map.addLayer({
                         'id': 'polygon-2d-layer',
                         'type': 'fill',
                         'source': 'polygon',
                         'paint': {
                             'fill-color': '#0074D9',
-                            'fill-opacity': 0.5
+                            'fill-opacity': 0.9
+                        }
+                    });
+                    
+                    map.addSource('polygon', {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'FeatureCollection',
+                            'features': [polygon]
                         }
                     });
             
@@ -307,401 +332,434 @@ def landing(barmanpre,mapwidth,mapheight):
                             'type': 'fill-extrusion',
                             'source': 'polygon',
                             'paint': {
-                                'fill-extrusion-color': '#0074D9',
+                                color_replace_function
                                 'fill-extrusion-height': (i + 1) * floorHeight,
                                 'fill-extrusion-base': i * floorHeight,
                                 'fill-extrusion-opacity': 0.6
                             }
                         });
                     }
-                    
                 });
             </script>
             
             </body>
             </html>
             """
+            
+            # Colores por tipoligia
+            datapisos = building_floors(inputvar)
+            df        = datapisos[datapisos['piso']==1]
+            if len(df)>1:
+                df = df[df['tipo']!='Áreas comunes']
+                if not df.empty:
+                    datapisos = datapisos[~((datapisos['piso']==1) & (datapisos['tipo']=='Áreas comunes'))]
+            datapisos          = datapisos.drop_duplicates(subset='piso',keep='first')
+            datapisos['color'] = datapisos['tipo'].replace(['Áreas comunes','Apartamento', 'Bodega', 'Casa', 'Local', 'Oficina'],['#FC644E','#0074D9','#FCB74E','#4EFCAE','#FFA500','#4EFC8F'])
+            vector_colores     = datapisos.to_dict(orient='records')
+            
+            try:    colorplant1 = datapisos[datapisos['piso']==1]['color'].iloc[0]
+            except: colorplant1 = '#FFF'
+            
             mapa = mapa.replace('centerlat', f'{latitud}').replace('centerlng', f'{longitud}').replace('replace_access_token', access_token)
-            mapa = mapa.replace('geojsonpolygon', f'{geojson_feature}').replace('numero_pisos',f'{numero_pisos}').replace('altura_pisos',f'{altura_pisos}')
-            mapa = mapa.replace('geojsonpolygon2', f'{geojson_feature2}')
+            mapa = mapa.replace('geojsonpolygon', f'{geojson_feature}').replace('numero_pisos', f'{numero_pisos}').replace('altura_pisos', f'{altura_pisos}')
+            mapa = mapa.replace('geojsonsuperficie', f'{geojson_feature_superficie}')
+            mapa = mapa.replace('color_replace_function', generar_condicional(vector_colores))
+            mapa = mapa.replace('color_planta1_replace',colorplant1)
             mapa = BeautifulSoup(mapa, 'html.parser')
-            st.components.v1.html(str(mapa), width=1200,height=600)
-    
+            st.components.v1.html(str(mapa), width=1200, height=600)
 
-        with st.spinner('información del mercado'):
-            
-            #-----------------------------------------------------------------#
-            # Agrupacion por tipologia
-            datatipologias = pd.DataFrame(inputvar)
-            datagrupada    = pd.DataFrame()
-            precuso        = None
-            duso           = usosuelo_class()
-            if not datatipologias.empty:
-                datagrupada         = datatipologias.groupby('tipoinmueble')['areavendible'].sum().reset_index()
-                datagrupada.columns = ['tipoinmueble','areavendible']
-                datagrupada['categoria'] = datagrupada['tipoinmueble'].replace(['Apartamento','Casa','Local','Bodega','Oficina'],['Residencial','Residencial','Comercio','Bodegas','Oficinas'])
-                dusopaso = duso[duso['clasificacion'].isin(datagrupada['categoria'])]
-                if not dusopaso.empty:
-                    precuso = list(dusopaso['precuso'].unique())
+        #---------------------------------------------------------------------#
+        # Agrupacion por tipologia
+        datatipologias = pd.DataFrame(inputvar)
+        datagrupada    = pd.DataFrame()
+        precuso        = None
+        duso           = usosuelo_class()
+        if not datatipologias.empty:
+            datagrupada         = datatipologias.groupby('tipoinmueble')['areavendible'].sum().reset_index()
+            datagrupada.columns = ['tipoinmueble','areavendible']
+            datagrupada['categoria'] = datagrupada['tipoinmueble'].replace(['Apartamento','Casa','Local','Bodega','Oficina'],['Residencial','Residencial','Comercio','Bodegas','Oficinas'])
+            dusopaso = duso[duso['clasificacion'].isin(datagrupada['categoria'])]
+            if not dusopaso.empty:
+                precuso = list(dusopaso['precuso'].unique())
+                
+        #-----------------------------------------------------------------#
+        # Datos de mercado
+        
+            #-------------------------------------------------------------#
+            # Precios de transacciones
+        polygon = str(circle_polygon(500,latitud,longitud))
+        _dpredios,datacatastro_market,_dvigencia,datatransacciones_market,datamarket = getdata_market_analysis(polygon=polygon)
+        #_dpredios,datacatastro_market,_dvigencia,datatransacciones_market,datamarket = getdata_market_analysis(polygon=polygon,precuso=precuso)
+
+        if not datacatastro_market.empty and precuso is not None:
+            datacatastro_market = datacatastro_market[datacatastro_market['precuso'].isin(precuso)]
+        
+        if not datatransacciones_market.empty and precuso is not None:
+            datatransacciones_market = datatransacciones_market[datatransacciones_market['precuso'].isin(precuso)]
+            datatransacciones_market['fecha_documento_publico'] = pd.to_datetime(datatransacciones_market['fecha_documento_publico'])
+
+            #-------------------------------------------------------------#
+            # Proyectos Nuevos
+        datainfoproyectos = pd.DataFrame(columns=['tipoinmueble','cuantiamt2','precuso','metros'])
+        metros_proyectos  = 0
+        for metros_iter in [500,800,1000]:
+            polygon_proyectos = str(circle_polygon(metros_iter,latitud,longitud))
+            dataproyectos,dataformulada,datalongproyectos,datapricing = getdataproyectosnuevos(str(polygon_proyectos))
+            if not datapricing.empty:
+                filtro_fecha = datetime.now() - timedelta(days=365)
+                datapricing  = datapricing[datapricing['fecha']>=filtro_fecha]
+            if not datapricing.empty:
+                datamerge   = dataformulada.drop_duplicates(subset=['codproyecto','codinmueble'],keep='first')
+                datapricing = datapricing.merge(datamerge[['codproyecto','codinmueble','tipo']],on=['codproyecto','codinmueble'],how='left',validate='m:1')
+                
+                datapricing       = datapricing.resample('M', on='fecha').apply(lambda x: x.groupby('tipo')['valormt2'].max()).reset_index()
+                datainfoproyectos = []
+                vartipo           = list(datapricing)
+                vartipo.remove('fecha')
+                for j in vartipo:
+                    datainfoproyectos.append({'tipoinmueble':j,'cuantiamt2':datapricing[j].median()})
+                datainfoproyectos = pd.DataFrame(datainfoproyectos)
+                if not datainfoproyectos.empty:
+                    datainfoproyectos['precuso'] = datainfoproyectos['tipoinmueble'].apply(lambda x: inmueble2usosuelo([x])[-1] if isinstance(inmueble2usosuelo([x]),list) and inmueble2usosuelo([x])!=[] else None)
+                    datainfoproyectos['metros']  = metros_iter 
+                    metros_proyectos             = metros_iter
+                    break
+
+        #-----------------------------------------------------------------#
+        # Data Tipologias
+        valores_referencia = []
+        if not datagrupada.empty:
+            for tipoinmueble in datagrupada['tipoinmueble'].unique():
+                datan       = datagrupada[datagrupada['tipoinmueble']==tipoinmueble]
+                datan.index = range(len(datan))
+                precuso     = inmueble2usosuelo([tipoinmueble])
+
+                if isinstance(precuso, list) and precuso!=[]:
+                    datapaso          = datatransacciones_market[datatransacciones_market['precuso'].isin(precuso)]
+                    datapasoproyectos = datainfoproyectos[datainfoproyectos['precuso'].isin(precuso)]
+                    if not datapaso.empty and 'codigo' in datapaso:
+                        datapaso = datapaso[datapaso['codigo'].isin(['125','126','168','169','0125','0126','0168','0169'])]
+                    if not datapaso.empty:
+                        filtrodate    = datetime.now()-timedelta(days=365)
+                        datapaso      = datapaso[datapaso['fecha_documento_publico']>=filtrodate]
                     
-            #-----------------------------------------------------------------#
-            # Datos de mercado
-            
-                #-------------------------------------------------------------#
-                # Precios de transacciones
-            polygon = str(circle_polygon(500,latitud,longitud))
-            _dpredios,datacatastro_market,_dvigencia,datatransacciones_market,datamarket = getdata_market_analysis(polygon=polygon)
-            #_dpredios,datacatastro_market,_dvigencia,datatransacciones_market,datamarket = getdata_market_analysis(polygon=polygon,precuso=precuso)
-
-            if not datacatastro_market.empty and precuso is not None:
-                datacatastro_market = datacatastro_market[datacatastro_market['precuso'].isin(precuso)]
-            
-            if not datatransacciones_market.empty and precuso is not None:
-                datatransacciones_market = datatransacciones_market[datatransacciones_market['precuso'].isin(precuso)]
-                datatransacciones_market['fecha_documento_publico'] = pd.to_datetime(datatransacciones_market['fecha_documento_publico'])
-    
-                #-------------------------------------------------------------#
-                # Proyectos Nuevos
-            datainfoproyectos = pd.DataFrame(columns=['tipoinmueble','cuantiamt2','precuso','metros'])
-            metros_proyectos  = 0
-            for metros_iter in [500,800,1000]:
-                polygon_proyectos = str(circle_polygon(metros_iter,latitud,longitud))
-                dataproyectos,dataformulada,datalongproyectos,datapricing = getdataproyectosnuevos(str(polygon_proyectos))
-                if not datapricing.empty:
-                    filtro_fecha = datetime.now() - timedelta(days=365)
-                    datapricing  = datapricing[datapricing['fecha']>=filtro_fecha]
-                if not datapricing.empty:
-                    datamerge   = dataformulada.drop_duplicates(subset=['codproyecto','codinmueble'],keep='first')
-                    datapricing = datapricing.merge(datamerge[['codproyecto','codinmueble','tipo']],on=['codproyecto','codinmueble'],how='left',validate='m:1')
-                    
-                    datapricing       = datapricing.resample('M', on='fecha').apply(lambda x: x.groupby('tipo')['valormt2'].max()).reset_index()
-                    datainfoproyectos = []
-                    vartipo           = list(datapricing)
-                    vartipo.remove('fecha')
-                    for j in vartipo:
-                        datainfoproyectos.append({'tipoinmueble':j,'cuantiamt2':datapricing[j].median()})
-                    datainfoproyectos = pd.DataFrame(datainfoproyectos)
-                    if not datainfoproyectos.empty:
-                        datainfoproyectos['precuso'] = datainfoproyectos['tipoinmueble'].apply(lambda x: inmueble2usosuelo([x])[-1] if isinstance(inmueble2usosuelo([x]),list) and inmueble2usosuelo([x])!=[] else None)
-                        datainfoproyectos['metros']  = metros_iter 
-                        metros_proyectos             = metros_iter
-                        break
-
-            #-----------------------------------------------------------------#
-            # Data Tipologias
-            valores_referencia = []
-            if not datagrupada.empty:
-                for tipoinmueble in datagrupada['tipoinmueble'].unique():
-                    datan       = datagrupada[datagrupada['tipoinmueble']==tipoinmueble]
-                    datan.index = range(len(datan))
-                    precuso     = inmueble2usosuelo([tipoinmueble])
-                    if isinstance(precuso, list) and precuso!=[]:
-                        datapaso          = datatransacciones_market[datatransacciones_market['precuso'].isin(precuso)]
-                        datapasoproyectos = datainfoproyectos[datainfoproyectos['precuso'].isin(precuso)]
-                        if not datapaso.empty and 'codigo' in datapaso:
-                            datapaso = datapaso[datapaso['codigo'].isin(['125','126','168','169','0125','0126','0168','0169'])]
-                        if not datapaso.empty:
-                            filtrodate    = datetime.now()-timedelta(days=365)
-                            datapaso      = datapaso[datapaso['fecha_documento_publico']>=filtrodate]
-                        
-                        valormt2 = None
-                        if not datapaso.empty: # Transacciones realizadas 
-                            valormt2 = datapaso['cuantiamt2'].median()
-                            fuente   = 'market'
-                        if not datapasoproyectos.empty: # Proyectos nuevos
-                            valormt2 = datapasoproyectos['cuantiamt2'].median()
-                            fuente   = 'proyectos'
-                        if valormt2 is not None:
+                    valormt2 = None
+                    if not datapaso.empty: # Transacciones realizadas 
+                        valormt2 = datapaso['cuantiamt2'].median()
+                        if isinstance(valormt2,(float,int)):
+                            valormt2      = float(valormt2 // 1000 * 1000)
+                            fuente        = 'transacciones'
                             areavendible  = datan['areavendible'].sum()
                             valorestimado = areavendible*valormt2
                             valores_referencia.append({'variable':tipoinmueble,'valormt2':valormt2,'areavendible':areavendible,'valorestimado':valorestimado,'fuente':fuente})
-                        else: 
-                            if not _dvigencia.empty:
-                                dpaso = _dvigencia[_dvigencia['precuso'].isin(precuso)]
-                                if not dpaso.empty:
-                                    w         = dpaso.groupby('chip')['vigencia'].max().reset_index()
-                                    w.columns = ['chip','vigencia_max']
-                                    dpaso     = dpaso.merge(w,on='chip',how='left',validate='m:1')
-                                    dpaso     = dpaso[dpaso['vigencia']==dpaso['vigencia_max']]
-                                    dpaso     = dpaso.groupby('chip')['avaluomt2'].max().reset_index()
-                                    
-                                    valormt2      = dpaso['avaluomt2'].median()
-                                    areavendible  = datan['areavendible'].sum()
-                                    valorestimado = areavendible*valormt2
-                                    valores_referencia.append({'variable':tipoinmueble,'valormt2':valormt2,'areavendible':areavendible,'valorestimado':valorestimado,'fuente':'market'})
 
-            dataestimado = pd.DataFrame(valores_referencia)
-            datamissing  = pd.DataFrame()
-            if not datatipologias.empty:
-                if not dataestimado.empty:
-                    idd         = datatipologias['tipoinmueble'].isin(dataestimado['variable'])
-                    datamissing = datatipologias[~idd][['tipoinmueble','areavendible']]
-                else: 
-                    datamissing = datatipologias[['tipoinmueble','areavendible']]
-                if not datamissing.empty:
-                    valormt2default              = 4000000
-                    datamissing['valormt2']      = valormt2default
-                    datamissing['valorestimado'] = datamissing['areavendible']*datamissing['valormt2']
-                    datamissing.rename(columns={'tipoinmueble':'variable'},inplace=True)
-                    idd         = datamissing['variable']=='Áreas comunes'
-                    datamissing = datamissing[~idd]
-                    datamissing['fuente'] = 'market'
-                    dataestimado = pd.concat([dataestimado,datamissing])
+                    if not datapasoproyectos.empty: # Proyectos nuevos
+                        valormt2 = datapasoproyectos['cuantiamt2'].median()
+                        if valormt2 is not None:
+                            valormt2      = float(valormt2 // 1000 * 1000)
+                            fuente        = 'proyectos'
+                            areavendible  = datan['areavendible'].sum()
+                            valorestimado = areavendible*valormt2
+                            valores_referencia.append({'variable':tipoinmueble,'valormt2':valormt2,'areavendible':areavendible,'valorestimado':valorestimado,'fuente':fuente})
                     
+                    if valormt2 is None:
+                        if not _dvigencia.empty:
+                            dpaso = _dvigencia[_dvigencia['precuso'].isin(precuso)]
+                            if not dpaso.empty:
+                                w         = dpaso.groupby('chip')['vigencia'].max().reset_index()
+                                w.columns = ['chip','vigencia_max']
+                                dpaso     = dpaso.merge(w,on='chip',how='left',validate='m:1')
+                                dpaso     = dpaso[dpaso['vigencia']==dpaso['vigencia_max']]
+                                dpaso     = dpaso.groupby('chip')['avaluomt2'].max().reset_index()
+                                
+                                valormt2      = dpaso['avaluomt2'].median()
+                                areavendible  = datan['areavendible'].sum()
+                                valorestimado = areavendible*valormt2
+                                valores_referencia.append({'variable':tipoinmueble,'valormt2':valormt2,'areavendible':areavendible,'valorestimado':valorestimado,'fuente':'transacciones'})
+
+        dataestimado = pd.DataFrame(valores_referencia)
+        datamissing  = pd.DataFrame()
+        if not datatipologias.empty:
             if not dataestimado.empty:
-                dataestimado['valormt2'] = dataestimado['valormt2'].apply(lambda x: int(x // 1000 * 1000) if (isinstance(x,float) or isinstance(x,int)) else None)
-                datappend    = pd.DataFrame([{'variable':'Total','areavendible':dataestimado['areavendible'].sum(),'valormt2':'','valorestimado':dataestimado['valorestimado'].sum()}])
-                dataestimado = pd.concat([dataestimado,datappend])
+                idd         = datatipologias['tipoinmueble'].isin(dataestimado['variable'])
+                datamissing = datatipologias[~idd][['tipoinmueble','areavendible']]
+            else: 
+                datamissing = datatipologias[['tipoinmueble','areavendible']]
+            if not datamissing.empty:
+                valormt2default              = 4000000.0
+                datamissing['valormt2']      = valormt2default
+                datamissing['valorestimado'] = datamissing['areavendible']*datamissing['valormt2']
+                datamissing.rename(columns={'tipoinmueble':'variable'},inplace=True)
+                idd         = datamissing['variable']=='Áreas comunes'
+                datamissing = datamissing[~idd]
+                datamissing['fuente'] = 'transacciones'
+                dataestimado = pd.concat([dataestimado,datamissing])
                 
-            st.write('')
-            titulo = 'Precio por m²'
-            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-            texto  = BeautifulSoup(html, 'html.parser')
-            st.markdown(texto, unsafe_allow_html=True)
-        
-            dataestimado.index   = range(len(dataestimado))
-            datapricing          = dataestimado.copy()
-            keycount             = 0
-            for items in range(len(dataestimado)):
-                colpr1,colpr2,colpr3 = st.columns([0.45,0.45,0.1])
-                keycount += 1
-                variable     = dataestimado['variable'].iloc[items] if 'variable' in dataestimado and isinstance(dataestimado['variable'].iloc[items],str) else ''
-                valormt2     = dataestimado['valormt2'].iloc[items] if 'valormt2' in dataestimado else None
-                tipoinmueble = dataestimado['variable'].iloc[items] 
-                fuente       = dataestimado['fuente'].iloc[items] if 'fuente' in dataestimado and isinstance(dataestimado['fuente'].iloc[items],str) else None
-
-                if isinstance(variable,str) and 'total' not in variable.lower():
-                    with colpr1:
-                        st.text_input('Tipo de inmueble' ,value=variable,key=f'tipoinmueble{keycount}')
-                if valormt2 is not None:
-                    try:
-                        valormt2 = int(float(valormt2))
-                        with colpr2:
-                            valormt2 = st.number_input('Valor por m²' ,value=valormt2,key=f'valuetipoinmueble{keycount}')
-                            datapricing.loc[items,'valormt2'] = valormt2
-                        with colpr3:
-                            st.write('')
-                            st.write('')
-                            st.write('')
-                            barmanprelist = ''
-                            if isinstance(barmanpre, str) and barmanpre!='':
-                                barmanprelist = '|'.join(barmanpre.split('|'))
-                            elif isinstance(barmanpre, list) and barmanpre!=[]:
-                                barmanprelist = '|'.join(barmanpre)
-                            
-                            precuso     = inmueble2usosuelo(tipoinmueble) 
-                            precusolist = ''
-                            if isinstance(precuso, list) and precuso!=[]:
-                                precusolist = '|'.join(precuso)
-                            
-                            urllink = f"http://www.urbex.com.co/Busqueda_avanzada?type=lote&code={barmanprelist}&vartype=barmanpre&_market_precuso={precusolist}&_market_select=edm&token={st.session_state.token}"
-                            if isinstance(fuente,str) and 'proyectos' in fuente and metros_proyectos>0:
-                                encryptjson = {'metros': metros_proyectos, 'latitud': latitud, 'longitud':longitud}
-                                encryptjson = json.dumps(encryptjson)
-                                encryptjson = encryptjson.encode('utf-8')
-                                encryptjson = base64.b64encode(encryptjson)
-                                encryptjson = encryptjson.decode('utf-8')
-
-                                urllink = f"http://www.urbex.com.co/Análisis_de_mercado?type=polygon&modulo=proyectos&code={encryptjson}&token={st.session_state.token}"
-                            style_button = """
-                            <style>
-                            .custom-button {
-                                display: inline-block;
-                                padding: 10px 20px;
-                                background-color: #A16CFF;
-                                color: white !important;
-                                font-weight: bold;
-                                text-decoration: none;
-                                border-radius: 10px;
-                                width: 100%;
-                                height: 40px;
-                                border: 0px solid #A16CFF;
-                                cursor: pointer;
-                                text-align: center;
-                                letter-spacing: 0px;
-                                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                                margin-bottom: 20px;
-                            }
-                            
-                            .custom-button:hover {
-                                background-color: #21D375;
-                                color: white; 
-                                border: 0px solid #21D375;
-                            }
-                            </style>
-                            """
-                            nombre = 'Detalle'
-                            html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button}</head><body><a href="{urllink}" class="custom-button" target="_blank">{nombre}</a></body></html>"""
-                            html = BeautifulSoup(html, 'html.parser')
-                            st.markdown(html, unsafe_allow_html=True)  
-                            #st.write('Ver de donde sale este numero')
-                    except: pass
+        st.write('')
+        titulo = 'Precio por m²'
+        html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+        texto  = BeautifulSoup(html, 'html.parser')
+        st.markdown(texto, unsafe_allow_html=True)
     
+        datapricing = pd.DataFrame(columns=list(dataestimado) if not dataestimado.empty else [])
+        keycount    = 0
+        if not dataestimado.empty:
+            dataestimado.index   = range(len(dataestimado))
+        
+            for items in dataestimado['variable'].unique():
+                colpr1,colpr2,colpr3,colpr4 = st.columns([0.3,0.3,0.3,0.1])
+                keycount += 1
+                if isinstance(items,str) and 'total' not in items.lower():
+                    with colpr1:
+                        st.text_input('Tipo de inmueble' ,value=items,key=f'tipoinmueble{keycount}',disabled=True)
+                
+                df              = dataestimado[dataestimado['variable']==items]
+                diccionario     = {'Proyectos nuevos':'proyectos','Transacciones':'transacciones'}
+                diccionario_inv = {'proyectos':'Proyectos nuevos','transacciones':'Transacciones'}
+                if len(df)>1:
+                    with colpr2:
+                        tiposeleccion = st.selectbox('Fuente del precio:',options=list(diccionario))
+                        tiposeleccion = diccionario[tiposeleccion]
+                else:
+                    with colpr2:
+                        tiposeleccion = df['fuente'].iloc[0]
+                        st.text_input('Fuente del precio:',value=diccionario_inv[tiposeleccion],key=f'fuente{keycount}',disabled=True)
+
+                valormt2      = df[df['fuente']==tiposeleccion]['valormt2'].iloc[0] if 'valormt2' in df and isinstance(df[df['fuente']==tiposeleccion]['valormt2'].iloc[0],(float,int)) else None
+                areavendible  = df[df['fuente']==tiposeleccion]['areavendible'].iloc[0] if 'areavendible' in df and isinstance(df[df['fuente']==tiposeleccion]['areavendible'].iloc[0],(float,int)) else None
+                valorestimado = valormt2*areavendible if isinstance(valormt2,(float,int)) and isinstance(areavendible,(float,int)) else None
+                if isinstance(valormt2,(float,int)):
+                    with colpr3:
+                        valormt2      = st.number_input('Valor por m²' ,value=float(valormt2),min_value=0.0,key=f'valuetipoinmueble{keycount}')
+                        valorestimado = areavendible*valormt2 if isinstance(valormt2,(float,int)) and isinstance(areavendible,(float,int)) else None
+                    with colpr4:
+                        st.write('')
+                        st.write('')
+                        st.write('')
+                        barmanprelist = ''
+                        if isinstance(barmanpre, str) and barmanpre!='':
+                            barmanprelist = '|'.join(barmanpre.split('|'))
+                        elif isinstance(barmanpre, list) and barmanpre!=[]:
+                            barmanprelist = '|'.join(barmanpre)
+                        
+                        precuso     = inmueble2usosuelo(items) 
+                        precusolist = ''
+                        if isinstance(precuso, list) and precuso!=[]:
+                            precusolist = '|'.join(precuso)
+
+                        urllink = f"http://www.urbex.com.co/Busqueda_avanzada?type=lote&code={barmanprelist}&vartype=barmanpre&_market_precuso={precusolist}&_market_select=edm&token={st.session_state.token}"
+                        if isinstance(tiposeleccion,str) and 'proyectos' in tiposeleccion and metros_proyectos>0:
+                            encryptjson = {'metros': metros_proyectos, 'latitud': latitud, 'longitud':longitud}
+                            encryptjson = json.dumps(encryptjson)
+                            encryptjson = encryptjson.encode('utf-8')
+                            encryptjson = base64.b64encode(encryptjson)
+                            encryptjson = encryptjson.decode('utf-8')
+                            urllink     = f"http://www.urbex.com.co/Análisis_de_mercado?type=polygon&modulo=proyectos&code={encryptjson}&token={st.session_state.token}"
+                        
+                        style_button = """
+                        <style>
+                        .custom-button {
+                            display: inline-block;
+                            padding: 10px 20px;
+                            background-color: #A16CFF;
+                            color: white !important;
+                            font-weight: bold;
+                            text-decoration: none;
+                            border-radius: 10px;
+                            width: 100%;
+                            height: 40px;
+                            border: 0px solid #A16CFF;
+                            cursor: pointer;
+                            text-align: center;
+                            letter-spacing: 0px;
+                            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                            margin-bottom: 20px;
+                        }
+                        
+                        .custom-button:hover {
+                            background-color: #21D375;
+                            color: white; 
+                            border: 0px solid #21D375;
+                        }
+                        </style>
+                        """
+                        nombre = 'Detalle'
+                        html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button}</head><body><a href="{urllink}" class="custom-button" target="_blank">{nombre}</a></body></html>"""
+                        html = BeautifulSoup(html, 'html.parser')
+                        st.markdown(html, unsafe_allow_html=True)  
+                datapasopricing = pd.DataFrame([{'variable':items,'valormt2':valormt2,'areavendible':areavendible,'valorestimado':valorestimado,'fuente':tiposeleccion}])
+                datapricing     = pd.concat([datapricing,datapasopricing])
+
+        if not datapricing.empty:
+            datapricing['valormt2'] = datapricing['valormt2'].apply(lambda x: int(x // 1000 * 1000) if (isinstance(x,float) or isinstance(x,int)) else None)
+            datappend   = pd.DataFrame([{'variable':'Total','areavendible':datapricing['areavendible'].sum(),'valormt2':'','valorestimado':datapricing['valorestimado'].sum()}])
+            datapricing = pd.concat([datapricing,datappend])
+            
             for i in ['valormt2','areavendible','valorestimado']:
                 datapricing[i] = pd.to_numeric(datapricing[i],errors='coerce')
             datapricing['valorestimado'] = datapricing['valormt2']*datapricing['areavendible']
             idd = datapricing['variable']=='Total'
             if sum(idd)>0:
                 datapricing.loc[idd,'valorestimado'] = datapricing[~idd]['valorestimado'].sum()
-            
-            #-----------------------------------------------------------------#
-            # Tabla de recaudo
-            st.write('')
-            titulo = 'Análisis de prefractibilidad'
-            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-            texto  = BeautifulSoup(html, 'html.parser')
-            st.markdown(texto, unsafe_allow_html=True)
-            
-            resumen = {'indiceocupacion':idc,'alturaconstruccion':alturabuilding,'areapoligonocompleto':areapoligonocompleto,'numero_pisos':numero_pisos,'areaplantas':areaplantas,'areatotalconstruida':areatotalconstruida,'areatotalvendible':areatotalvendible}
-            html,conteo = htmlrecaudo(resumen=resumen,datapredios=datapredios,datatipologias=datatipologias,dataestimado=datapricing)
-            st.components.v1.html(html,height=int(conteo*600/30),scrolling=True)
         
-            #-----------------------------------------------------------------#
-            # Tabla de resumen
-            st.write('')
-            titulo = 'Características del terreno'
-            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-            texto  = BeautifulSoup(html, 'html.parser')
-            st.markdown(texto, unsafe_allow_html=True)
-            
-            resumen = {'indiceocupacion':idc,'alturaconstruccion':alturabuilding,'areapoligonocompleto':areapoligonocompleto,'numero_pisos':numero_pisos,'areaplantas':areaplantas,'areatotalconstruida':areatotalconstruida,'areatotalvendible':areatotalvendible}
-            html,conteo = principal_table(resumen={},datapredios=datapredios,datatipologias=datatipologias,datausosuelo=datausosuelo,input_complemento=input_complemento,input_transacciones=input_transacciones,data_antejardin=data_antejardin)
-            st.components.v1.html(html,height=int(conteo*600/26),scrolling=True)
+        #-----------------------------------------------------------------#
+        # Tabla de recaudo
+        st.write('')
+        titulo = 'Análisis de prefractibilidad'
+        html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+        texto  = BeautifulSoup(html, 'html.parser')
+        st.markdown(texto, unsafe_allow_html=True)
         
-            #-----------------------------------------------------------------#
-            # Calculadoras
-            st.write('')
-            titulo = 'Calculadoras de cargas'
-            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-            texto  = BeautifulSoup(html, 'html.parser')
-            st.markdown(texto, unsafe_allow_html=True)
-            
-                # Avaluo de referencia del terreno, comercial y catastral
-            avaluo_terreno = (data_avaluo_ref[data_avaluo_ref['grupopter'].isin(['LOTES'])]['vref'].max() if not data_avaluo_ref.empty else None)
-            if pd.isna(avaluo_terreno): avaluo_terreno = None
-            if not isinstance(avaluo_terreno, (float, int)) and not data_avaluo_ref.empty:
-                avaluo_terreno = data_avaluo_ref['vref'].max()
-                
-            avaluo_comercial_manzana = (data_avaluo_ref[data_avaluo_ref['grupopter'].isin(['LOTES'])]['avaluocom'].max() if not data_avaluo_ref.empty else None)
-            if pd.isna(avaluo_comercial_manzana): avaluo_comercial_manzana = None
-            if not isinstance(avaluo_comercial_manzana, (float, int)) and not data_avaluo_ref.empty:
-                avaluo_comercial_manzana = data_avaluo_ref['avaluocom'].max()
+        resumen = {'indiceocupacion':idc,'alturaconstruccion':alturabuilding,'areapoligonocompleto':areapoligonocompleto,'numero_pisos':numero_pisos,'areaplantas':areaplantas,'areatotalconstruida':areatotalconstruida,'areatotalvendible':areatotalvendible}
+        html,conteo = htmlrecaudo(resumen=resumen,datapredios=datapredios,datatipologias=datatipologias,dataestimado=datapricing)
+        st.components.v1.html(html,height=int(conteo*600/29),scrolling=True)
     
-            avaluo_catastral_manzana = (data_avaluo_ref[data_avaluo_ref['grupopter'].isin(['LOTES'])]['avaluocat'].max() if not data_avaluo_ref.empty else None)
-            if pd.isna(avaluo_catastral_manzana): avaluo_catastral_manzana = None
-            if not isinstance(avaluo_catastral_manzana, (float, int)) and not data_avaluo_ref.empty:
-                avaluo_catastral_manzana = data_avaluo_ref['avaluocat'].max()
+        #-----------------------------------------------------------------#
+        # Tabla de resumen
+        st.write('')
+        titulo = 'Características del terreno'
+        html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+        texto  = BeautifulSoup(html, 'html.parser')
+        st.markdown(texto, unsafe_allow_html=True)
+        
+        resumen = {'indiceocupacion':idc,'alturaconstruccion':alturabuilding,'areapoligonocompleto':areapoligonocompleto,'numero_pisos':numero_pisos,'areaplantas':areaplantas,'areatotalconstruida':areatotalconstruida,'areatotalvendible':areatotalvendible}
+        html,conteo = principal_table(resumen={},datapredios=datapredios,datatipologias=datatipologias,datausosuelo=datausosuelo,input_complemento=input_complemento,input_transacciones=input_transacciones,data_antejardin=data_antejardin)
+        st.components.v1.html(html,height=int(conteo*600/26),scrolling=True)
     
-            # Cargo:
-            proyecto_options    = {"CONSTRUCCIÓN":"CONSTRUCCION", "URBANISMO":"URBANISMO"}
-            uso_options         = {"VIVIENDA":"VIVIENDA", "OTROS USOS":"OTROS_USOS"}
-            vivienda_options    = {"VIS":"INTERES_SOCIAL", "NO VIS":"NO_INTERES_SOCIAL"}
-            composicion_options = {"UNIFAMILIAR":"UNIFAMILIAR","BIFAMILIAR":"BIFAMILIAR","MULTIFAMILIAR":"MULTIFAMILIAR"}
-            modalidad_options   = {'OBRA NUEVA':'OBRA NUEVA', 'AMPLIACIÓN':'AMPLIACION', 'ADECUACIÓN':'ADECUACION', 'MODIFICACIÓN':'MODIFICACION', 'REFORZAMIENTO ESTRUCTURAL':'REFORZAMIENTO ESTRUCTURAL', 'DEMOLICION TOTAL':'DEMOLICION TOTAL', 'DEMOLICION PARCIAL':'DEMOLICION PARCIAL', 'CERRAMIENTO':'CERRAMIENTO'}
-            estrato_options     = [1, 2, 3, 4, 5, 6]
-
-            col1,col2 = st.columns(2)
-
-            with col1: 
-                tipo_proyecto_r = st.selectbox('Tipo de proyecto',options=list(proyecto_options))
-                tipo_proyecto   = proyecto_options[tipo_proyecto_r]
+        #-----------------------------------------------------------------#
+        # Calculadoras
+        st.write('')
+        titulo = 'Calculadoras de cargas'
+        html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+        texto  = BeautifulSoup(html, 'html.parser')
+        st.markdown(texto, unsafe_allow_html=True)
+        
+            # Avaluo de referencia del terreno, comercial y catastral
+        avaluo_terreno = (data_avaluo_ref[data_avaluo_ref['grupopter'].isin(['LOTES'])]['vref'].max() if not data_avaluo_ref.empty else None)
+        if pd.isna(avaluo_terreno): avaluo_terreno = None
+        if not isinstance(avaluo_terreno, (float, int)) and not data_avaluo_ref.empty:
+            avaluo_terreno = data_avaluo_ref['vref'].max()
             
-            with col2:
-                uso_proyecto_r = st.selectbox('Uso',options=list(uso_options))
-                uso_proyecto   = uso_options[uso_proyecto_r]
+        avaluo_comercial_manzana = (data_avaluo_ref[data_avaluo_ref['grupopter'].isin(['LOTES'])]['avaluocom'].max() if not data_avaluo_ref.empty else None)
+        if pd.isna(avaluo_comercial_manzana): avaluo_comercial_manzana = None
+        if not isinstance(avaluo_comercial_manzana, (float, int)) and not data_avaluo_ref.empty:
+            avaluo_comercial_manzana = data_avaluo_ref['avaluocom'].max()
+
+        avaluo_catastral_manzana = (data_avaluo_ref[data_avaluo_ref['grupopter'].isin(['LOTES'])]['avaluocat'].max() if not data_avaluo_ref.empty else None)
+        if pd.isna(avaluo_catastral_manzana): avaluo_catastral_manzana = None
+        if not isinstance(avaluo_catastral_manzana, (float, int)) and not data_avaluo_ref.empty:
+            avaluo_catastral_manzana = data_avaluo_ref['avaluocat'].max()
+
+        # Cargo:
+        proyecto_options    = {"CONSTRUCCIÓN":"CONSTRUCCION", "URBANISMO":"URBANISMO"}
+        uso_options         = {"VIVIENDA":"VIVIENDA", "OTROS USOS":"OTROS_USOS"}
+        vivienda_options    = {"VIS":"INTERES_SOCIAL", "NO VIS":"NO_INTERES_SOCIAL"}
+        composicion_options = {"UNIFAMILIAR":"UNIFAMILIAR","BIFAMILIAR":"BIFAMILIAR","MULTIFAMILIAR":"MULTIFAMILIAR"}
+        modalidad_options   = {'OBRA NUEVA':'OBRA NUEVA', 'AMPLIACIÓN':'AMPLIACION', 'ADECUACIÓN':'ADECUACION', 'MODIFICACIÓN':'MODIFICACION', 'REFORZAMIENTO ESTRUCTURAL':'REFORZAMIENTO ESTRUCTURAL', 'DEMOLICION TOTAL':'DEMOLICION TOTAL', 'DEMOLICION PARCIAL':'DEMOLICION PARCIAL', 'CERRAMIENTO':'CERRAMIENTO'}
+        estrato_options     = [1, 2, 3, 4, 5, 6]
+
+        col1,col2 = st.columns(2)
+
+        with col1: 
+            tipo_proyecto_r = st.selectbox('Tipo de proyecto',options=list(proyecto_options))
+            tipo_proyecto   = proyecto_options[tipo_proyecto_r]
+        
+        with col2:
+            uso_proyecto_r = st.selectbox('Uso',options=list(uso_options))
+            uso_proyecto   = uso_options[uso_proyecto_r]
+        
+        with col1: 
+            isdisabled    = False if 'VIVIENDA' in uso_proyecto else True
+            tipo_vivienda_r = st.selectbox('Tipo de vivienda',options=list(vivienda_options),disabled=isdisabled)
+            tipo_vivienda   = vivienda_options[tipo_vivienda_r] 
             
-            with col1: 
-                isdisabled    = False if 'VIVIENDA' in uso_proyecto else True
-                tipo_vivienda_r = st.selectbox('Tipo de vivienda',options=list(vivienda_options),disabled=isdisabled)
-                tipo_vivienda   = vivienda_options[tipo_vivienda_r] 
-                
-            with col2: 
-                isdisabled    = False if 'VIVIENDA' in uso_proyecto and 'CONSTRUCCION' in tipo_proyecto else True
-                composicion_proyecto_r = st.selectbox('Composición',options=list(composicion_options),disabled=isdisabled)
-                composicion_proyecto   = composicion_options[composicion_proyecto_r] 
-                
-            with col1: 
-                isdisabled    = False if 'CONSTRUCCION' in tipo_proyecto else True
-                modalidad_proyecto_r = st.selectbox('Modalidad',options=list(modalidad_options),disabled=isdisabled)
-                modalidad_proyecto   = modalidad_options[modalidad_proyecto_r] 
-                
-            with col2: 
-                isdisabled = False if 'VIVIENDA' in uso_proyecto else True
-                estrato    = st.selectbox('Estrato',options=estrato_options,disabled=isdisabled)
+        with col2: 
+            isdisabled    = False if 'VIVIENDA' in uso_proyecto and 'CONSTRUCCION' in tipo_proyecto else True
+            composicion_proyecto_r = st.selectbox('Composición',options=list(composicion_options),disabled=isdisabled)
+            composicion_proyecto   = composicion_options[composicion_proyecto_r] 
+            
+        with col1: 
+            isdisabled    = False if 'CONSTRUCCION' in tipo_proyecto else True
+            modalidad_proyecto_r = st.selectbox('Modalidad',options=list(modalidad_options),disabled=isdisabled)
+            modalidad_proyecto   = modalidad_options[modalidad_proyecto_r] 
+            
+        with col2: 
+            isdisabled = False if 'VIVIENDA' in uso_proyecto else True
+            estrato    = st.selectbox('Estrato',options=estrato_options,disabled=isdisabled)
 
-            with col1: 
-                area = st.number_input('Área',value=0,min_value=0)
+        with col1: 
+            area = st.number_input('Área',value=0,min_value=0)
 
 
-            # Liquidación para Aumento de Edificabilidad
-            with col2:
-                avaluo_terreno      = int(avaluo_terreno) if isinstance(avaluo_terreno, (float, int)) else 0
-                valorcatastralsuelo = st.number_input('Valor catastral del metro cuadrado del suelo',value=avaluo_terreno,min_value=0)
-            with col1:
-                area_adicional = st.number_input('Área de Construcción Adicional Deseada por Encima del Índice Básico',value=0,min_value=0)
-                
-            # Simulador de Liquidación del Valor a Compensar de Estacionamiento
-            with col2:
-                area_adicional_estacionamientos = st.number_input('Metros cuadrados de area adicional destinada a estacionamientos',value=0,min_value=0)
-                 
-            # Liquidacion Pago Compensatorio de Cesiones Públicas para Parques y Equipamientos
-            with col1:
-                areabrutaproyecto = st.number_input('Área Bruta del Proyecto Urbano Objeto de Licencia',value=0,min_value=0)
-            with col2:
-                areautilproyecto = st.number_input('Área Útil del Proyecto Urbano Objeto de Licencia',value=0,min_value=0)
-            with col1:
-                mtcompensar = st.number_input('Metros Cuadrados a Compensar',value=0,min_value=0)
-           
+        # Liquidación para Aumento de Edificabilidad
+        with col2:
+            avaluo_terreno      = int(avaluo_terreno) if isinstance(avaluo_terreno, (float, int)) else 0
+            valorcatastralsuelo = st.number_input('Valor catastral del metro cuadrado del suelo',value=avaluo_terreno,min_value=0)
+        with col1:
+            area_adicional = st.number_input('Área de Construcción Adicional Deseada por Encima del Índice Básico',value=0,min_value=0)
+            
+        # Simulador de Liquidación del Valor a Compensar de Estacionamiento
+        with col2:
+            area_adicional_estacionamientos = st.number_input('Metros cuadrados de area adicional destinada a estacionamientos',value=0,min_value=0)
+             
+        # Liquidacion Pago Compensatorio de Cesiones Públicas para Parques y Equipamientos
+        with col1:
+            areabrutaproyecto = st.number_input('Área Bruta del Proyecto Urbano Objeto de Licencia',value=0,min_value=0)
+        with col2:
+            areautilproyecto = st.number_input('Área Útil del Proyecto Urbano Objeto de Licencia',value=0,min_value=0)
+        with col1:
+            mtcompensar = st.number_input('Metros Cuadrados a Compensar',value=0,min_value=0)
+       
  
-            liq_aumento_edificabilidad,liq_compensar_estacionamiento,liq_compensacion_publico = [0]*3  
-            
-            # Liquidación para Aumento de Edificabilidad
-            if valorcatastralsuelo>0 and area_adicional>0:
-                liq_aumento_edificabilidad = -1.7917446413385605 + 0.9999963437314175*np.log(valorcatastralsuelo) + 1.0000024221145998*np.log(area_adicional)
-                liq_aumento_edificabilidad = round_to_nearest(np.exp(liq_aumento_edificabilidad)) 
-                    
-            # Simulador de Liquidación del Valor a Compensar de Estacionamiento
-            if valorcatastralsuelo>0 and area_adicional_estacionamientos>0:
-                liq_compensar_estacionamiento = -2.995732273553994  + 1.0000000000000002*np.log(valorcatastralsuelo) + 1.0*np.log(area_adicional_estacionamientos)
-                liq_compensar_estacionamiento = round_to_nearest(np.exp(liq_compensar_estacionamiento)) 
-              
-            # Liquidacion Pago Compensatorio de Cesiones Públicas para Parques y Equipamientos
-            if valorcatastralsuelo>0 and areabrutaproyecto>0 and areautilproyecto>0 and mtcompensar>0:
-                liq_compensacion_publico = 2.8346862204821655 + 0.8420028931572793*np.log(valorcatastralsuelo) + 0.8594449539498318*np.log(areabrutaproyecto) - 0.915169026757237*np.log(areautilproyecto) + 1.023125114022463*np.log(mtcompensar)
-                liq_compensacion_publico = round_to_nearest(np.exp(liq_compensacion_publico)) 
-                    
-            data_carga_fija,data_carga_variable = cargas_fijas_variables(proyecto=tipo_proyecto,uso=uso_proyecto,vivienda=tipo_vivienda,composicion=composicion_proyecto,modalidad=modalidad_proyecto,estrato=estrato,area=area)
-
-            results = [
-                {'label':'Cargo Fijo:','value':data_carga_fija['total_cargo_fijo'].iloc[0],'output': f"${data_carga_fija['total_cargo_fijo'].iloc[0]:,.0f}" if not data_carga_fija.empty and 'total_cargo_fijo' in data_carga_fija and isinstance(data_carga_fija['total_cargo_fijo'].iloc[0],(float,int)) else '$0' },
-                {'label':'Cargo Variable:','value':data_carga_variable['total_cargo_variable'].iloc[0],'output':f"${data_carga_variable['total_cargo_variable'].iloc[0]:,.0f}" if not data_carga_variable.empty and 'total_cargo_variable' in data_carga_variable and isinstance(data_carga_variable['total_cargo_variable'].iloc[0],(float,int)) else '$0' },
-                {'label':'Liquidación para Aumento de Edificabilidad:','value':liq_aumento_edificabilidad,'output':f"${liq_aumento_edificabilidad:,.0f}" if isinstance(liq_aumento_edificabilidad,(float,int)) and liq_aumento_edificabilidad>0 else '$0'},
-                {'label':'Liquidación del Valor a Compensar de Estacionamiento (Decreto 520 de 2022):','value':liq_compensar_estacionamiento,'output':f"${liq_compensar_estacionamiento:,.0f}" if isinstance(liq_compensar_estacionamiento,(float,int)) and liq_compensar_estacionamiento>0 else '$0'},
-                {'label':'Pago Compensatorio de Cesiones Públicas para Parques y Equipamientos:','value':liq_compensacion_publico,'output':f"${liq_compensacion_publico:,.0f}" if isinstance(liq_compensacion_publico,(float,int)) and liq_compensacion_publico>0 else '$0'},
-            ]
-            inputs = [
-                {'label':'Tipo de proyecto:','value':tipo_proyecto_r},
-                {'label':'Uso del proyecto:','value':uso_proyecto_r},
-                {'label':'Tipo de vivienda:','value':tipo_vivienda_r},
-                {'label':'Composición del proyecto:','value':composicion_proyecto_r},
-                {'label':'Modalidad:','value':modalidad_proyecto_r},
-                {'label':'Estrato:','value':estrato},
-                {'label':'Área:','value':area},
-                {'label':'Valor catastral del metro cuadrado del suelo:','value':f"${valorcatastralsuelo:,.0f}" },
-                {'label':'Área de Construcción Adicional Deseada por Encima del Índice Básico:','value':area_adicional},
-                {'label':'Metros cuadrados de area adicional destinada a estacionamientos:','value':area_adicional_estacionamientos},
-                {'label':'Área Bruta del Proyecto Urbano Objeto de Licencia:','value':areabrutaproyecto},
-                {'label':'Área Útil del Proyecto Urbano Objeto de Licencia:','value':areautilproyecto},
-                {'label':'Metros Cuadrados a Compensar:','value':mtcompensar},
-                ]
-            html,conteo = calculadorasHTML(inputs=inputs,results=results)
-            st.components.v1.html(html,height=int(conteo*600/26),scrolling=True)
-
+        liq_aumento_edificabilidad,liq_compensar_estacionamiento,liq_compensacion_publico = [0]*3  
         
-            #-----------------------------------------------------------------#
-            # Tabla de normativa 
-            #-----------------------------------------------------------------#
+        # Liquidación para Aumento de Edificabilidad
+        if valorcatastralsuelo>0 and area_adicional>0:
+            liq_aumento_edificabilidad = -1.7917446413385605 + 0.9999963437314175*np.log(valorcatastralsuelo) + 1.0000024221145998*np.log(area_adicional)
+            liq_aumento_edificabilidad = round_to_nearest(np.exp(liq_aumento_edificabilidad)) 
+                
+        # Simulador de Liquidación del Valor a Compensar de Estacionamiento
+        if valorcatastralsuelo>0 and area_adicional_estacionamientos>0:
+            liq_compensar_estacionamiento = -2.995732273553994  + 1.0000000000000002*np.log(valorcatastralsuelo) + 1.0*np.log(area_adicional_estacionamientos)
+            liq_compensar_estacionamiento = round_to_nearest(np.exp(liq_compensar_estacionamiento)) 
+          
+        # Liquidacion Pago Compensatorio de Cesiones Públicas para Parques y Equipamientos
+        if valorcatastralsuelo>0 and areabrutaproyecto>0 and areautilproyecto>0 and mtcompensar>0:
+            liq_compensacion_publico = 2.8346862204821655 + 0.8420028931572793*np.log(valorcatastralsuelo) + 0.8594449539498318*np.log(areabrutaproyecto) - 0.915169026757237*np.log(areautilproyecto) + 1.023125114022463*np.log(mtcompensar)
+            liq_compensacion_publico = round_to_nearest(np.exp(liq_compensacion_publico)) 
+                
+        data_carga_fija,data_carga_variable = cargas_fijas_variables(proyecto=tipo_proyecto,uso=uso_proyecto,vivienda=tipo_vivienda,composicion=composicion_proyecto,modalidad=modalidad_proyecto,estrato=estrato,area=area)
+
+        results = [
+            {'label':'Cargo Fijo:','value':data_carga_fija['total_cargo_fijo'].iloc[0],'output': f"${data_carga_fija['total_cargo_fijo'].iloc[0]:,.0f}" if not data_carga_fija.empty and 'total_cargo_fijo' in data_carga_fija and isinstance(data_carga_fija['total_cargo_fijo'].iloc[0],(float,int)) else '$0' },
+            {'label':'Cargo Variable:','value':data_carga_variable['total_cargo_variable'].iloc[0],'output':f"${data_carga_variable['total_cargo_variable'].iloc[0]:,.0f}" if not data_carga_variable.empty and 'total_cargo_variable' in data_carga_variable and isinstance(data_carga_variable['total_cargo_variable'].iloc[0],(float,int)) else '$0' },
+            {'label':'Liquidación para Aumento de Edificabilidad:','value':liq_aumento_edificabilidad,'output':f"${liq_aumento_edificabilidad:,.0f}" if isinstance(liq_aumento_edificabilidad,(float,int)) and liq_aumento_edificabilidad>0 else '$0'},
+            {'label':'Liquidación del Valor a Compensar de Estacionamiento (Decreto 520 de 2022):','value':liq_compensar_estacionamiento,'output':f"${liq_compensar_estacionamiento:,.0f}" if isinstance(liq_compensar_estacionamiento,(float,int)) and liq_compensar_estacionamiento>0 else '$0'},
+            {'label':'Pago Compensatorio de Cesiones Públicas para Parques y Equipamientos:','value':liq_compensacion_publico,'output':f"${liq_compensacion_publico:,.0f}" if isinstance(liq_compensacion_publico,(float,int)) and liq_compensacion_publico>0 else '$0'},
+        ]
+        inputs = [
+            {'label':'Tipo de proyecto:','value':tipo_proyecto_r},
+            {'label':'Uso del proyecto:','value':uso_proyecto_r},
+            {'label':'Tipo de vivienda:','value':tipo_vivienda_r},
+            {'label':'Composición del proyecto:','value':composicion_proyecto_r},
+            {'label':'Modalidad:','value':modalidad_proyecto_r},
+            {'label':'Estrato:','value':estrato},
+            {'label':'Área:','value':area},
+            {'label':'Valor catastral del metro cuadrado del suelo:','value':f"${valorcatastralsuelo:,.0f}" },
+            {'label':'Área de Construcción Adicional Deseada por Encima del Índice Básico:','value':area_adicional},
+            {'label':'Metros cuadrados de area adicional destinada a estacionamientos:','value':area_adicional_estacionamientos},
+            {'label':'Área Bruta del Proyecto Urbano Objeto de Licencia:','value':areabrutaproyecto},
+            {'label':'Área Útil del Proyecto Urbano Objeto de Licencia:','value':areautilproyecto},
+            {'label':'Metros Cuadrados a Compensar:','value':mtcompensar},
+            ]
+        html,conteo = calculadorasHTML(inputs=inputs,results=results)
+        st.components.v1.html(html,height=int(conteo*600/26),scrolling=True)
+
     
+        #-----------------------------------------------------------------#
+        # Tabla de normativa 
+        #-----------------------------------------------------------------#
+
 
 
 
@@ -718,6 +776,32 @@ def landing(barmanpre,mapwidth,mapheight):
     
     # Valores de mercado
     
+@st.cache_data(show_spinner=False)
+def building_floors(data):
+    rows = []
+    for item in data:
+        for piso in range(item['pisomin'], item['pisomax'] + 1):
+            rows.append({
+                'piso': piso,
+                'tipo': item['tipoinmueble'],
+                'porcentaje': item['porcentaje']
+            })
+    
+    return pd.DataFrame(rows)
+
+@st.cache_data(show_spinner=False)
+def generar_condicional(vector_colores):
+    condicional = "'fill-extrusion-color': "
+    for i, item in enumerate(vector_colores):
+        piso = item['piso'] - 1  # Convertir a 0-indexed para coincidir con 'i'
+        color = item['color']
+        if i == 0:
+            condicional += f"i === {piso} ? '{color}'"
+        else:
+            condicional += f" : i === {piso} ? '{color}'"
+    condicional += " : '#FFFFFF',"
+    return condicional
+
 @st.cache_data(show_spinner=False)
 def optimal_k_elbow_method(X, max_k=10):
     inertias = []
@@ -1542,7 +1626,7 @@ def calculadorasHTML(inputs={},results={}):
     # Seccion Resultados
     tablaresultados = ""
     html_paso       = ""
-    
+    style="color: #515151;"
     total = 0 
     for items in results:
         value = 0
@@ -1550,8 +1634,6 @@ def calculadorasHTML(inputs={},results={}):
             value = items['value'] if isinstance(items['value'],(float,int)) and items['value']>0 else 0  
         if value>0:
             total += value
-    if total>0:
-        results.append({'label':'<b>Total</b>','output':f"<b>${total:,.0f}</b>" if isinstance(total,(float,int)) and total>0 else None})
     for items in results:
         if 'label' in items and items['label'] is not None:
             #conteo    += 1
@@ -1560,6 +1642,16 @@ def calculadorasHTML(inputs={},results={}):
                 <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{items['label']}</h6></td>
                 <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #908F8F;">{items['output']}</h6></td>
             </tr>"""
+            
+    if total>0:
+        value = f"<b>${total:,.0f}" if isinstance(total,(float,int)) and total>0 else None
+        html_paso += f"""
+        <tr><td style="border: none;"><h6></h6></td><td style="border: none;"><h6></h6></td></tr>
+        <tr>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">Total:</h6></td>
+            <td style="border: none;"><h6 class="mb-0 text-sm" style="color: #515151;">{value}</h6></td>
+        </tr>"""
+            
     if html_paso!="":
         
         labeltable     = "Liquidación"

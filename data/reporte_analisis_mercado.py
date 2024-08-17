@@ -20,10 +20,8 @@ from data.circle_polygon import circle_polygon
 
 from display.stylefunctions  import style_function_geojson
 
-
-
 def main(polygon=None,precuso=None,barmanpreref=None,latitud=None,longitud=None,maxmetros=500,tipo=None):
-    
+
     screensize = 1920
     mapwidth   = int(screensize)
     mapheight  = int(screensize)
@@ -348,7 +346,10 @@ def reporteHtml(datapredios=pd.DataFrame(),datacatastro=pd.DataFrame(),datatrans
     html_transacciones = ""
     if not datatransacciones.empty:
         html_grafica = ""
-        df         = datatransacciones.copy()
+        df = datatransacciones.copy()
+        if not df.empty and 'codigo' in df:
+            df = df[df['codigo'].isin(['125','126','168','169','0125','0126','0168','0169'])]
+
         df['year'] = pd.to_datetime(df['fecha_documento_publico'])
         df['year'] = df['year'].dt.year
         df         = df[df['year']>=(datetime.now().year-4)]

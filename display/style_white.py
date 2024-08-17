@@ -106,6 +106,13 @@ def style():
             border: #A16CFF;
         }}
         
+        .stButton button:active {{
+            background-color: #FFF;
+            color: #A16CFF;
+            border: 2px solid #FFF;
+            outline: none;
+        }}
+    
         [data-testid="stMultiSelect"] {{
             border: 5px solid #F0F0F0;
             background-color: #F0F0F0;
@@ -171,7 +178,18 @@ def style():
             padding: 5px; 
         }}
             
-        
+        .stDownloadButton button {{
+            background-color: #DAE8D8;
+            font-weight: bold;
+            width: 100%;
+            border: 2px solid #DAE8D8;
+            color: black;
+        }}
+        .stDownloadButton button:hover {{
+            background-color: #DAE8D8;
+            color: black;
+            border: #DAE8D8;
+        }}
         </style>
         """,
         unsafe_allow_html=True

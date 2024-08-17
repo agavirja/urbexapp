@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 import boto3
 import hashlib
 from datetime import datetime
@@ -55,7 +56,6 @@ def main():
                 'forgot':False,
                 'access':False,
                 'token':'',
-                'signup_codigo':False,
                 'forgot_codigo':False,
                }
     for key,value in formato.items():
@@ -96,7 +96,6 @@ def main():
                     
                 if submit:
                     with st.spinner('Verificando'):
-                        st.session_state.token,st.session_state.access = datos_usuario(email)
                         r = sign_in(email, password)
                         if r['status']==200 and st.session_state.access:
                             st.success(r['message'])
@@ -110,69 +109,55 @@ def main():
                             st.session_state.login  = True
                             st.session_state.signin = False
                             st.session_state.forgot = False
-                            st.error('Usuario ya registrado pero sin acceso a Urbex, por favor ponerse en contacto con el equipo comercial')
+                            st.error('Usuario registrado pero no confirmado, ponte en contacto con un asesor de Urbex para activen tu usuario')
                         else:
+                            st.session_state.access = False
                             st.error(r['message'])
 
         if st.session_state.signin:
             with col2:
                 with st.container():
                     st.markdown("#### Registro")
-                    email    = st.text_input("Email").strip()
+                    email    = st.text_input("Email").strip().lower()
                     password = st.text_input("Password", type="password").strip()
                     nombre   = st.text_input("Nombre Completo").strip().title()
-                    telefono = st.text_input("Celular",max_chars =10).strip()
+                    telefono = st.text_input("Celular",max_chars=10).strip()
+                    telefono = re.sub('[^0-9]','',telefono)
                     
                     token = hashlib.md5()
                     token.update(email.encode('utf-8'))
-
-                    if st.button("Registrarse",key='boton_registro'):
-                        if isinstance(email, str) and email!='' and isinstance(password, str) and password!='':
-                            r = sign_up(email, password)
-                            if r['status']==200:
-                                st.success(r['message'])
-                                st.session_state.signup_codigo=True
-                            else: 
-                                st.error(r['message'])
-
-                    codigo_verificacion = None
-                    if st.session_state.signup_codigo:
-                        codigo_verificacion = st.text_input("Código de verificación").strip()
-                        
-                    if isinstance(codigo_verificacion,str) and codigo_verificacion!='':
-                        if st.button("Confirmar codigo"):
-                            r = confirm_sign_up(email, codigo_verificacion)
-                            if r['status']==200:
-                                st.success(r['message'])
+                    with st.spinner('registrando usuario'):
+                        if st.button("Registrarse",key='boton_registro'):
+                            if isinstance(email, str) and email!='' and isinstance(password, str) and password!='':
                                 token    = token.hexdigest()
                                 registro = pd.DataFrame([{'email':email,'nombre':nombre,'telefono':telefono,'token':token,'fecha_creacion':datetime.now().strftime('%Y-%m-%d'),'fecha_modificacion':datetime.now().strftime('%Y-%m-%d')}])
-                                user_register(registro,email)
-                                st.session_state.access = False
-                                st.session_state.login  = True
-                                st.session_state.signin = False
-                                st.session_state.forgot = False
-                                st.rerun()
-                            else: 
-                                st.error(r['message'])
-              
+                                r        = sign_up(email, password,registro)
+                                if r['status']==200:
+                                    st.success(r['message'])
+                                    st.session_state.access = False
+                                    st.session_state.login  = True
+                                    st.session_state.signin = False
+                                    st.session_state.forgot = False
+                                else: 
+                                    st.error(r['message'])
+
         if st.session_state.forgot:
             with col2:
                 email = st.text_input("Email")
                 new_password = st.text_input("Nueva contraseña", type="password").strip()
-                if st.button('Resetear contraseña'):
-                    if isinstance(email, str) and email!='':
-                        r = initiate_password_reset(email)
-                        if r['status']==200:
-                            st.success(r['message'])
-                            st.session_state.forgot_codigo = True
-                        else: 
-                            st.error(r['message'])
-                            
+                with st.spinner('Reseteando contraseña'):
+                    if st.button('Resetear contraseña'):
+                        if isinstance(email, str) and email!='':
+                            r = initiate_password_reset(email)
+                            if r['status']==200:
+                                st.success(r['message'])
+                                st.session_state.forgot_codigo = True
+                            else: 
+                                st.error(r['message'])
+                                
                 codigo_verificacion = None
                 if st.session_state.forgot_codigo:
                     codigo_verificacion = st.text_input("Código de verificación").strip()
-
-                if isinstance(codigo_verificacion,str) and codigo_verificacion!='':
                     if st.button("Confirmar codigo"):
                         r = confirm_password_reset(email, codigo_verificacion, new_password)
                         if r['status']==200:
@@ -210,15 +195,16 @@ def sign_in(email, password):
                 'PASSWORD': password
             }
         )
+        st.session_state.token,st.session_state.access = datos_usuario(email)
         access = True
-        msn = 'Bienvenido a Urbex'
+        msn    = 'Bienvenido a Urbex'
         status = 200
     except ClientError as e:
         if e.response['Error']['Code'] == 'UserNotConfirmedException':
-            msn = 'Usuario registrado pero no confirmado, solicita un nuevo código para verificar'
+            msn = 'Usuario registrado pero no confirmado, ponte en contacto con un asesor de Urbex para activen tu usuario'
             status = 403
         elif e.response['Error']['Code'] == 'NotAuthorizedException':
-            msn = 'Contraseña incorrecta'
+            msn = 'Contraseña incorrecta o usuario no encontrado'
             status = 401
         elif e.response['Error']['Code'] == 'UserNotFoundException':
             msn = 'Usuario no encontrado'
@@ -228,7 +214,7 @@ def sign_in(email, password):
             status = 500
     return {'access': access, 'message': msn, 'status': status}
 
-def sign_up(email, password):
+def sign_up(email, password,registro):
     try:
         response = client.sign_up(
             ClientId=CLIENT_ID,
@@ -241,15 +227,15 @@ def sign_up(email, password):
                 },
             ]
         )
-        emailsend = response['CodeDeliveryDetails']['Destination']
-        msn = f'Te enviamos a tu correo un código de verificación a {emailsend}!!!'
+        user_register(registro,email)
         status = 200
+        msn    = 'Uusario registrado exitosamente, para poder tener acceso es necesario que un comercial de Urbex te de valide tu usuario'
     except ClientError as e:
         if e.response['Error']['Code'] == 'UsernameExistsException':
-            msn = 'Usuario ya registrado pero no confirmado, solicita un nuevo código para verificar'
+            msn = 'Usuario ya registrado'
             status = 403
         else:
-            msn = 'Problema con el registro del usuario'
+            msn = 'Problema con el registro del usuario, ponte en contacto con el comercial de urbex'
             status = 500
     return {'message': msn, 'status': status}
 

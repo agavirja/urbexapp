@@ -69,7 +69,7 @@ def main(polygon=None,precuso=None):
         if not datatransacciones.empty:
             datatransacciones['fecha_documento_publico'] = pd.to_datetime(datatransacciones['fecha_documento_publico'],errors='coerce')
             datatransacciones['cuantiamt2'] = datatransacciones['cuantia']/datatransacciones['preaconst']
-            variables = ['barmanpre','fecha_documento_publico', 'matriculamatch', 'prechip', 'precuso', 'cuantia', 'cuantiamt2', 'preaconst', 'preaterre']
+            variables = ['barmanpre','fecha_documento_publico', 'matriculamatch','codigo', 'prechip', 'precuso', 'cuantia', 'cuantiamt2', 'preaconst', 'preaterre']
             variables = [x for x in variables if x in datatransacciones]
             datatransacciones = datatransacciones[variables]
             

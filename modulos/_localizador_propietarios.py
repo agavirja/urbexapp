@@ -120,7 +120,6 @@ def reporte(data,mapwidth=1088):
             
     ff   = 0
     if not data.empty and 'prenbarrio' in data:
-        st.dataframe(data)
         options = sorted([x for x in data['prenbarrio'].unique() if not pd.isna(x)])
         with colf[ff]:
             barrio = st.multiselect('Barrio',options=options)
@@ -214,7 +213,14 @@ def reporte(data,mapwidth=1088):
 
     with cold2:
         if st.button('Descargar Excel'):
-            download_excel(dftable)
+            #download_excel(dftable)
+            
+            df        = data.copy()
+            variables = [x for x in ['barmanpre','wkt','precuso','precdestin','active','year'] if x in df]
+            if isinstance(variables,list) and variables!=[]:
+                df = df.drop(columns=variables)
+            df.rename(columns={'prechip':'Chip','matriculainmobiliaria':'Matrícula','predirecc':'Dirección','preaconst':'Área construida','preaterre':'Área terreno','prevetustz':'Antiguedad','usosuelo':'Uso del suelo','avaluo_catastral':'Avalúo Catastral','impuesto_ajustado':'Predial'},inplace=True)
+            download_excel(df)
             
     #---------------------------------------------------------------------#
     # Mapa de referencia
@@ -319,7 +325,7 @@ def data2geopandas(data,barmanpreref=None):
     return geojson,geojsonpoints
 
 @st.cache_data(show_spinner=False)
-def reporteHtml(data=pd.DataFrame(),mapwidth=1088,mapheight=200):
+def reporteHtml(data=pd.DataFrame(),mapwidth=1280,mapheight=200):
     
     #-------------------------------------------------------------------------#
     # Header
@@ -474,7 +480,7 @@ def reporteHtml(data=pd.DataFrame(),mapwidth=1088,mapheight=200):
                     title_x=0.55,
                     height=int(mapheight),
                     #width=600,
-                    width=int(mapwidth*0.35),
+                    width=int(mapwidth*0.3),
                     xaxis_title=None,
                     yaxis_title=None,
                     margin=dict(l=60, r=0, t=20, b=0),

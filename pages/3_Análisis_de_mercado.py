@@ -8,6 +8,7 @@ from modulos._heatmap_default  import main as _heatmap_default
 from modulos._precios_referencia  import main as _precios_referencia
 from modulos._proyectos_nuevos  import main as _proyectos_nuevos
 from modulos._localizador_marcas import main as _localizador_marcas
+from modulos._analisis_normativa_urbana import main as _analisis_normativa_urbana
 
 from data.getuser import getuser
 from display.style_white import style 
@@ -54,8 +55,8 @@ if st.session_state.access:
     if isinstance(st.session_state.modulo,str) and 'proyectos' in st.session_state.modulo:
         default_index = 5
    
-    selectedmod   = option_menu(None, ["Análisis del mercado","Análisis de marcas","Agregador de oferta","Mapa de transacciones", "Precios de referencia", "Proyectos nuevos"], 
-        default_index=default_index, orientation="horizontal",icons=['graph-up','shield-check','kanban','globe2','cash-coin','buildings'], 
+    selectedmod   = option_menu(None, ["Análisis del mercado","Análisis de marcas","Agregador de oferta","Mapa de transacciones", "Precios de referencia", "Proyectos nuevos","Normativa Urbana"], 
+        default_index=default_index, orientation="horizontal",icons=['graph-up','shield-check','kanban','globe2','cash-coin','buildings','globe2'], 
         styles={
         "nav-link-selected": {"background-color": "#A16CFF"}, 
         })
@@ -77,6 +78,9 @@ if st.session_state.access:
         
     elif "Proyectos nuevos" in selectedmod:
         _proyectos_nuevos(tipo=st.session_state.type,code=st.session_state.code)
+        
+    elif "Normativa Urbana" in selectedmod:
+        _analisis_normativa_urbana()
         
 else:
     from modulos.signup_login import main as signup_login

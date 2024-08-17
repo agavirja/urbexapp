@@ -125,6 +125,23 @@ def main(barmanpre=None,latitud=None,longitud=None,direccion=None,polygon=None,p
         datafrente  = pd.read_sql_query(f"SELECT arealinea as areafrente, areapolygon as areaterreno FROM bigdata.bogota_frente_fondo_esquinero WHERE {query}" , engine)
         direcciones = pd.read_sql_query(f"SELECT coddir, MIN(predirecc) as formato_direccion, MIN(preusoph) as preusoph FROM bigdata.data_bogota_catastro WHERE {query} GROUP BY coddir" , engine)
 
+    #-------------------------------------------------------------------------#
+    # Altura maxima de lo construido en la manzana
+    datamanzana   = pd.DataFrame()
+    codigomanzana = None
+    if isinstance(barmanpre, str):
+        codigomanzana = [barmanpre[0:9]]
+    elif isinstance(barmanpre, list):
+        codigomanzana = [x[0:9] for x in barmanpre if isinstance(x,str)]
+        codigomanzana = list(set(codigomanzana))
+    
+    if isinstance(codigomanzana,list): 
+        query       = "','".join(codigomanzana)
+        query       = f" mancodigo IN ('{query}')"
+        datamanzana = pd.read_sql_query(f"SELECT max(connpisos) as alturamax FROM  bigdata.bogota_mancodigo_general WHERE {query}" , engine)
+        if not datamanzana.empty:
+            outputs.update({'alturamax':datamanzana['alturamax'].iloc[0]})
+            
     #---------------------------------------------------------------------#
     # Vias
     if not datalote.empty:

@@ -70,18 +70,17 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
             st.session_state[key] = value
             
     if not 'reporte' in st.session_state.estado and isinstance(tipo,str) and 'polygon' in tipo and isinstance(code,str) and code!='':
-        with st.spinner('Buscando información'):
-            try:
-                codejson = base64.b64decode(code)
-                codejson = codejson.decode('utf-8')
-                codejson = json.loads(codejson)
-        
-                st.session_state.latitud  = codejson['latitud'] if 'latitud' in codejson else st.session_state.latitud
-                st.session_state.longitud = codejson['longitud'] if 'longitud' in codejson else st.session_state.longitud
-                st.session_state.metros   = codejson['metros'] if 'metros' in codejson else st.session_state.metros
-                st.session_state.estado = 'polygon'
-            except: 
-                st.session_state.estado = 'search'
+        try:
+            codejson = base64.b64decode(code)
+            codejson = codejson.decode('utf-8')
+            codejson = json.loads(codejson)
+    
+            st.session_state.latitud  = codejson['latitud'] if 'latitud' in codejson else st.session_state.latitud
+            st.session_state.longitud = codejson['longitud'] if 'longitud' in codejson else st.session_state.longitud
+            st.session_state.metros   = codejson['metros'] if 'metros' in codejson else st.session_state.metros
+            st.session_state.estado = 'polygon'
+        except: 
+            st.session_state.estado = 'search'
             
     colm1,colm2,colm3 = st.columns([0.025,0.95,0.025])
     colb1,colb2       = st.columns(2)
@@ -233,10 +232,9 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
             #folium.GeoJson(geopoints,popup=popup).add_to(m)
 
             #marker = folium.Marker(icon=folium.Icon(icon='point',color="color"))
-            marker = folium.Circle(radius=8,fill=True,fill_opacity=1)
+            marker = folium.Circle(radius=20,fill=True,fill_opacity=1)
             folium.GeoJson(geopoints,popup=popup,style_function=style_function_geojson,marker=marker).add_to(m)
 
-            
         with col1:
             st_map = st_folium(m,width=int(mapwidth*0.3),height=920)
             
@@ -245,10 +243,10 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
         with col2:
             html = reporteHtml(dataproyectos=dataproyectos,dataformulada=dataformulada,datapricing=datapricing,mapwidth=mapwidth,mapheight=200)
             st.components.v1.html(html, height=920)
-            
+
         #-------------------------------------------------------------------------#
         # Tipologias
-        html = tipologiaHtml(dataproyectos=dataproyectos,dataformulada=dataformulada,datapricing=datapricing,mapwidth=mapwidth,mapheight=200)
+        html = tipologiaHtml(dataformulada=dataformulada,mapwidth=mapwidth,mapheight=200)
         st.components.v1.html(html, height=300)
         
         #-------------------------------------------------------------------------#
@@ -286,7 +284,8 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
             
             gb = GridOptionsBuilder.from_dataframe(dftable,editable=True)
             gb.configure_selection(selection_mode="single", use_checkbox=True)
-
+            gb.configure_grid_options(preSelectedRows=[0])
+            
             if   len(dftable)>=5: tableH = 200
             elif len(dftable)>=3:  tableH = int(len(dftable)*60)
             elif len(dftable)>1:   tableH = int(len(dftable)*80)
@@ -305,6 +304,8 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
                             )
         
             df = pd.DataFrame(response['selected_rows'])
+            if df.empty:
+                df = dftable.iloc[[0]]
             if not df.empty:
                 df.rename(columns={'Proyecto': 'proyecto', 'Tipo de inmueble': 'tipo', 'Área construida': 'areaconstruida', 'Habitaciones': 'habitaciones', 'Baños': 'banos', 'Garajes': 'garajes'},inplace=True)
                 df['isin']        = 1
@@ -381,7 +382,22 @@ def point2geopandas(data):
 
 @st.cache_data(show_spinner=False)
 def reporteHtml(dataproyectos=pd.DataFrame(),dataformulada=pd.DataFrame(),datapricing=pd.DataFrame(),mapwidth=1280,mapheight=200):
-    
+            
+    #-------------------------------------------------------------------------#
+    # Fix data
+    if not datapricing.empty and not dataproyectos.empty:
+        datamerge   = dataproyectos.drop_duplicates(subset=['codproyecto','tipo'],keep='first')
+        datapricing = datapricing.merge(datamerge[['codproyecto','tipo']],on='codproyecto',how='left',validate='m:1')
+
+        valormin    = 3000000
+        valormax    = 50000000
+        idd         = (datapricing['tipo'].astype(str).str.lower().str.contains('apt')) & ((datapricing['valormt2']<valormin) | (datapricing['valormt2']>valormax))
+        datapricing = datapricing[~idd]
+
+        datamerge         = datapricing.groupby(['codproyecto'])['valormt2'].max().reset_index()
+        datamerge.columns = ['codproyecto','valormt2']
+        dataproyectos     = dataproyectos.merge(datamerge,on='codproyecto',how='left',validate='m:1')
+
     #-------------------------------------------------------------------------#
     # Header
     html_header = ""
@@ -630,22 +646,20 @@ def reporteHtml(dataproyectos=pd.DataFrame(),dataformulada=pd.DataFrame(),datapr
         """
         
     #-------------------------------------------------------------------------#
-    # Constructoras
+    # Proyectos y Constructoras
     html_constructora = ""
     html_grafica = ""
     if not dataproyectos.empty:
         df  = dataproyectos.copy()
-        df  = df.groupby('construye')['id'].count().reset_index()
-        df.columns  = ['construye','conteo']
-        df         = df.sort_values(by=['conteo'],ascending=False)
+        df  = df.groupby('proyecto').agg({'valormt2':'first'}).reset_index()
+        df.columns  = ['proyecto','valormt2']
+        df         = df.sort_values(by=['valormt2'],ascending=False)
         df         = df.iloc[0:4,:]
         
-        titulo = 'Lista constructores'
-        titulo = 'Lista constructores'
-        fig = px.bar(df, y='construye', x="conteo", text="conteo", title=titulo, orientation='h')
+        titulo = 'Proyectos por m²'
+        fig = px.bar(df, y='proyecto', x="valormt2", text="valormt2", title=titulo, orientation='h')
         fig.update_traces(texttemplate='%{x:,.0f}', textposition='inside', textfont=dict(color='white'), marker_color='#7189FF')
         fig.update_layout(title_x=0.4, height=350, xaxis_title=None, yaxis_title=None)
-        fig.update_xaxes(tickmode='linear', dtick=1)
         fig.update_layout({
             'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
             'paper_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -653,7 +667,7 @@ def reporteHtml(dataproyectos=pd.DataFrame(),dataformulada=pd.DataFrame(),datapr
             'legend': dict(bgcolor='black'),
             'height': int(mapheight), 
             'width': int(mapwidth*0.3),
-            'margin': dict(l=0, r=0, t=30, b=20),
+            'margin': dict(l=100, r=0, t=30, b=20),
         })    
         fig.update_xaxes(showgrid=False, zeroline=False, tickfont=dict(color='black'))
         fig.update_yaxes(showgrid=False, zeroline=False, tickfont=dict(color='black'))
@@ -664,7 +678,7 @@ def reporteHtml(dataproyectos=pd.DataFrame(),dataformulada=pd.DataFrame(),datapr
             soup = str(soup.prettify())
             soup = soup.replace('<body>', '<div style="width: 100%; height: 100%;margin-bottom: 0px;">').replace('</body>', '</div>')
             html_grafica += f""" 
-            <div class="col-12">
+            <div class="col-6">
                 <div class="card card-stats card-round card-custom">
                     <div class="card-body card-body-custom">
                         <div class="row align-items-center">
@@ -679,6 +693,51 @@ def reporteHtml(dataproyectos=pd.DataFrame(),dataformulada=pd.DataFrame(),datapr
             </div>
             """
         except: pass
+    if not dataproyectos.empty:
+        df  = dataproyectos.copy()
+        df  = df.groupby('construye')['id'].count().reset_index()
+        df.columns  = ['construye','conteo']
+        df         = df.sort_values(by=['conteo'],ascending=False)
+        df         = df.iloc[0:4,:]
+        
+        titulo = 'Lista constructores'
+        fig = px.bar(df, y='construye', x="conteo", text="conteo", title=titulo, orientation='h')
+        fig.update_traces(texttemplate='%{x:,.0f}', textposition='inside', textfont=dict(color='white'), marker_color='#7189FF')
+        fig.update_layout(title_x=0.4, height=350, xaxis_title=None, yaxis_title=None)
+        fig.update_layout({
+            'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
+            'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+            'title_font': dict(color='black'),
+            'legend': dict(bgcolor='black'),
+            'height': int(mapheight), 
+            'width': int(mapwidth*0.3),
+            'margin': dict(l=100, r=0, t=30, b=20),
+        })    
+        fig.update_xaxes(showgrid=False, zeroline=False, tickfont=dict(color='black'))
+        fig.update_yaxes(showgrid=False, zeroline=False, tickfont=dict(color='black'))
+        html_fig_paso = fig.to_html(config={'displayModeBar': False})
+        try:
+            soup = BeautifulSoup(html_fig_paso, 'html.parser')
+            soup = soup.find('body')
+            soup = str(soup.prettify())
+            soup = soup.replace('<body>', '<div style="width: 100%; height: 100%;margin-bottom: 0px;">').replace('</body>', '</div>')
+            html_grafica += f""" 
+            <div class="col-6">
+                <div class="card card-stats card-round card-custom">
+                    <div class="card-body card-body-custom">
+                        <div class="row align-items-center">
+                            <div class="col col-stats ms-3 ms-sm-0">
+                                <div class="graph-container">
+                                    {soup}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """
+        except: pass
+    if html_grafica!="":
         html_constructora = f"""
         <div class="row" style="margin-top:20px;">
             {html_grafica}
@@ -713,7 +772,7 @@ def reporteHtml(dataproyectos=pd.DataFrame(),dataformulada=pd.DataFrame(),datapr
     return html
 
 @st.cache_data(show_spinner=False)
-def tipologiaHtml(dataproyectos=pd.DataFrame(),dataformulada=pd.DataFrame(),datapricing=pd.DataFrame(),mapwidth=600,mapheight=200):
+def tipologiaHtml(dataformulada=pd.DataFrame(),mapwidth=600,mapheight=200):
     
     #-------------------------------------------------------------------------#
     # Tiplogias

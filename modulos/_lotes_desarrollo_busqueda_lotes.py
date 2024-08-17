@@ -2,6 +2,9 @@ import streamlit as st
 import folium
 import pandas as pd
 import geopandas as gpd
+import base64
+import json
+import shapely.wkt as wkt
 from streamlit_folium import st_folium
 from folium.plugins import Draw
 from shapely.geometry import Polygon,mapping,shape
@@ -11,9 +14,9 @@ from shapely.ops import unary_union
 
 from data.getdataconsolidacionlotes import main as getdataconsolidacionlotes
 
-from display.stylefunctions  import style_function,style_function_geojson
+from display.stylefunctions import style_function,style_function_geojson
 
-def main():
+def main(code=None):
     initialformat = {
         'access':False,
         'token':'',
@@ -34,12 +37,12 @@ def main():
     except: pass
  
     if st.session_state.access:
-        landing(mapwidth,mapheight)
+        landing(code=code,mapwidth=mapwidth,mapheight=mapheight)
     else: 
         st.error('Por favor iniciar sesión para poder tener acceso a la plataforma de Urbex')
     
-def landing(mapwidth,mapheight):
-
+def landing(code=None,mapwidth=1288,mapheight=600):
+    
     #-------------------------------------------------------------------------#
     # Variables 
     formato = {
@@ -67,6 +70,40 @@ def landing(mapwidth,mapheight):
         if key not in st.session_state: 
             st.session_state[key] = value
             
+    #-------------------------------------------------------------------------#
+    # Cuando viene la busqueda directa de la url: analisis_normativa_urbana
+    #-------------------------------------------------------------------------#
+    if 'search' in st.session_state.estado:
+        if isinstance(code,str) and code!='':
+            try:
+                codejson = base64.b64decode(code)
+                codejson = codejson.decode('utf-8')
+                codejson = json.loads(codejson)
+            except: codejson = None
+            if codejson is not None:
+                st.session_state.latitud    = codejson['latitud'] if 'latitud' in codejson and isinstance(codejson['zoom'],(float,int)) else st.session_state.latitud
+                st.session_state.longitud   = codejson['longitud'] if 'longitud' in codejson and isinstance(codejson['zoom'],(float,int)) else st.session_state.longitud
+                st.session_state.zoom_start = codejson['zoom'] if 'zoom' in codejson and isinstance(codejson['zoom'],(float,int)) else st.session_state.zoom_start
+                st.session_state.estado     = codejson['estado'] if 'estado' in codejson and isinstance(codejson['estado'],str) else st.session_state.estado
+                polygon                     = codejson['polygon'] if 'polygon' in codejson and isinstance(codejson['polygon'],str) else None
+                
+                if isinstance(polygon,str) and polygon!="":
+                    st.session_state.polygon_busqueda_lotes = wkt.loads(polygon)
+                    st.session_state.geojson_data           = mapping(st.session_state.polygon_busqueda_lotes)
+                    
+                inputvar = {'areamin': 0, 'areamax': 0, 'antiguedadmin': 0, 'antiguedadmax': 0, 'maxpiso': 0, 'maxpredios': 0, 'maxpropietario': 0, 'maxavaluo': 0, 'loteesquinero': 'Todos', 'viaprincipal': 'Todos', 'usodelsuelo': 'Todos', 'pot': [{'tipo': 'tratamientourbanistico', 'alturaminpot': 0, 'tratamiento': []}, {'tipo': 'areaactividad', 'nombreare': []}, {'tipo': 'actuacionestrategica', 'isin': 'Todos'}]}
+                if st.session_state.polygon_busqueda_lotes is not None:  
+                    inputvar['polygon'] = str(st.session_state.polygon_busqueda_lotes)
+                    with st.spinner('Buscando información'):
+                        st.session_state.datapredios,st.session_state.datalotes_busqueda_lotes = getdataconsolidacionlotes(inputvar)
+                        if not st.session_state.datalotes_busqueda_lotes.empty:
+                            st.session_state.estado    = 'consolidacion'
+                            st.session_state.find_data = True
+                        else: 
+                            st.session_state.find_data = False
+                        st.rerun()
+    #-------------------------------------------------------------------------#
+
     colt1,colt2,colt3    = st.columns([0.025,0.475,0.50])
     colm1,colm2,colm3    = st.columns([0.025,0.95,0.025])
     colmsn1,colmsn2      = st.columns([0.95,0.05])
