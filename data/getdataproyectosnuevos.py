@@ -5,9 +5,10 @@ from sqlalchemy import create_engine
 from datetime import datetime, timedelta
 
 from data.coddir import coddir
+from data.lastTransacciones import main as lastTransacciones
 
 @st.cache_data(show_spinner=False)
-def main(polygon):
+def dataproyectosnuevos(polygon):
     
     user     = st.secrets["user_bigdata"]
     password = st.secrets["password_bigdata"]
@@ -39,7 +40,6 @@ def main(polygon):
                 if i in dataproyectos: 
                     dataproyectos[i] = dataproyectos[i].apply(lambda x: formatovariables(x))
             dataproyectos['estado'] = dataproyectos['estado'].apply(lambda x: x.split(',')[-1])
-            
             
         dataformulada = pd.read_sql_query(f"SELECT * FROM bigdata.data_bogota_gi_nueva_formulada WHERE {query}" , engine)
         datalong      = pd.read_sql_query(f"SELECT * FROM bigdata.data_bogota_gi_nueva_long WHERE {query}" , engine)
@@ -161,3 +161,54 @@ def formatovariables(x):
         return ','.join([re.sub('[^a-zA-Z]','',w) for w in x.strip('/').split('/')])
     except: 
         return x
+    
+@st.cache_data(show_spinner=False)   
+def datatransaccionesproyectos(inputvar):
+
+    user     = st.secrets["user_bigdata"]
+    password = st.secrets["password_bigdata"]
+    host     = st.secrets["host_bigdata_lectura"]
+    schema   = st.secrets["schema_bigdata"]
+    engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
+
+    polygon  = inputvar['polygon'] if 'polygon' in inputvar and isinstance(inputvar['polygon'], str) else None
+    usosuelo = inputvar['precuso'] if 'precuso' in inputvar and isinstance(inputvar['precuso'], list) else None
+
+    query = ""
+    if isinstance(polygon, str) and not 'none' in polygon.lower() :
+        query += f' AND ST_CONTAINS(ST_GEOMFROMTEXT("{polygon}"), POINT(longitud, latitud))'
+    if isinstance(usosuelo, list) and usosuelo!=[]:
+        lista  = "','".join(usosuelo)
+        query += f" AND precuso IN ('{lista}')"       
+        
+    if query!='':
+        query        = query.strip().strip('AND')
+        datausosuelo = pd.read_sql_query(f"SELECT distinct( barmanpre) as barmanpre FROM  bigdata.bogota_catastro_compacta_precuso WHERE {query}" , engine)
+
+        if not datausosuelo.empty:
+           barmanpre     = "','".join(datausosuelo['barmanpre'].unique())
+           yearmax       = datetime.now().year-3
+           query         = f" barmanpre IN ('{barmanpre}') AND prevetustz>={yearmax} "
+           if isinstance(usosuelo, list) and usosuelo!=[]:
+               lista  = "','".join(usosuelo)
+               query += f" AND precuso IN ('{lista}')" 
+           st.write(query)
+           datacatastro = pd.read_sql_query(f"SELECT barmanpre,predirecc,prechip,preaconst,prevetustz FROM  bigdata.data_bogota_catastro WHERE {query} AND ( precdestin<>'65' AND precdestin<>'66')" , engine)
+
+        if not datacatastro.empty:
+            chip   = list(datacatastro['prechip'].unique())
+            data,_ = lastTransacciones(chip=chip)
+            
+            if not data.empty:
+                st.dataframe(data)
+                datamerge = datacatastro.drop_duplicates(subset='prechip',keep='first')
+                data      = data.merge(datamerge,on='prechip',how='left',validate='m:1')
+    engine.dispose()
+    
+    if not data.empty:
+        data['fecha_documento_publico'] = pd.to_datetime(data['fecha_documento_publico'],errors='coerce')
+        data['valormt2'] = None
+        if 'cuantia' in data and 'preaconst' in data:
+            data['valormt2'] = data['cuantia']/data['preaconst']
+
+    return data

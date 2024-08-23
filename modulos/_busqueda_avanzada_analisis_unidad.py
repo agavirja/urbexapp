@@ -3,25 +3,29 @@ import streamlit as st
 import pandas as pd
 import hashlib
 import plotly.express as px
+import plotly.graph_objects as go
 from bs4 import BeautifulSoup
 from streamlit_js_eval import streamlit_js_eval
+from datetime import datetime
+from plotly.subplots import make_subplots
 
-from data.getdatabuilding import main as getdatabuilding
+from data.getdatabuilding import main as getdatabuilding, chip2codigolote_sinupot
+from data.getreporte_sinupot import main as getreportesinupot
 
 def main(chip=None,barmanpre=None,vartype=None):
     
     #-------------------------------------------------------------------------#
     # Tamano de la pantalla 
     screensize = 1920
-    mapwidth   = int(screensize*0.25)
-    mapheight  = int(screensize*0.20)
+    mapwidth   = int(screensize)
+    mapheight  = int(screensize)
     try:
         screensize = streamlit_js_eval(js_expressions='screen.width', key = 'SCR')
-        mapwidth   = int(screensize*0.25)
-        mapheight  = int(screensize*0.20)
+        mapwidth   = int(screensize)
+        mapheight  = int(screensize)
     except: pass
     
-    col1,col2      = st.columns(2,gap="small")
+    col1,col2,col3      = st.columns([0.05,0.4,0.55],gap="small")
     chip_referencia = chip
 
     if isinstance(barmanpre, str):
@@ -49,7 +53,7 @@ def main(chip=None,barmanpre=None,vartype=None):
                 if isinstance(chip_referencia, str):
                     index = listachip.index(chip_referencia)
                 
-                with col1:
+                with col2:
                     predirecc = st.selectbox('Lista de direcciones: ',options=lista,index=index)
                     chip      = datacatastro[datacatastro['predirecc']==predirecc]['prechip'].iloc[0]
             else: chip = datacatastro['prechip'].iloc[0]
@@ -72,115 +76,10 @@ def main(chip=None,barmanpre=None,vartype=None):
             if not datactl.empty:
                 datactl_predio = datactl[datactl['prechip']==chip]
             
-        html,elementos = principal_table(datacatastro=datacatastro_predio,datausosuelo=datausosuelo_predio,datavigencia=datavigencia_predio)
+        html,elementos = principal_table(datacatastro=datacatastro_predio,datausosuelo=datausosuelo_predio,datavigencia=datavigencia_predio,mapwidth=mapwidth,mapheight=mapheight)
         st.components.v1.html(html,height=int(elementos*600/30),scrolling=True)
-                    
-        #-------------------------------------------------------------------------#
-        # Tabla historial catastral
-        #-------------------------------------------------------------------------#
-        if not datavigencia_predio.empty:
-    
-            variables = [x for x in ['link','vigencia','valorAutoavaluo','valorImpuesto','copropiedad','tipoPropietario','tipoDocumento','name','phone','email'] if x in datavigencia_predio]
-            datapaso  = datavigencia_predio[variables]
-           
-            st.write('')
-            titulo = 'Historial Catastral'
-            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
-            texto  = BeautifulSoup(html, 'html.parser')
-            st.markdown(texto, unsafe_allow_html=True)
-            
-            if   len(datapaso)>=10: tableH = 450
-            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
-            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
-            elif len(datapaso)==1:  tableH = 100
-            else: tableH = 100
-            
-            html_paso    = ""
-            for _,items in datapaso.iterrows():
-                try:    
-                    link = items['link'] if 'link' in items and isinstance(items['link'], str) else ""
-                    link = f"""
-                    <td class="align-middle text-center text-sm" style="border: none;padding: 8px;">
-                       <a href="{link}" target="_blank">
-                       <img src="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/publicimg/pdf.png" alt="link" width="20" height="20">
-                       </a>                    
-                    </td>
-                    """
-                except: link = "<td></td>"
-                try:    vigencia = f"<td>{items['vigencia']}</td>" if 'vigencia' in items and (isinstance(items['vigencia'], int) or isinstance(items['vigencia'], float)) else "<td></td>"
-                except: vigencia = "<td></td>"
-                try:    avaluo = f"<td>${items['valorAutoavaluo']:,.0f}</td>" if 'valorAutoavaluo' in items and (isinstance(items['valorAutoavaluo'], int) or isinstance(items['valorAutoavaluo'], float)) else "<td></td>"
-                except: avaluo = "<td></td>"
-                try:    predial = f"<td>${items['valorImpuesto']:,.0f}</td>" if 'valorImpuesto' in items and (isinstance(items['valorImpuesto'], int) or isinstance(items['valorImpuesto'], float)) else "<td></td>"
-                except: predial = "<td></td>"
-                try:    copropiedad = f"<td>{int(items['copropiedad'])}</td>" if 'copropiedad' in items and (isinstance(items['copropiedad'], int) or isinstance(items['copropiedad'], float)) else "<td></td>"
-                except: copropiedad = "<td></td>"
-                try:    tipopropietario = f"<td>{items['tipoPropietario']}</td>" if 'tipoPropietario' in items and isinstance(items['tipoPropietario'], str) else "<td></td>"
-                except: tipopropietario = "<td></td>"
-                try:    tipodocumento = f"<td>{items['tipoDocumento']}</td>" if 'tipoDocumento' in items and isinstance(items['tipoDocumento'], str) else "<td></td>"
-                except: tipodocumento = "<td></td>"
-                try:    name = f"<td>{items['name']}</td>" if 'name' in items and isinstance(items['name'], str) else "<td></td>"
-                except: name = "<td></td>"
-                try:    phone = f"<td>{items['phone']}</td>" if 'phone' in items and isinstance(items['phone'], str) else "<td></td>"
-                except: phone = "<td></td>"
-                try:    email = f"<td>{items['email']}</td>" if 'email' in items and isinstance(items['email'], str) else "<td></td>"
-                except: email = "<td></td>"
-                
-                html_paso += f"""
-                <tr>
-                    {link}
-                    {vigencia}
-                    {avaluo}
-                    {predial}
-                    {copropiedad}
-                    {tipopropietario}
-                    {tipodocumento}
-                    {name}
-                    {phone}
-                    {email}
-                </tr>
-                """
-            html_paso = f"""
-            <thead>
-                <tr>
-                    <th>Link</th>
-                    <th>Vigencia</th>
-                    <th>Avalúo catastral</th>
-                    <th>Predial</th>
-                    <th>Co-propiedad</th>
-                    <th>Tipo de propietario</th>
-                    <th>Tipo de documento</th>
-                    <th>Propietario</th>
-                    <th>Contacto</th>
-                    <th>Email</th>
-                </tr>
-            </thead>
-            <tbody>
-            {html_paso}
-            </tbody>
-            """
-            style = tablestyle()
-            html = f"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            {style}
-            </head>
-            <body>
-                <div class="table-wrapper table-background">
-                    <div class="table-scroll">
-                        <table class="fl-table">
-                        {html_paso}
-                        </table>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-            st.components.v1.html(html,height=tableH)       
-        
+        colg1,colg2 = st.columns([0.001,0.999])
+
         #-------------------------------------------------------------------------#
         # Tabla Transacciones
         #-------------------------------------------------------------------------#
@@ -360,42 +259,136 @@ def main(chip=None,barmanpre=None,vartype=None):
             st.components.v1.html(html,height=tableH) 
 
         #-------------------------------------------------------------------------#
-        # Graficas: Estadisticas
+        # Tabla historial catastral
         #-------------------------------------------------------------------------#
         if not datavigencia_predio.empty:
-            format_bar = {"Avalúo Catastral":"valorAutoavaluo","Impuesto Predial":"valorImpuesto"}
-            cols       = st.columns(2)
-            pos        = -1
-            for key,value in format_bar.items():
-                pos += 1
-                with cols[pos]:
-                    df = datavigencia_predio.groupby('vigencia')[value].max().reset_index()
-                    df = df.sort_values(by='vigencia',ascending=False)
-                    df.index = range(len(df))
-                    df = df.iloc[0:4,:]
-                    if not df.empty:
-                        df.columns  = ['year','value']
-                        df['year']   = pd.to_numeric(df['year'],errors='coerce')
-                        df           = df[(df['value']>0) & (df['year']>0)]
-                        df           = df.sort_values(by='year',ascending=True)
-                        df.index     = range(len(df))
-                        df['year']   = df['year'].astype(int).astype(str)
-                        fig          = px.bar(df, x="year", y="value", text="value", title=key)
-                        fig.update_traces(texttemplate='$%{y:,.0f}', textposition='inside', marker_color='#A16CFF', textfont=dict(color='white'))
-                        fig.update_layout(title_x=0.4,height=350, xaxis_title=None, yaxis_title=None)
-                        fig.update_xaxes(tickmode='linear', dtick=1)
-                        fig.update_layout({
-                            'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                            'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                            'title_font':dict(color='black'),
-                            'legend':dict(bgcolor='black'),
-                        })    
-                        fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                        fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                        st.plotly_chart(fig, use_container_width=True, theme="streamlit")
+    
+            variables = [x for x in ['link','vigencia','valorAutoavaluo','valorImpuesto','copropiedad','tipoPropietario','tipoDocumento','name','phone','email'] if x in datavigencia_predio]
+            datapaso  = datavigencia_predio[variables]
+           
+            st.write('')
+            titulo = 'Historial Catastral'
+            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+            texto  = BeautifulSoup(html, 'html.parser')
+            st.markdown(texto, unsafe_allow_html=True)
+            
+            if   len(datapaso)>=10: tableH = 450
+            elif len(datapaso)>=5:  tableH = int(len(datapaso)*45)
+            elif len(datapaso)>1:   tableH = int(len(datapaso)*60)
+            elif len(datapaso)==1:  tableH = 100
+            else: tableH = 100
+            
+            html_paso    = ""
+            for _,items in datapaso.iterrows():
+                try:    
+                    link = items['link'] if 'link' in items and isinstance(items['link'], str) else ""
+                    link = f"""
+                    <td class="align-middle text-center text-sm" style="border: none;padding: 8px;">
+                       <a href="{link}" target="_blank">
+                       <img src="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/publicimg/pdf.png" alt="link" width="20" height="20">
+                       </a>                    
+                    </td>
+                    """
+                except: link = "<td></td>"
+                try:    vigencia = f"<td>{items['vigencia']}</td>" if 'vigencia' in items and (isinstance(items['vigencia'], int) or isinstance(items['vigencia'], float)) else "<td></td>"
+                except: vigencia = "<td></td>"
+                try:    avaluo = f"<td>${items['valorAutoavaluo']:,.0f}</td>" if 'valorAutoavaluo' in items and (isinstance(items['valorAutoavaluo'], int) or isinstance(items['valorAutoavaluo'], float)) else "<td></td>"
+                except: avaluo = "<td></td>"
+                try:    predial = f"<td>${items['valorImpuesto']:,.0f}</td>" if 'valorImpuesto' in items and (isinstance(items['valorImpuesto'], int) or isinstance(items['valorImpuesto'], float)) else "<td></td>"
+                except: predial = "<td></td>"
+                try:    copropiedad = f"<td>{int(items['copropiedad'])}</td>" if 'copropiedad' in items and (isinstance(items['copropiedad'], int) or isinstance(items['copropiedad'], float)) else "<td></td>"
+                except: copropiedad = "<td></td>"
+                try:    tipopropietario = f"<td>{items['tipoPropietario']}</td>" if 'tipoPropietario' in items and isinstance(items['tipoPropietario'], str) else "<td></td>"
+                except: tipopropietario = "<td></td>"
+                try:    tipodocumento = f"<td>{items['tipoDocumento']}</td>" if 'tipoDocumento' in items and isinstance(items['tipoDocumento'], str) else "<td></td>"
+                except: tipodocumento = "<td></td>"
+                try:    name = f"<td>{items['name']}</td>" if 'name' in items and isinstance(items['name'], str) else "<td></td>"
+                except: name = "<td></td>"
+                try:    phone = f"<td>{items['phone']}</td>" if 'phone' in items and isinstance(items['phone'], str) else "<td></td>"
+                except: phone = "<td></td>"
+                try:    email = f"<td>{items['email']}</td>" if 'email' in items and isinstance(items['email'], str) else "<td></td>"
+                except: email = "<td></td>"
+                
+                html_paso += f"""
+                <tr>
+                    {link}
+                    {vigencia}
+                    {avaluo}
+                    {predial}
+                    {copropiedad}
+                    {tipopropietario}
+                    {tipodocumento}
+                    {name}
+                    {phone}
+                    {email}
+                </tr>
+                """
+            html_paso = f"""
+            <thead>
+                <tr>
+                    <th>Link</th>
+                    <th>Vigencia</th>
+                    <th>Avalúo catastral</th>
+                    <th>Predial</th>
+                    <th>Co-propiedad</th>
+                    <th>Tipo de propietario</th>
+                    <th>Tipo de documento</th>
+                    <th>Propietario</th>
+                    <th>Contacto</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+            {html_paso}
+            </tbody>
+            """
+            style = tablestyle()
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            {style}
+            </head>
+            <body>
+                <div class="table-wrapper table-background">
+                    <div class="table-scroll">
+                        <table class="fl-table">
+                        {html_paso}
+                        </table>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            st.components.v1.html(html,height=tableH)       
+        
+        
+        #-------------------------------------------------------------------------#
+        # SINUPOT
+        #-------------------------------------------------------------------------#
+        if isinstance(chip,str) and chip!='':
+            getreportesinupot(chip=chip,reporte_chip=True,licencias=True,plusvalia=True,estratificacion=True,telecomunicacion=True,pot_190=True)
+    
+                    
+        #-------------------------------------------------------------------------#
+        # Graficas
+        #-------------------------------------------------------------------------#
+        if not datatransacciones_predio.empty or not datavigencia_predio.empty:
+            with colg2:
+                st.write('')
+                titulo = 'Estadísticas'
+                html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+                texto  = BeautifulSoup(html, 'html.parser')
+                st.markdown(texto, unsafe_allow_html=True)
+    
+                html,numgraph = graficasHtml(datatransacciones=datatransacciones_predio,datavigencia=datavigencia_predio,mapwidth=mapwidth,mapheight=400)
+                st.components.v1.html(html, height=numgraph*420)
+
 
 @st.cache_data(show_spinner=False)
-def principal_table(datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),datavigencia=pd.DataFrame()):
+def principal_table(datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),datavigencia=pd.DataFrame(),mapwidth=1280,mapheight=200):
     
     tabladescripcion = ""
     html_paso        = ""
@@ -502,7 +495,7 @@ def principal_table(datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),data
         datapaso = datavigencia.sort_values(by='vigencia',ascending=False)
         datapaso = datapaso[datapaso['tipoDocumento'].notnull()]
         if not datapaso.empty:
-            datapaso = datapaso.iloc[[0]]
+            datapaso               = datapaso[datapaso['vigencia']==datapaso['vigencia'].max()]
             datapaso.idnex         = range(len(datapaso))
             html_propietarios_paso = ""
             k                      = len(datapaso)
@@ -646,6 +639,236 @@ def principal_table(datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),data
     """
     return html,elementos
 
+@st.cache_data(show_spinner=False)
+def graficasHtml(datatransacciones=pd.DataFrame(),datavigencia=pd.DataFrame(),mapwidth=600,mapheight=500):
+  
+    numgraph = 0
+    #-------------------------------------------------------------------------#
+    # Transacciones
+    html_barras  = ""
+    html_grafica = ""
+    datapaso     = pd.DataFrame()
+    df           = pd.DataFrame()
+    if not datatransacciones.empty:
+        df = datatransacciones.copy()
+        if not df.empty and 'codigo' in df:
+            df = df[df['codigo'].isin(['125','126','168','169','0125','0126','0168','0169'])]
+            
+        if not df.empty:
+            df['year'] = pd.to_datetime(df['fecha_documento_publico'])
+            df['year'] = df['year'].dt.year
+            df         = df[df['year']>=(datetime.now().year-6)]
+            df         = df.groupby('year').agg({'cuantia':['count','max']}).reset_index()
+            df.columns = ['fecha','count','value']
+            df.index   = range(len(df))
+            datapaso   = df.copy()
+    
+    if not datavigencia.empty:
+        df         = datavigencia.copy()
+        df         = df.groupby(['chip','vigencia']).agg({'valorAutoavaluo':'max','valorImpuesto':'max'}).reset_index()
+        df.columns = ['chip','vigencia','valorAutoavaluo','valorImpuesto']
+        df         = df.groupby('vigencia').agg({'valorAutoavaluo':'max','valorImpuesto':'max'}).reset_index()
+        df.columns = ['fecha','valorAutoavaluo','valorImpuesto']
+        df         = df[df['fecha']>=(datetime.now().year-6)]
+        if not datapaso.empty and not df.empty:
+            datapaso = datapaso.merge(df,on='fecha',how='outer',validate='1:1')
+        elif datapaso.empty and not df.empty:
+            datapaso = df.copy()
+            
+    if not datapaso.empty:
+        fig         = make_subplots(specs=[[{"secondary_y": True}]])
+        offsetgrpah = -1
+        widthbar    = 0.4
+        if 'value' in datapaso: widthbar = 0.3
+        if 'valorImpuesto' in datapaso:
+            offsetgrpah += 1
+            fig.add_trace(go.Bar(x=datapaso['fecha'],y=datapaso['valorImpuesto'],name='Impuesto predial' ,marker_color='#7189FF',offsetgroup=offsetgrpah,width=widthbar,showlegend=True,text=datapaso['valorImpuesto'],texttemplate='$%{text:,.0f}',textposition='inside',textangle=90,textfont=dict(color='white', size=12)),secondary_y=False)
+        if 'valorAutoavaluo' in datapaso:
+            offsetgrpah += 1
+            fig.add_trace(go.Bar(x=datapaso['fecha'],y=datapaso['valorAutoavaluo'],name='Avalúo catastral',marker_color='#624CAB',offsetgroup=offsetgrpah,width=widthbar,showlegend=True,text=datapaso['valorAutoavaluo'],texttemplate='$%{text:,.0f}',textposition='inside',textangle=90,textfont=dict(color='white', size=12)),secondary_y=True)
+        if 'value' in datapaso:
+            offsetgrpah += 1
+            fig.add_trace(go.Bar(x=datapaso['fecha'],y=datapaso['value'],name='Valor transacciones',marker_color='#FF6B6B',offsetgroup=offsetgrpah,width=widthbar,showlegend=True,text=datapaso['value'],texttemplate='$%{text:,.0f}',textposition='inside',textangle=90,textfont=dict(color='white', size=12)),secondary_y=True)
+
+        fig.update_layout(
+            xaxis_title=None,
+            yaxis_title=None,
+            yaxis2_title=None,
+            barmode='group',
+            height=int(mapheight), 
+            width=int(mapwidth*0.9),
+            plot_bgcolor='rgba(0, 0, 0, 0)',
+            paper_bgcolor='rgba(0, 0, 0, 0)',
+            margin=dict(l=0, r=0, t=0, b=100),
+            legend=dict(orientation='h', yanchor='top',y=-0.2,xanchor='center',x=0.5,bgcolor='white',font=dict(color='black')),
+            title_font=dict(size=11,color='black'),
+        )
+        fig.update_xaxes(tickmode='linear', dtick=1, tickfont=dict(color='black'),showgrid=False, zeroline=False,)
+        fig.update_yaxes(showgrid=False, zeroline=False, tickfont=dict(color='black'), title_font=dict(color='black'))
+        fig.update_yaxes(title=None, secondary_y=True, showgrid=False, zeroline=False, tickfont=dict(color='black'))
+        html_fig_paso = fig.to_html(config={'displayModeBar': False})
+        try:
+            soup = BeautifulSoup(html_fig_paso, 'html.parser')
+            soup = soup.find('body')
+            soup = str(soup.prettify())
+            soup = soup.replace('<body>', '<div style="margin-bottom: 0px;">').replace('</body>', '</div>')
+            html_grafica = f""" 
+            <div class="col-12">
+                <div class="card card-stats card-round card-custom">
+                    <div class="card-body card-body-custom">
+                        <div class="row align-items-center">
+                            <div class="col col-stats ms-3 ms-sm-0">
+                                <div class="graph-container" style="width: 100%; height: auto;">
+                                    {soup}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """
+        except: pass
+
+    if isinstance(html_grafica,str) and html_grafica!="":
+        numgraph += 1
+        html_barras = f"""
+        <div class="row mb-20">
+            {html_grafica}
+        </div>
+        """
+        
+    style = """
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .card {
+            --bs-card-spacer-y: 1rem;
+            --bs-card-spacer-x: 1rem;
+            --bs-card-title-spacer-y: 0.5rem;
+            --bs-card-title-color: #000;
+            --bs-card-subtitle-color: #6c757d;
+            --bs-card-border-width: 1px;
+            --bs-card-border-color: rgba(0, 0, 0, 0.125);
+            --bs-card-border-radius: 0.25rem;
+            --bs-card-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            --bs-card-inner-border-radius: calc(0.25rem - 1px);
+            --bs-card-cap-padding-y: 0.5rem;
+            --bs-card-cap-padding-x: 1rem;
+            --bs-card-cap-bg: rgba(0, 123, 255, 0.03);
+            --bs-card-cap-color: #007bff;
+            --bs-card-height: auto;
+            --bs-card-color: #000;
+            --bs-card-bg: #fff;
+            --bs-card-img-overlay-padding: 1rem;
+            --bs-card-group-margin: 0.75rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: var(--bs-card-height);
+            color: var(--bs-card-color);
+            word-wrap: break-word;
+            background-color: var(--bs-card-bg);
+            background-clip: border-box;
+            border: var(--bs-card-border-width) solid var(--bs-card-border-color);
+            border-radius: var(--bs-card-border-radius);
+            box-shadow: var(--bs-card-box-shadow);
+        }
+
+        .card-stats .icon-big {
+            font-size: 3rem;
+            line-height: 1;
+            color: #fff;
+        }
+
+        .card-stats .icon-primary {
+            background-color: #007bff;
+        }
+
+        .bubble-shadow-small {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            border-radius: 50%;
+            padding: 1rem;
+        }
+
+        .card-stats .numbers {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .card-stats .card-category {
+            color: #6c757d;
+            font-size: 0.8rem;
+            margin: 0;
+            text-align: center;
+        }
+
+        .card-stats .card-title {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .small-text {
+            font-size: 0.3rem; 
+            color: #6c757d; 
+        }
+        .graph-container {
+            width: 100%;
+            height: 100%;
+            margin-bottom: 0;
+        }
+        
+        .card-custom {
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .card-body-custom {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+        }
+        
+        .mb-20 {
+            margin-bottom: 10px;
+        }
+    </style>
+    """
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Visitors Card</title>
+        <!-- Incluyendo Bootstrap CSS para el diseño de las tarjetas -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
+        <!-- Font Awesome para los íconos -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+        {style}
+    </head>
+    <body>
+        <div class="container-fluid">
+            {html_barras}
+        </div>
+    </body>
+    </html>
+    """
+    return html,numgraph
+
 def generar_codigo(x):
     hash_sha256 = hashlib.sha256(x.encode()).hexdigest()
     codigo      = hash_sha256[:12]
@@ -653,14 +876,13 @@ def generar_codigo(x):
 
 def linkPredial(chip,vigencia,idsoporte):
     result = None
-    if (isinstance(vigencia, float) or isinstance(vigencia, int)):
-        if int(vigencia)==2024:
+    if isinstance(vigencia, (int,float)):
+        if isinstance(idsoporte,str) and idsoporte!='':
+            result = f"https://oficinavirtual.shd.gov.co/barcode/certificacion?idSoporte={idsoporte}"
+        else:
             filename = generar_codigo(f'{vigencia}{chip}{vigencia}')
             filename = f'{filename.upper()}.pdf'
             result   = f'https://prediales.nyc3.digitaloceanspaces.com/{filename}'
-        elif vigencia<2024:
-            if isinstance(idsoporte, str):
-                result = f"https://oficinavirtual.shd.gov.co/barcode/certificacion?idSoporte={idsoporte}"
     return result
 
 def buildname(nombre1,nombre2,apellido1,apellido2):
@@ -706,7 +928,7 @@ def buildemail(row):
         result = ' | '.join(vector)
     return result
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def gruoptransactions(datatransacciones):
     if not datatransacciones.empty and 'docid' in datatransacciones:
         datamerge = datatransacciones.drop_duplicates(subset='docid',keep='first')
@@ -717,7 +939,7 @@ def gruoptransactions(datatransacciones):
         datatransacciones = datatransacciones.sort_values(by=['docid','preaconst','cuantia'],ascending=[False,False,False])
     return datatransacciones
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def tablestyle():
     return """
         <style>

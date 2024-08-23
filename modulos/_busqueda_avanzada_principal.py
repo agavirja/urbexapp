@@ -63,8 +63,9 @@ def landing(mapwidth,mapheight):
         if key not in st.session_state: 
             st.session_state[key] = value
     
+    colt1,colt2,colt3    = st.columns([0.025,0.475,0.50])
     col1, col2 = st.columns(2)
-    with col1:
+    with colt2:
         formato_options = {'En un poligono':1,'Por dirección':2,'Por chip':3,'Por matrícula inmobiliria':4,'Nombre de la copropiedad':5}
         consulta = st.selectbox('Tipo de busqueda:',options=list(formato_options))
         option_selected = formato_options[consulta]

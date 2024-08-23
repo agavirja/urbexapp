@@ -4,7 +4,7 @@ st.set_page_config(layout='wide',page_icon="https://iconsapp.nyc3.digitaloceansp
 
 # streamlit run D:\Dropbox\Empresa\Urbex\_APP_heroku\Home.py
 # https://streamlit.io/
-# pipreqs --encoding utf-8 "D:\Dropbox\Empresa\Urbex\_APP"
+# pipreqs --encoding utf-8 "D:\Dropbox\Empresa\Urbex\_APP_heroku"
 
 #------------#
 # Powersheel #

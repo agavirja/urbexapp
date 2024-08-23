@@ -162,7 +162,7 @@ def landing(mapwidth,mapheight):
     
     if st.session_state.reporte_mls:
         with st.spinner('Buscando información de listings'):
-            shwolistings(st.session_state.data_mls,tiponegocio=tiponegocio)
+            showlistings(st.session_state.data_mls,tiponegocio=tiponegocio)
 
 def style_function_color(feature):
     return {
@@ -245,7 +245,7 @@ def data2geopandas(data,tiponegocio=None):
     return geojson
 
 @st.cache_data(show_spinner=False)
-def shwolistings(data,tiponegocio=None):
+def showlistings(data,tiponegocio=None):
     css_format = """
         <style>
             .card {

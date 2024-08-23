@@ -1,6 +1,6 @@
 import streamlit as st
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def mapstreetview(latitud,longitud):
     api_key  = st.secrets['API_KEY'] #AIzaSyBEjvAMTg70W6oUvWc5HzYUS3O9rzEI9Jw
     html = ""
@@ -58,7 +58,7 @@ def mapstreetview(latitud,longitud):
         """
     return html
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def mapsatelite(latitud, longitud, polygon=None):
     html = ""
     if isinstance(polygon,str) and polygon!='':
@@ -67,7 +67,7 @@ def mapsatelite(latitud, longitud, polygon=None):
         html = mapsateliteSINpolygon(latitud, longitud)
     return html
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def mapsateliteCONpolygon(latitud, longitud, polygon=None):
     api_key  = st.secrets['API_KEY']
     html = ""
@@ -139,7 +139,7 @@ def mapsateliteCONpolygon(latitud, longitud, polygon=None):
         """
     return html
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def mapsateliteSINpolygon(latitud,longitud):
     api_key  = st.secrets['API_KEY']
     html = ""

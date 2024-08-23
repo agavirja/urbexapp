@@ -7,15 +7,16 @@ from streamlit_folium import st_folium
 from streamlit_js_eval import streamlit_js_eval
 from bs4 import BeautifulSoup
 
+from modulos._propietarios import main as _propietarios
+from modulos._busqueda_avanzada_descripcion_lote import gruoptransactions,analytics_transacciones,showlistings
+
 from data.googleStreetView import mapstreetview,mapsatelite
 from data.getdatabuilding import main as getdatabuilding
 from data.datacomplemento import main as datacomplemento
 from data.data_listings import buildingMarketValues
 from data.getlicencias import getlicencias
-
-from modulos._propietarios import main as _propietarios
-from modulos._busqueda_avanzada_descripcion_lote import gruoptransactions,analytics_transacciones,shwolistings
 from data.getdatalotescombinacion import getdatacombinacionlotes,mergedatabybarmanpre
+from data.getreporte_sinupot import main as getreportesinupot
 
 from display.stylefunctions  import style_function_geojson
 
@@ -425,6 +426,11 @@ def main(code=None):
             st.markdown(texto, unsafe_allow_html=True)
             st.components.v1.html(html,height=tableh)
             
+        #-------------------------------------------------------------------------#
+        # SINUPOT
+        #-------------------------------------------------------------------------# 
+        getreportesinupot(barmanpre=code,reporte_chip=True,licencias=True,plusvalia=False,estratificacion=False,telecomunicacion=False,pot_190=True)
+    
     #-------------------------------------------------------------------------#
     # Listings
     #-------------------------------------------------------------------------#
@@ -435,6 +441,10 @@ def main(code=None):
             if isinstance(direccion, list):
                 datalistings = buildingMarketValues(direccion,precuso=None,mpioccdgo=None)
             
+            #if not datalistings.empty: 
+                #datalistings = datalistings.sort_values(by='tipo',ascending=True)
+                #datalistings = datalistings.drop_duplicates(subset=['tipoinmueble','tiponegocio','valor','areaconstruida','direccion'])
+                
             if not datalistings.empty:   
                 datapaso = datalistings[datalistings['tipo']=='activos']
                 if not datapaso.empty:
@@ -443,7 +453,7 @@ def main(code=None):
                     texto    = BeautifulSoup(html, 'html.parser')
                     st.markdown(texto, unsafe_allow_html=True)
                     datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                    html  = shwolistings(datapaso)
+                    html  = showlistings(datapaso)
                     texto = BeautifulSoup(html, 'html.parser')
                     st.markdown(texto, unsafe_allow_html=True)
                     
@@ -454,7 +464,7 @@ def main(code=None):
                     texto    = BeautifulSoup(html, 'html.parser')
                     st.markdown(texto, unsafe_allow_html=True)
                     datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                    html  = shwolistings(datapaso)
+                    html  = showlistings(datapaso)
                     texto = BeautifulSoup(html, 'html.parser')
                     st.markdown(texto, unsafe_allow_html=True)
 

@@ -3,6 +3,9 @@ import pandas as pd
 import geopandas as gpd
 from sqlalchemy import create_engine 
 
+
+from shapely.ops import unary_union
+
 @st.cache_data(show_spinner=False)
 def main(inputvar):
     
@@ -11,6 +14,8 @@ def main(inputvar):
     host     = st.secrets["host_bigdata_lectura"]
     schema   = st.secrets["schema_bigdata"]
 
+    data     = pd.DataFrame()
+    
     viaprincipal   = inputvar['viaprincipal']  if 'viaprincipal'  in inputvar else None
     maxpropietario = inputvar['maxpropietario'] if 'maxpropietario' in inputvar else 0
     maxavaluo      = inputvar['maxavaluo'] if 'maxavaluo' in inputvar else 0
@@ -29,9 +34,26 @@ def main(inputvar):
         query = f" WHERE {query}"
         
     engine          = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
-    data            = pd.read_sql_query(f"SELECT mancodigo,prenbarrio,preaconst,preaterre,prevetustzmin,prevetustzmax,estrato,lotes,predios,connpisos,avaluo_catastral,propietarios,infoByprecuso,ST_AsText(geometry) as wkt FROM  bigdata.bogota_mancodigo_general {query}" , engine)
     datalocalidades = pd.read_sql_query("SELECT locnombre,loccodigo,ST_AsText(geometry) as wkt FROM  bigdata.data_bogota_localidades_simplify" , engine)
+    
+    # Opcion 1: Directo a buscar las manzanas completas 
+    #data = pd.read_sql_query(f"SELECT mancodigo,prenbarrio,preaconst,preaterre,prevetustzmin,prevetustzmax,estrato,lotes,predios,connpisos,avaluo_catastral,propietarios,infoByprecuso,ST_AsText(geometry) as wkt FROM  bigdata.bogota_mancodigo_general {query}" , engine)
 
+    # Opcion 2: Seleccionar lotes que cumplen con la condicion y presentar las manzanas que contiene al menos 1 lote
+    databarmanpre = pd.read_sql_query(f"SELECT barmanpre,preaconst,preaterre,prevetustzmin,prevetustzmax,estrato,predios,connpisos,avaluocatastral as avaluo_catastral,propietarios,ST_AsText(geometry) as wkt FROM  bigdata.bogota_barmanpre_general {query}" , engine)
+    if not databarmanpre.empty:
+        lista = [x[0:9] for x in databarmanpre['barmanpre'].unique()]
+        lista = list(set(lista))
+        query = "','".join(lista)
+        query = f" WHERE mancodigo IN ('{query}')" 
+
+        data                       = pd.read_sql_query(f"SELECT mancodigo,prenbarrio,ST_AsText(geometry) as wkt FROM  bigdata.bogota_mancodigo_general {query}" , engine)
+        databarmanpre              = databarmanpre.drop_duplicates(subset=['barmanpre','preaconst','preaterre','avaluo_catastral'],keep='first')
+        databarmanpre['mancodigo'] = databarmanpre['barmanpre'].apply(lambda x: x[0:9])
+        datamerge                  = databarmanpre.groupby(['mancodigo']).agg({'barmanpre':'nunique','preaconst':'sum','preaterre':'sum','prevetustzmin':'min','prevetustzmax':'max','estrato':'max','predios':'sum','connpisos':'max','avaluo_catastral':'sum','propietarios':'sum'}).reset_index()
+        datamerge.columns          = ['mancodigo','lotes','preaconst','preaterre','prevetustzmin','prevetustzmax','estrato','predios','connpisos','avaluo_catastral','propietarios']
+        data                       = data.merge(datamerge,on=['mancodigo'],how='left',validate='m:1')
+        
     if not data.empty and isinstance(pot,list) and pot!=[]:
         
         data['geometry'] = gpd.GeoSeries.from_wkt(data['wkt'])
@@ -44,11 +66,7 @@ def main(inputvar):
             data           = gpd.sjoin(data,df, how="left", op="within")
             for j in ['index_left','index_right']:
                 if j in data: del data[j]
-        
-        datamerge         = data.groupby('loccodigo')['mancodigo'].count().reset_index()
-        datamerge.columns = ['loccodigo','countmanzanas']
-        datalocalidades   = datalocalidades.merge(datamerge,on='loccodigo',how='left',validate='m:1')
-        
+                
         for items in pot:
             #-------------------------------------------------------------#
             # Tratamiento urbanistico
@@ -58,7 +76,7 @@ def main(inputvar):
                     query += f" AND  (alturamax_num>={items['alturaminpot']} OR alturamax_num IS NULL)"
                 if 'tratamiento' in items and isinstance(items['tratamiento'],list) and items['tratamiento']!=[]:
                     lista  = "','".join(items['tratamiento'])
-                    query += f" nombretra IN ('{lista}')"   
+                    query += f" AND  nombretra IN ('{lista}')"   
                 if query!='':
                     query = query.strip().strip('AND')
                     query = f" WHERE {query}"
@@ -110,10 +128,7 @@ def main(inputvar):
                     if 'si' in items['isin'].lower():
                         data = data[data['idactuacion'].notnull()]
                     elif 'no' in items['isin'].lower():
-                        data = data[data['idactuacion'].isnull()]
-                        
-       
-                        
+                        data = data[data['idactuacion'].isnull()]   
     engine.dispose()
 
     variables = [x for x in ['geomtry','wkt'] if x in list(data)]
@@ -129,5 +144,10 @@ def main(inputvar):
         if not datamanzanas.empty:
             datamerge = datamanzanas.drop_duplicates(subset='mancodigo',keep='first')
             data      = data.merge(datamerge,on='mancodigo',how='left',validate='m:1')
+
+    if not data.empty and not datalocalidades.empty:
+        datamerge         = data.groupby('loccodigo').agg({'mancodigo':'nunique'}).reset_index()
+        datamerge.columns = ['loccodigo','countmanzanas']
+        datalocalidades   = datalocalidades.merge(datamerge,on='loccodigo',how='left',validate='m:1')
 
     return data,datalocalidades

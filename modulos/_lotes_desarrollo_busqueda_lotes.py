@@ -63,6 +63,7 @@ def landing(code=None,mapwidth=1288,mapheight=600):
                'polygon_consolidacion':None,
                'areamin':0,
                'areamax':0,
+               'constraints':None,
                'find_data':True
                }
     
@@ -86,12 +87,16 @@ def landing(code=None,mapwidth=1288,mapheight=600):
                 st.session_state.zoom_start = codejson['zoom'] if 'zoom' in codejson and isinstance(codejson['zoom'],(float,int)) else st.session_state.zoom_start
                 st.session_state.estado     = codejson['estado'] if 'estado' in codejson and isinstance(codejson['estado'],str) else st.session_state.estado
                 polygon                     = codejson['polygon'] if 'polygon' in codejson and isinstance(codejson['polygon'],str) else None
-                
+                st.session_state.constraints = codejson['constraints'] if 'constraints' in codejson else None
+
                 if isinstance(polygon,str) and polygon!="":
                     st.session_state.polygon_busqueda_lotes = wkt.loads(polygon)
                     st.session_state.geojson_data           = mapping(st.session_state.polygon_busqueda_lotes)
                     
                 inputvar = {'areamin': 0, 'areamax': 0, 'antiguedadmin': 0, 'antiguedadmax': 0, 'maxpiso': 0, 'maxpredios': 0, 'maxpropietario': 0, 'maxavaluo': 0, 'loteesquinero': 'Todos', 'viaprincipal': 'Todos', 'usodelsuelo': 'Todos', 'pot': [{'tipo': 'tratamientourbanistico', 'alturaminpot': 0, 'tratamiento': []}, {'tipo': 'areaactividad', 'nombreare': []}, {'tipo': 'actuacionestrategica', 'isin': 'Todos'}]}
+                if st.session_state.constraints is not None: 
+                    inputvar.update(st.session_state.constraints)
+
                 if st.session_state.polygon_busqueda_lotes is not None:  
                     inputvar['polygon'] = str(st.session_state.polygon_busqueda_lotes)
                     with st.spinner('Buscando información'):

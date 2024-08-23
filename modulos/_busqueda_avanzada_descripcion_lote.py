@@ -2,34 +2,40 @@ import folium
 import streamlit as st
 import pandas as pd
 import shapely.wkt as wkt
+import plotly.graph_objects as go
+import plotly.express as px
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
 from streamlit_js_eval import streamlit_js_eval
+from datetime import datetime
+from plotly.subplots import make_subplots
 
 from data.getlatlng import getlatlng
 from data.datacomplemento import main as datacomplemento
 from data.getdatabuilding import main as getdatabuilding
 from data.googleStreetView import mapstreetview,mapsatelite
 from data.data_listings import buildingMarketValues
+from data.getuso_destino import usosuelo_class
 
 def main(code=None):
     
     #-------------------------------------------------------------------------#
     # Tamano de la pantalla 
     screensize = 1920
-    mapwidth   = int(screensize*0.5)
-    mapheight  = int(screensize*0.5)
+    mapwidth   = int(screensize)
+    mapheight  = int(screensize)
     try:
         screensize = streamlit_js_eval(js_expressions='screen.width', key = 'SCR')
-        mapwidth   = int(screensize*0.5)
-        mapheight  = int(screensize*0.5)
+        mapwidth   = int(screensize)
+        mapheight  = int(screensize)
     except: pass
 
     col1,col2  = st.columns([0.75,0.25],gap="small")
 
     with st.spinner('Buscando información'):
         datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(code)
-
+        datausopredio = usosuelo_class()
+        
         #-------------------------------------------------------------------------#
         # Latitud y longitud
         #-------------------------------------------------------------------------#
@@ -74,7 +80,7 @@ def main(code=None):
                 except: pass
         folium.Marker(location=[latitud, longitud]).add_to(m)
         with col5:
-            st_map = st_folium(m,width=int(mapwidth*0.8),height=400)
+            st_map = st_folium(m,width=int(mapwidth*0.5),height=400)
     
         with col1:
             html = mapstreetview(latitud,longitud)
@@ -88,7 +94,9 @@ def main(code=None):
         #-------------------------------------------------------------------------#
         html,conteo = principal_table(code=code,datacatastro=datacatastro,datausosuelo=datausosuelo,datalote=datalote,datavigencia=datavigencia,datatransacciones=datatransacciones,polygon=polygonstr,latitud=latitud,longitud=longitud,direccion=direccion)
         st.components.v1.html(html,height=int(conteo*1100/60),scrolling=True)
-
+        cols1,cols2,cols3,cols4 = st.columns([0.04,0.26,0.5,0.2])
+        colg1,colg2 = st.columns([0.001,0.999])
+        
         #-------------------------------------------------------------------------#
         # Tabla Propiedades
         #-------------------------------------------------------------------------#
@@ -376,8 +384,11 @@ def main(code=None):
         datalistings = pd.DataFrame()
         if direccion is not None:
             datalistings = buildingMarketValues(direccion,precuso=None,mpioccdgo=None)
-        
-        if not datalistings.empty:   
+            
+        if not datalistings.empty: 
+            datalistings = datalistings.sort_values(by='tipo',ascending=True)
+            datalistings = datalistings.drop_duplicates(subset=['tipoinmueble','tiponegocio','valor','areaconstruida','direccion'])
+            
             datapaso = datalistings[datalistings['tipo']=='activos']
             if not datapaso.empty:
                 titulo   = 'Listings activos'
@@ -385,7 +396,7 @@ def main(code=None):
                 texto    = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                html  = shwolistings(datapaso)
+                html  = showlistings(datapaso)
                 texto = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 
@@ -396,9 +407,59 @@ def main(code=None):
                 texto    = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
                 datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-                html  = shwolistings(datapaso)
+                html  = showlistings(datapaso)
                 texto = BeautifulSoup(html, 'html.parser')
                 st.markdown(texto, unsafe_allow_html=True)
+
+    #-------------------------------------------------------------------------#
+    # Graficas
+    #-------------------------------------------------------------------------#
+    datavigencia = mergeprecuso(datacatastro=datacatastro,datavigencia=datavigencia)
+    tiposelect   = None
+    options      = []
+
+    if not datatransacciones.empty:
+        options_paso = list(datausopredio[datausopredio['precuso'].isin(datatransacciones['precuso'])]['clasificacion'].unique())
+        if isinstance(options_paso,list) and options_paso!=[]:
+            options += options_paso
+        if 'cuantiamt2' not in datatransacciones:
+            datatransacciones['cuantiamt2'] = datatransacciones['cuantia']/datatransacciones['preaconst']
+
+    if isinstance(options,list) and options!=[]:
+        options = list(set(options))
+        options = [x for x in options if not any([s for s in ['Depósitos','Parqueadero','Otros'] if s in x])]
+        
+    if isinstance(options,list) and options!=[]:
+        if len(options)>1:
+            with cols2:
+                options    = ['Todos']+options
+                tiposelect = st.selectbox('Seleccion tipo de inmueble',options=options)
+        else: tiposelect = options[0]
+        
+    if isinstance(tiposelect,str) and tiposelect!='' and 'todos' not in tiposelect.lower():
+        precusolist       = list(datausopredio[datausopredio['clasificacion']==tiposelect]['precuso'].unique())
+        datavigencia      = datavigencia[datavigencia['precuso'].isin(precusolist)]
+        datatransacciones = datatransacciones[datatransacciones['precuso'].isin(precusolist)]
+        datacatastro      = datacatastro[datacatastro['precuso'].isin(precusolist)]
+        
+        seleccionlisting  = None
+        formatodir = {'Residencial':['Apartamento','Casa'], 'Comercio':['Local'], 'Bodegas':['Bodega'],'Oficinas':['Oficina'],'Hoteles':['Hotel'] }
+        if tiposelect in formatodir:
+            seleccionlisting = formatodir[tiposelect]
+        if isinstance(seleccionlisting,list) and seleccionlisting!=[]:
+            datalistings  = datalistings[datalistings['tipoinmueble'].isin(seleccionlisting)]
+
+    if isinstance(tiposelect,str) and tiposelect!='':
+        with colg2:
+            html,numgraph = graficasHtml(datatransacciones=datatransacciones,datavigencia=datavigencia,datalistings=datalistings,datacatastro=datacatastro,datausosuelo=datausosuelo,datausopredio=datausopredio,mapwidth=mapwidth,mapheight=400)
+            st.components.v1.html(html, height=numgraph*420)
+        with cols3:
+            st.write('')
+            titulo = 'Estadísticas'
+            html   = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Título Centrado</title></head><body><section style="text-align: center;"><h1 style="color: #A16CFF; font-size: 20px; font-family: Arial, sans-serif;font-weight: bold;">{titulo}</h1></section></body></html>"""
+            texto  = BeautifulSoup(html, 'html.parser')
+            st.markdown(texto, unsafe_allow_html=True)
+
 
 @st.cache_data(show_spinner=False)
 def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),datalote=pd.DataFrame(),datavigencia=pd.DataFrame(),datatransacciones=pd.DataFrame(),polygon=None,latitud=None,longitud=None,direccion=None):
@@ -1019,7 +1080,493 @@ def principal_table(code=None,datacatastro=pd.DataFrame(),datausosuelo=pd.DataFr
     """
     return html,conteo
     
-@st.cache_data
+@st.cache_data(show_spinner=False)
+def graficasHtml(datatransacciones=pd.DataFrame(),datavigencia=pd.DataFrame(),datalistings=pd.DataFrame(),datacatastro=pd.DataFrame(),datausosuelo=pd.DataFrame(),datausopredio=pd.DataFrame(),mapwidth=600,mapheight=500):
+  
+    numgraph = 0
+    #-------------------------------------------------------------------------#
+    # Transacciones
+    html_barras  = ""
+    html_grafica = ""
+    datapaso     = pd.DataFrame()
+    df           = pd.DataFrame()
+    if not datatransacciones.empty:
+        df               = datatransacciones.copy()
+        df['cuantiamt2'] = df['cuantia']/df['preaconst']
+        df               = df[df['cuantiamt2']>1500000]
+        if not df.empty and 'codigo' in df:
+            df = df[df['codigo'].isin(['125','126','168','169','0125','0126','0168','0169'])]
+            
+        if not df.empty:
+            df['year'] = pd.to_datetime(df['fecha_documento_publico'])
+            df['year'] = df['year'].dt.year
+            df         = df[df['year']>=(datetime.now().year-4)]
+            df         = df.groupby('year').agg({'cuantiamt2':['count','median']}).reset_index()
+            df.columns = ['fecha','count','value']
+            df.index   = range(len(df))
+            datapaso   = df.copy()
+    
+    if not datavigencia.empty:
+        df         = datavigencia.copy()
+        df         = df.groupby(['chip','vigencia']).agg({'avaluomt2':'max'}).reset_index()
+        df.columns = ['chip','vigencia','avaluomt2']
+        df         = df.groupby('vigencia').agg({'avaluomt2':'median'}).reset_index()
+        df.columns = ['fecha','avaluomt2']
+        df         = df[df['fecha']>=(datetime.now().year-4)]
+        if not datapaso.empty and not df.empty:
+            datapaso = datapaso.merge(df,on='fecha',how='outer',validate='1:1')
+        elif datapaso.empty and not df.empty:
+            datapaso = df.copy()
+            
+    df = pd.DataFrame()
+    if not datalistings.empty:
+        df = datalistings.copy()
+        df = df[df['tiponegocio']=='Venta']
+        df = df[df['valormt2']>1500000]
+    if not df.empty:
+        df['year'] = pd.to_datetime(df['fecha_inicial'])
+        df['year'] = df['year'].dt.year
+        df         = df[df['year']>=(datetime.now().year-4)]
+        df         = df.groupby('year').agg({'valormt2':'median'}).reset_index()
+        df.columns = ['fecha','valormt2']
+        df.index   = range(len(df))
+        if not datapaso.empty and not df.empty:
+            datapaso = datapaso.merge(df,on='fecha',how='outer',validate='1:1')
+        elif datapaso.empty and not df.empty:
+            datapaso = df.copy()
+
+    if not datapaso.empty:
+        fig         = make_subplots(specs=[[{"secondary_y": True}]])
+        offsetgrpah = -1
+        if 'count' in datapaso:
+            offsetgrpah += 1
+            fig.add_trace(go.Bar(x=datapaso['fecha'],y=datapaso['count'],name='Transacciones (#)' ,marker_color='#7189FF',offsetgroup=offsetgrpah,width=0.2,showlegend=True,text=datapaso['count'],texttemplate='%{text}',textposition='inside',textangle=0,textfont=dict(color='white')),secondary_y=False)
+        if 'value' in datapaso:
+            offsetgrpah += 1
+            fig.add_trace(go.Bar(x=datapaso['fecha'],y=datapaso['value']    ,name='Valor transacciones (m2)',marker_color='#624CAB',offsetgroup=1,width=0.2,showlegend=True,text=datapaso['value'],texttemplate='$%{text:,.0f}',textposition='inside',textangle=90,textfont=dict(color='white', size=12)),secondary_y=True)
+        if 'avaluomt2' in datapaso:
+            offsetgrpah += 1
+            fig.add_trace(go.Bar(x=datapaso['fecha'],y=datapaso['avaluomt2'],name='Avalúo catastral (m2)',marker_color='#FF6B6B',offsetgroup=2,width=0.2,showlegend=True,text=datapaso['avaluomt2'],texttemplate='$%{text:,.0f}',textposition='inside',textangle=90,textfont=dict(color='white', size=12)),secondary_y=True)
+        if 'valormt2' in datapaso:
+            offsetgrpah += 1
+            fig.add_trace(go.Bar(x=datapaso['fecha'],y=datapaso['valormt2'] ,name='Listings en venta (m2)',marker_color='#D9CBBF',offsetgroup=3,width=0.2,showlegend=True,text=datapaso['valormt2'],texttemplate='$%{text:,.0f}',textposition='inside',textangle=90,textfont=dict(color='white', size=12)),secondary_y=True)
+
+        fig.update_layout(
+            xaxis_title=None,
+            yaxis_title=None,
+            yaxis2_title=None,
+            barmode='group',
+            height=int(mapheight), 
+            width=int(mapwidth*0.55),
+            plot_bgcolor='rgba(0, 0, 0, 0)',
+            paper_bgcolor='rgba(0, 0, 0, 0)',
+            margin=dict(l=0, r=0, t=0, b=100),
+            legend=dict(orientation='h', yanchor='top',y=-0.2,xanchor='center',x=0.5,bgcolor='white',font=dict(color='black')),
+            title_font=dict(size=11,color='black'),
+        )
+        fig.update_xaxes(tickmode='linear', dtick=1, tickfont=dict(color='black'),showgrid=False, zeroline=False,)
+        fig.update_yaxes(showgrid=False, zeroline=False, tickfont=dict(color='black'), title_font=dict(color='black'))
+        fig.update_yaxes(title=None, secondary_y=True, showgrid=False, zeroline=False, tickfont=dict(color='black'))
+        html_fig_paso = fig.to_html(config={'displayModeBar': False})
+        try:
+            soup = BeautifulSoup(html_fig_paso, 'html.parser')
+            soup = soup.find('body')
+            soup = str(soup.prettify())
+            soup = soup.replace('<body>', '<div style="margin-bottom: 0px;">').replace('</body>', '</div>')
+            html_grafica = f""" 
+            <div class="col-8">
+                <div class="card card-stats card-round card-custom">
+                    <div class="card-body card-body-custom">
+                        <div class="row align-items-center">
+                            <div class="col col-stats ms-3 ms-sm-0">
+                                <div class="graph-container" style="width: 100%; height: auto;">
+                                    {soup}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """
+        except: pass
+    #-------------------------------------------------------------------------#
+    # Transacciones - Box
+    if not datatransacciones.empty:
+        df               = datatransacciones.copy()
+        df['cuantiamt2'] = df['cuantia']/df['preaconst']
+        df               = df[df['cuantiamt2']>1500000]
+        if not df.empty and 'codigo' in df:
+            df = df[df['codigo'].isin(['125','126','168','169','0125','0126','0168','0169'])]
+    
+        if not df.empty:
+            df               = df.merge(datausopredio[['precuso','clasificacion']],on='precuso',how='left',validate='m:1')
+            w                = df.groupby('clasificacion')['docid'].count().reset_index() 
+            w.columns        = ['clasificacion','count']
+            df               = df.merge(w,on='clasificacion',how='left',validate='m:1')
+            df               = df[df['count']>2]
+            df               = df[df['cuantiamt2']>0]
+            if not df.empty:
+                fig = px.box(df,x='clasificacion',y='cuantiamt2',title="Distribución de transacciones (m2)",color_discrete_sequence=px.colors.sequential.RdBu[::-1])
+                fig.update_layout({
+                    'xaxis_title':None,
+                    'yaxis_title':None,
+                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
+                    'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+                    'legend':dict(bgcolor='rgba(0, 0, 0, 0)'),
+                    'height': int(mapheight), 
+                    'width': int(mapwidth*0.25),
+                    'margin': dict(l=70, r=0, t=50, b=50),
+                    'title_font': dict(size=11, color='black'),
+                })
+                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+                fig.update_traces(boxpoints=False)
+                html_fig_paso = fig.to_html(config={'displayModeBar': False})
+                try:
+                    soup = BeautifulSoup(html_fig_paso, 'html.parser')
+                    soup = soup.find('body')
+                    soup = str(soup.prettify())
+                    soup = soup.replace('<body>', '<div style="width: 100%; height: 100%;margin-bottom: 0px;">').replace('</body>', '</div>')
+                    html_grafica += f""" 
+                    <div class="col-4">
+                        <div class="card card-stats card-round card-custom">
+                            <div class="card-body card-body-custom">
+                                <div class="row align-items-center">
+                                    <div class="col col-stats ms-3 ms-sm-0">
+                                        <div class="graph-container">
+                                            {soup}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    """
+                except: pass
+    if isinstance(html_grafica,str) and html_grafica!="":
+        numgraph += 1
+        html_barras = f"""
+        <div class="row mb-20">
+            {html_grafica}
+        </div>
+        """
+
+    #-------------------------------------------------------------------------#
+    # Tiplogias
+    html_tipologias = ""
+    html_grafica    = ""
+    if not datausosuelo.empty and len(datausosuelo)>1:
+        df         = datausosuelo.copy()
+        df         = df.merge(datausopredio[['precuso','clasificacion']],on='precuso',how='left',validate='m:1')
+        df         = df.groupby('clasificacion')['preaconst_precuso'].sum().reset_index()
+        df.columns = ['clasificacion','area']
+        df         = df.sort_values(by='clasificacion',ascending=True)
+        category_order = df['clasificacion'].tolist()
+        
+        fig = px.pie(df, names="clasificacion", values="area", title="Proporción de Área Total",color_discrete_sequence=px.colors.sequential.RdBu[::-1],category_orders={"clasificacion": category_order})
+        fig.update_traces(textinfo='percent+label',textfont_color='white',textposition='inside')
+        fig.update_layout({
+            'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
+            'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+            'legend':dict(bgcolor='rgba(0, 0, 0, 0)'),
+            'height': int(mapheight), 
+            'width': int(mapwidth*0.28),
+            'margin': dict(l=20, r=0, t=50, b=50),
+            'title_font': dict(size=11, color='black'),
+        })
+        fig.update_traces(textinfo='percent+label', textfont_color='white',textposition='inside',)
+        fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+        fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+        fig.update_layout(legend=dict(font=dict(color='black')))
+
+        html_fig_paso = fig.to_html(config={'displayModeBar': False})
+        try:
+            soup = BeautifulSoup(html_fig_paso, 'html.parser')
+            soup = soup.find('body')
+            soup = str(soup.prettify())
+            soup = soup.replace('<body>', '<div style="width: 100%; height: 100%;margin-bottom: 0px;">').replace('</body>', '</div>')
+            html_grafica += f""" 
+            <div class="col-4">
+                <div class="card card-stats card-round card-custom">
+                    <div class="card-body card-body-custom">
+                        <div class="row align-items-center">
+                            <div class="col col-stats ms-3 ms-sm-0">
+                                <div class="graph-container">
+                                    {soup}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """
+        except: pass
+    
+    if not datacatastro.empty:
+        df         = datacatastro.copy()
+        df         = df.merge(datausopredio[['precuso','clasificacion']],on='precuso',how='left',validate='m:1')
+        q1         = df.groupby('clasificacion')['preaconst'].quantile(0.25).reset_index()
+        q1.columns = ['clasificacion','q1']
+        q3         = df.groupby('clasificacion')['preaconst'].quantile(0.75).reset_index()
+        q3.columns = ['clasificacion','q3']
+                
+        # Remover outliers
+        w         = q1.merge(q3,on='clasificacion',how='outer')
+        w['iqr']  = w['q3']-w['q1']
+        w['linf'] = w['q1'] - 1.5*w['iqr']
+        w['lsup'] = w['q3'] + 1.5*w['iqr']
+        df        = df.merge(w[['clasificacion','linf','lsup']],on='clasificacion',how='left',validate='m:1')
+        df        = df[(df['preaconst']>=df['linf']) & (df['preaconst']<=df['lsup'])]
+        
+        w         = df.groupby('clasificacion')['prechip'].count().reset_index() 
+        w.columns = ['clasificacion','count']
+        df        = df.merge(w,on='clasificacion',how='left',validate='m:1')
+        df        = df[df['count']>2]
+
+        if not df.empty:
+            fig = px.box(df,x='clasificacion',y='preaconst',title="Distribución por Área",color_discrete_sequence=px.colors.sequential.RdBu[::-1])
+            fig.update_layout({
+                'xaxis_title':None,
+                'yaxis_title':None,
+                'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
+                'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+                'legend':dict(bgcolor='rgba(0, 0, 0, 0)'),
+                'height': int(mapheight), 
+                'width': int(mapwidth*0.28),
+                'margin': dict(l=70, r=0, t=50, b=50),
+                'title_font': dict(size=11, color='black'),
+            })
+            fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+            fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
+            fig.update_traces(boxpoints=False)
+            html_fig_paso = fig.to_html(config={'displayModeBar': False})
+            try:
+                soup = BeautifulSoup(html_fig_paso, 'html.parser')
+                soup = soup.find('body')
+                soup = str(soup.prettify())
+                soup = soup.replace('<body>', '<div style="width: 100%; height: 100%;margin-bottom: 0px;">').replace('</body>', '</div>')
+                html_grafica += f""" 
+                <div class="col-4">
+                    <div class="card card-stats card-round card-custom">
+                        <div class="card-body card-body-custom">
+                            <div class="row align-items-center">
+                                <div class="col col-stats ms-3 ms-sm-0">
+                                    <div class="graph-container">
+                                        {soup}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                """
+            except: pass
+                
+    # Precios de renta
+    df = pd.DataFrame()
+    if not datalistings.empty:
+        df = datalistings.copy()
+        df = df[df['tiponegocio']=='Arriendo']
+    if not df.empty:
+        df['year'] = pd.to_datetime(df['fecha_inicial'])
+        df['year'] = df['year'].dt.year
+        df         = df[df['year']>=(datetime.now().year-4)]
+        df         = df.groupby('year').agg({'valormt2':['median','count']}).reset_index()
+        df.columns = ['fecha','valormt2','conteo']
+
+        years = [2022, 2023, 2024]
+        for year in years:
+            if year not in df['fecha'].values:
+                df = pd.concat([df, pd.DataFrame({'fecha': [year], 'valormt2': [None], 'conteo': [None]})], ignore_index=True)
+        df.index = range(len(df))
+        
+        if not df.empty:
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            fig.add_trace(go.Bar(x=df['fecha'],y=df['conteo'],name='# inmuebles',marker_color='#7189FF',offsetgroup=0,width=0.4,showlegend=True,text=df['conteo'],texttemplate='%{text}',textposition='inside',textangle=0,textfont=dict(color='white')),secondary_y=False)
+            fig.add_trace(go.Bar(x=df['fecha'],y=df['valormt2'],name='Arriendo (m2)',marker_color='#624CAB',offsetgroup=1,width=0.4,showlegend=True,text=df['valormt2'],texttemplate='$%{text:,.0f}',textposition='inside',textangle=90,textfont=dict(color='white', size=12)),secondary_y=True)
+
+            fig.update_layout(
+                title='Precios de arriendo (m2)',
+                xaxis_title=None,
+                yaxis_title=None,
+                yaxis2_title=None,
+                barmode='group',
+                height=int(mapheight), 
+                width=int(mapwidth*0.28),
+                plot_bgcolor='rgba(0, 0, 0, 0)',
+                paper_bgcolor='rgba(0, 0, 0, 0)',
+                margin=dict(l=0, r=0, t=50, b=50),
+                legend=dict(orientation='h', yanchor='top',y=-0.2,xanchor='center',x=0.5,bgcolor='white',font=dict(color='black')),
+                title_font=dict(size=11,color='black'),
+            )
+            fig.update_xaxes(tickmode='linear', dtick=1, tickfont=dict(color='black'),showgrid=False, zeroline=False,)
+            fig.update_yaxes(showgrid=False, zeroline=False, tickfont=dict(color='black'), title_font=dict(color='black'))
+            fig.update_yaxes(title=None, secondary_y=True, showgrid=False, zeroline=False, tickfont=dict(color='black'))
+            html_fig_paso = fig.to_html(config={'displayModeBar': False})
+            try:
+                soup = BeautifulSoup(html_fig_paso, 'html.parser')
+                soup = soup.find('body')
+                soup = str(soup.prettify())
+                soup = soup.replace('<body>', '<div style="margin-bottom: 0px;">').replace('</body>', '</div>')
+                html_grafica += f""" 
+                <div class="col-4">
+                    <div class="card card-stats card-round card-custom">
+                        <div class="card-body card-body-custom">
+                            <div class="row align-items-center">
+                                <div class="col col-stats ms-3 ms-sm-0">
+                                    <div class="graph-container">
+                                        {soup}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                """
+            except: pass
+            
+    if isinstance(html_grafica,str) and html_grafica!="":
+        numgraph += 1
+        html_tipologias = f"""
+        <div class="row">
+            {html_grafica}
+        </div>
+        """
+        
+    style = """
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .card {
+            --bs-card-spacer-y: 1rem;
+            --bs-card-spacer-x: 1rem;
+            --bs-card-title-spacer-y: 0.5rem;
+            --bs-card-title-color: #000;
+            --bs-card-subtitle-color: #6c757d;
+            --bs-card-border-width: 1px;
+            --bs-card-border-color: rgba(0, 0, 0, 0.125);
+            --bs-card-border-radius: 0.25rem;
+            --bs-card-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            --bs-card-inner-border-radius: calc(0.25rem - 1px);
+            --bs-card-cap-padding-y: 0.5rem;
+            --bs-card-cap-padding-x: 1rem;
+            --bs-card-cap-bg: rgba(0, 123, 255, 0.03);
+            --bs-card-cap-color: #007bff;
+            --bs-card-height: auto;
+            --bs-card-color: #000;
+            --bs-card-bg: #fff;
+            --bs-card-img-overlay-padding: 1rem;
+            --bs-card-group-margin: 0.75rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: var(--bs-card-height);
+            color: var(--bs-card-color);
+            word-wrap: break-word;
+            background-color: var(--bs-card-bg);
+            background-clip: border-box;
+            border: var(--bs-card-border-width) solid var(--bs-card-border-color);
+            border-radius: var(--bs-card-border-radius);
+            box-shadow: var(--bs-card-box-shadow);
+        }
+
+        .card-stats .icon-big {
+            font-size: 3rem;
+            line-height: 1;
+            color: #fff;
+        }
+
+        .card-stats .icon-primary {
+            background-color: #007bff;
+        }
+
+        .bubble-shadow-small {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            border-radius: 50%;
+            padding: 1rem;
+        }
+
+        .card-stats .numbers {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .card-stats .card-category {
+            color: #6c757d;
+            font-size: 0.8rem;
+            margin: 0;
+            text-align: center;
+        }
+
+        .card-stats .card-title {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .small-text {
+            font-size: 0.3rem; 
+            color: #6c757d; 
+        }
+        .graph-container {
+            width: 100%;
+            height: 100%;
+            margin-bottom: 0;
+        }
+        
+        .card-custom {
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .card-body-custom {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+        }
+        
+        .mb-20 {
+            margin-bottom: 10px;
+        }
+    </style>
+    """
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Visitors Card</title>
+        <!-- Incluyendo Bootstrap CSS para el diseño de las tarjetas -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css">
+        <!-- Font Awesome para los íconos -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+        {style}
+    </head>
+    <body>
+        <div class="container-fluid">
+            {html_barras}
+            {html_tipologias}
+        </div>
+    </body>
+    </html>
+    """
+    return html,numgraph
+
+@st.cache_data(show_spinner=False)
 def gruoptransactions(datatransacciones):
     if not datatransacciones.empty and 'docid' in datatransacciones:
         datamerge = datatransacciones.drop_duplicates(subset='docid',keep='first')
@@ -1030,7 +1577,7 @@ def gruoptransactions(datatransacciones):
         datatransacciones = datatransacciones.sort_values(by=['docid','preaconst','cuantia'],ascending=[False,False,False])
     return datatransacciones
         
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def analytics_predial(datavigencia,datacatastro):
     
     result = {'avaluocatastral':None,'predial':None,'propietarios':None}
@@ -1062,8 +1609,29 @@ def analytics_predial(datavigencia,datacatastro):
                 datapaso = datapaso.drop_duplicates(subset=['nroIdentificacion','tipoDocumento'],keep='first')
                 result['propietarios'] = len(datapaso)
     return result
-            
-@st.cache_data
+           
+@st.cache_data(show_spinner=False)
+def mergeprecuso(datacatastro=pd.DataFrame(),datavigencia=pd.DataFrame()):
+    if not datacatastro.empty and not datavigencia.empty:
+        datamerge    = datacatastro.drop_duplicates(subset=['prechip'],keep='first')
+        datamerge.rename(columns={'prechip':'chip'},inplace=True)
+        variables = [x for x in ['precuso','preaconst'] if x not in datavigencia]
+        if isinstance(variables,list) and variables!=[]:
+            variables = [x for x in variables if x in datamerge]
+        if isinstance(variables,list) and variables!=[]:
+            variables.append('chip') 
+            datavigencia = datavigencia.merge(datamerge[variables],on='chip',how='left',validate='m:1')
+    
+    if not datavigencia.empty and all([x for x in ['precuso','preaconst'] if x in datavigencia]):
+        datavigencia['avaluomt2'] = datavigencia['valorAutoavaluo']/datavigencia['preaconst']
+        
+    for i in ['precuso','preaconst','avaluomt2']:
+        if i not in datavigencia: 
+            datavigencia[i] = None
+
+    return datavigencia
+        
+@st.cache_data(show_spinner=False)
 def analytics_transacciones(datatransacciones,datavigencia):
     
     result   = {'transacciones_total':None,'valortrasnacciones':None,'transacciones_lastyear':None,'valortransacciones_lastyear':None}
@@ -1098,7 +1666,7 @@ def analytics_transacciones(datatransacciones,datavigencia):
         except: pass
     return result
         
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def tablestyle():
     return """
         <style>
@@ -1242,7 +1810,7 @@ def tablestyle():
         """
 
 @st.cache_data(show_spinner=False)
-def shwolistings(data):
+def showlistings(data):
     html = ""
     css_format = """
         <style>

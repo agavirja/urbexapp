@@ -36,6 +36,7 @@ def main(barmanpre,chip=None):
     if not datacatastro.empty:
         chip = list(datacatastro['prechip'].unique())
         datavigencia  = getdatavigencia(chip)
+        
     #-----------------#
     # Informacion SNR #
     datatransacciones = getdatatransactions(barmanpre,typesearch='barmanpre')
@@ -122,3 +123,26 @@ def chip2barmanpre(chip):
             barmanpre = list(datacatastro['barmanpre'].unique())
     engine.dispose()
     return barmanpre
+
+@st.cache_data(show_spinner=False)
+def chip2codigolote_sinupot(chip):
+    user       = st.secrets["user_bigdata"]
+    password   = st.secrets["password_bigdata"]
+    host       = st.secrets["host_bigdata_lectura"]
+    schema     = st.secrets["schema_bigdata"]
+    engine     = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
+    codigolote = None
+    if isinstance(chip, str) and chip!='':
+        datacatastro = pd.read_sql_query(f"SELECT precbarrio,precmanz,precpredio FROM  bigdata.data_bogota_catastro WHERE prechip='{chip}'" , engine)
+        if not datacatastro.empty:
+            codigolote = f"{datacatastro['precbarrio'].iloc[0]}{datacatastro['precmanz'].iloc[0]}{datacatastro['precpredio'].iloc[0]}"
+
+    if isinstance(chip, list) and chip!=[]:
+        lista        = "','".join(chip)
+        query        = f" prechip IN ('{lista}')"
+        datacatastro = pd.read_sql_query(f"SELECT precbarrio,precmanz,precpredio FROM  bigdata.data_bogota_catastro WHERE {query}" , engine)
+        if not datacatastro.empty:
+            datacatastro['codigo'] = datacatastro.apply(lambda x: f"{x['precbarrio']}{x['precmanz']}{x['precpredio']}",axis=1)
+            codigolote             = list(datacatastro['codigo'].unique())
+    engine.dispose()
+    return codigolote

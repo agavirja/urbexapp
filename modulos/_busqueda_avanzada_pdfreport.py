@@ -10,8 +10,8 @@ from bs4 import BeautifulSoup
 from sqlalchemy import create_engine 
 from streamlit_js_eval import streamlit_js_eval
 
-from modulos._busqueda_avanzada_descripcion_lote import principal_table as html_descripcion_lote, shwolistings,gruoptransactions
-from modulos._busqueda_avanzada_analisis_unidad import principal_table as html_unidad, linkPredial,buildname,buildphone,buildemail
+from modulos._busqueda_avanzada_descripcion_lote import principal_table as html_descripcion_lote, showlistings,gruoptransactions,graficasHtml as graficasHtml_descripcion_lote
+from modulos._busqueda_avanzada_analisis_unidad import principal_table as html_unidad, linkPredial,buildname,buildphone,buildemail, graficasHtml as graficasHtml_unidad
 
 from data.getlatlng import getlatlng
 from data.getdatabuilding import main as getdatabuilding
@@ -78,9 +78,9 @@ def main(chip=None,barmanpre=None):
                 usosuelo = st.selectbox('Uso del suelo:',options=options)
                 if 'todo' not in usosuelo.lower():
                     datadestinouso = datadestinouso[datadestinouso['usosuelo']==usosuelo]
-                    precuso        = list(datadestinouso['precuso'].unique())
-
-                metros = st.selectbox('Metros a la redonda',options=[100,200,300,400,500],index=4)
+                    
+                precuso = list(datadestinouso['precuso'].unique())
+                metros  = st.selectbox('Metros a la redonda',options=[100,200,300,400,500],index=4)
                 st.write('')
                 st.write('')
                 
@@ -90,41 +90,54 @@ def main(chip=None,barmanpre=None):
             
             #-----------------------------------------------------------------#
             logo = st.toggle("Incluir el logo de la empresa",value=True)
-  
+              
             if st.button('Generar PDF'):
                 with st.spinner('Generando reporte, por favor espera un momento'):
                     html = reportehtml(barmanpre=barmanpre,chip=chip,building=building,market=market,predio=predio,logo=logo,precuso=precuso,metros=metros,listingsA=listingsA,listingsNA=listingsNA,mapwidth=mapwidth,mapheight=200)
                     
-                    API_KEY      = 'e03f4c6097c664281d195cb71357a2a4'
-                    pdfcrowduser = 'urbexventas'
-                    wd, pdf_temp_path = tempfile.mkstemp(suffix=".pdf")       
+                    #API_KEY      = 'e03f4c6097c664281d195cb71357a2a4'
+                    #pdfcrowduser = 'urbexventas'
+                    #wd, pdf_temp_path = tempfile.mkstemp(suffix=".pdf")       
                     
                     if 'token' not in st.session_state: 
                         st.session_state.token = None
                         
-                    logo = getlogofromtoken(st.session_state.token)
-                    header_html = f"""
-                    <div style="text-align: right;">
-                        <img src="{logo}" style="width: 100px; height: auto;">
-                    </div>
-                    """
+                    #logo = getlogofromtoken(st.session_state.token)
+                    #header_html = f"""
+                    #<div style="text-align: right;">
+                    #    <img src="{logo}" style="width: 100px; height: auto;">
+                    #</div>
+                    #"""
                     
-                    client = pdfcrowd.HtmlToPdfClient(pdfcrowduser,API_KEY)
-                    client.setHeaderHtml(header_html)
-                    client.setPageHeight('-1')
-                    client.convertStringToFile(html, pdf_temp_path)
+                    #client = pdfcrowd.HtmlToPdfClient(pdfcrowduser,API_KEY)
+                    #client.setHeaderHtml(header_html)
+                    #client.setPageHeight('-1')
+                    #client.convertStringToFile(html, pdf_temp_path)
 
-                    with open(pdf_temp_path, "rb") as pdf_file:
-                        PDFbyte = pdf_file.read()
+                    #with open(pdf_temp_path, "rb") as pdf_file:
+                    #    PDFbyte = pdf_file.read()
 
                     #with open(r"D:\...\reporte.html", "w", encoding="utf-8") as file:
                     #    file.write(html)
                         
-                    st.download_button(label="Descargar PDF",
-                                        data=PDFbyte,
-                                        file_name="reportePDF.pdf",
-                                        mime='application/octet-stream')
+                    #st.download_button(label="Descargar PDF",
+                    #                    data=PDFbyte,
+                    #                    file_name="reportePDF.pdf",
+                    #                    mime='application/octet-stream')
+                    
+                    temp_html = 'temp_reporte.html'
+                    with open(temp_html, 'w') as file:
+                        file.write(html)
 
+                    with open(temp_html, "r") as html_file:
+                        HTMLbyte = html_file.read()
+                    
+                    if HTMLbyte:
+                        st.download_button(label="Descargar Reporte",
+                                           data=HTMLbyte,
+                                           file_name="reporte-urbex.html",
+                                           mime='text/html')
+    
 def style_function_geojson(feature):
     return {
         'fillColor': '#0000ff',
@@ -136,12 +149,13 @@ def style_function_geojson(feature):
 
 @st.cache_data(show_spinner=False)
 def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=False,logo=None,precuso=None,metros=500,listingsA=False,listingsNA=False,mapwidth=1920,mapheight=200):
-
     html = ""
     
     #-------------------------------------------------------------------------#
     # Reporte general:
     datacatastro,datausosuelo,datalote,datavigencia,datatransacciones,datactl = getdatabuilding(barmanpre)
+    datausopredio = usosuelo_class()
+
     latitud   = datalote['latitud'].iloc[0]  if 'latitud'  in datalote and isinstance(datalote['latitud'].iloc[0], float)  else None
     longitud  = datalote['longitud'].iloc[0] if 'longitud' in datalote and isinstance(datalote['longitud'].iloc[0], float) else None
     polygon   = None
@@ -181,6 +195,35 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
             html += soup
         except: pass
 
+    datalistings = pd.DataFrame()
+    if listingsA or listingsNA:
+        if direccion is not None:
+            datalistings = buildingMarketValues(direccion,precuso=None,mpioccdgo=None)
+
+    if not datalistings.empty: 
+        datalistings = datalistings.sort_values(by='tipo',ascending=True)
+        datalistings = datalistings.drop_duplicates(subset=['tipoinmueble','tiponegocio','valor','areaconstruida','direccion'])
+            
+    if building:
+        idd                = datausopredio['clasificacion'].isin(['Depósitos','Parqueadero','Otros'])
+        datausopredio_paso = datausopredio[~idd]
+        lista_precuso      = list(datausopredio_paso['precuso'].unique())
+
+        datavigencia_gg      = mergeprecuso(datacatastro=datacatastro,datavigencia=datavigencia)
+        datatransacciones_gg = datatransacciones[datatransacciones['precuso'].isin(lista_precuso)] if not datatransacciones.empty else pd.DataFrame()
+
+        html_graficas,_ = graficasHtml_descripcion_lote(datatransacciones=datatransacciones_gg,datavigencia=datavigencia_gg,datalistings=datalistings,datacatastro=datacatastro,datausosuelo=datausosuelo,datausopredio=datausopredio,mapwidth=mapwidth,mapheight=220)
+        try:
+            soup = BeautifulSoup(html_graficas, 'html.parser')
+            soup = soup.find('body')
+            soup = str(soup.prettify())  
+            soup = soup.replace('"b":100', '"b":0').replace('"b":50', '"b":20')
+            soup = soup.replace('<body>','').replace('</body>','')
+            titulo = 'Estadísticas Generales'
+            html += f"""<div class="header-container" style="margin-bottom:50px"><h1 class="header-title">{titulo}</h1></div>"""
+            html += soup
+        except: pass
+    
     #-------------------------------------------------------------------------#
     # Tabla Transacciones
     #-------------------------------------------------------------------------#
@@ -270,7 +313,7 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 soup = soup.find('body')
                 soup = str(soup.prettify())
                 soup = soup.replace('<body>','').replace('</body>','')
-                titulo = 'Análisis detallado'
+                titulo = 'Análisis detallado del predio'
                 html += f"""<div class="header-container"><h1 class="header-title">{titulo}</h1></div>"""
                 html += soup
             except: pass
@@ -331,55 +374,21 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
         </div>
         """
         
-    html_fig_predio = []
-    if not datavigencia_predio.empty:
-        format_bar = {"Avalúo Catastral":"valorAutoavaluo","Impuesto Predial":"valorImpuesto"}
-        for key,value in format_bar.items():
-            df = datavigencia_predio.groupby('vigencia')[value].max().reset_index()
-            df = df.sort_values(by='vigencia',ascending=False)
-            df.index = range(len(df))
-            df = df.iloc[0:4,:]
-            if not df.empty:
-                df.columns  = ['year','value']
-                df['year']   = pd.to_numeric(df['year'],errors='coerce')
-                df           = df[(df['value']>0) & (df['year']>0)]
-                df           = df.sort_values(by='year',ascending=True)
-                df.index     = range(len(df))
-                df['year']   = df['year'].astype(int).astype(str)
-                fig          = px.bar(df, x="year", y="value", text="value", title=key)
-                fig.update_traces(texttemplate='%{y:,.0f}', textposition='inside', marker_color='#68c8ed', textfont=dict(color='black'))
-                fig.update_xaxes(tickmode='linear', dtick=1)
-                fig.update_layout(title_x=0.5,height=350, xaxis_title=None, yaxis_title=None)
-                fig.update_layout({
-                    'plot_bgcolor': 'rgba(0, 0, 0, 0)',  
-                    'paper_bgcolor': 'rgba(200, 200, 200, 0.1)',
-                    'title_font':dict(color='black'),
-                    'legend':dict(bgcolor='black'),
-                })    
-                fig.update_xaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                fig.update_yaxes(showgrid=False, zeroline=False,tickfont=dict(color='black'))
-                html_fig_paso = fig.to_html(config={'displayModeBar': False})
-                try:
-                    soup = BeautifulSoup(html_fig_paso, 'html.parser')
-                    soup = soup.find('body')
-                    soup = str(soup.prettify())
-                    soup = soup.replace('<body>', '<div style="margin-bottom: 20px;">').replace('</body>', '</div>')
-                    html_fig_predio.append(soup)
-                except: pass
-    
-    if isinstance(html_fig_predio, list):
-        for graficas in html_fig_predio:
-            html += f""" 
-            <div class="graph-container">
-                {graficas}
-            </div>
-            """
+    if not datacatastro_predio.empty or not datavigencia_predio.empty:
+        html_graficas,_ = graficasHtml_unidad(datatransacciones=datatransacciones_predio,datavigencia=datavigencia_predio,mapwidth=mapwidth,mapheight=200)
+        try:
+            soup = BeautifulSoup(html_graficas, 'html.parser')
+            soup = soup.find('body')
+            soup = str(soup.prettify())  
+            soup = soup.replace('"b":100', '"b":0')
+            soup = soup.replace('<body>','').replace('</body>','')
+            html += soup
+        except: pass
 
     #-------------------------------------------------------------------------#
     # Estudio de mercado
-    html_fig_market = []
-    metros          = metros if isinstance(metros, int) else 500
-    polygon         = None
+    metros  = metros if isinstance(metros, int) else 500
+    polygon = None
     if (isinstance(latitud, float) or isinstance(latitud, int)) or (isinstance(longitud, float) or isinstance(longitud, int)):
         polygon  = str(circle_polygon(metros,latitud,longitud))
             
@@ -454,17 +463,12 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
 
     #-------------------------------------------------------------------------#
     # Data Listings
-    #-------------------------------------------------------------------------#
-    datalistings = pd.DataFrame()
-    if listingsA or listingsNA:
-        if direccion is not None:
-            datalistings = buildingMarketValues(direccion,precuso=None,mpioccdgo=None)
-        
+    #-------------------------------------------------------------------------#        
     if not datalistings.empty and listingsA:
         datapaso = datalistings[datalistings['tipo']=='activos']
         if not datapaso.empty:
             datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-            html_listings_paso = shwolistings(datapaso)
+            html_listings_paso = showlistings(datapaso)
             try:
                 soup = BeautifulSoup(html_listings_paso, 'html.parser')
                 soup = soup.find('body')
@@ -479,7 +483,7 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
         datapaso = datalistings[datalistings['tipo']=='historico']
         if not datapaso.empty:
             datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-            html_listings_paso = shwolistings(datapaso)
+            html_listings_paso = showlistings(datapaso)
             try:
                 soup = BeautifulSoup(html_listings_paso, 'html.parser')
                 soup = soup.find('body')
@@ -491,14 +495,14 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
             except: pass
 
     # GOOGLE #
-    YOUR_API_KEY = "AIzaSyBEjvAMTg70W6oUvWc5HzYUS3O9rzEI9Jw"
+    YOUR_API_KEY = st.secrets['API_KEY'] # "AIzaSyBEjvAMTg70W6oUvWc5HzYUS3O9rzEI9Jw"
     # static map
     #static_map = f'https://maps.googleapis.com/maps/api/staticmap?center={latitud},{longitud}&zoom=15&size=600x450&maptype=roadmap&key={YOUR_API_KEY}'
     # streetview google: 
     streetview = f'https://maps.googleapis.com/maps/api/streetview?size=600x450&location={latitud},{longitud}&heading=0&pitch=0&key={YOUR_API_KEY}'
     # satelital google: 
     satelital = f'https://maps.googleapis.com/maps/api/staticmap?center={latitud},{longitud}&zoom=20&size=600x450&maptype=satellite&key={YOUR_API_KEY}'
-    
+
     # MAPBOX #
     access_token   = 'pk.eyJ1IjoiYWdhdmlyaWFqIiwiYSI6ImNrYWQ4dXlvZzIyMXIyeW50aHJldGVtcmgifQ.j7XuNBmPQ8SlrUeTPWsrNQ'
     # static map
@@ -510,6 +514,12 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
     #satelital = f'https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/pin-s+3b83bd({longitud},{latitud})/{longitud},{latitud},14,0/600x450?access_token={access_token}'
     
     if html!='':
+        logo = 'https://iconsapp.nyc3.digitaloceanspaces.com/urbex_negativo.png'
+        header_html = f"""
+        <div class="header">
+            <img src="{logo}" alt="Logo">
+        </div>
+        """
         style = f"""
         <style>
             body, html {{
@@ -517,7 +527,18 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 padding: 0;
                 box-sizing: border-box;
             }}
-        
+            
+            .header {{
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                padding: 10px;
+            }}
+            .header img {{
+                width: 200px;
+                height: auto;
+            }}
+                    
             .card {{
                 --bs-card-spacer-y: 1rem;
                 --bs-card-spacer-x: 1rem;
@@ -551,36 +572,36 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 border-radius: var(--bs-card-border-radius);
                 box-shadow: var(--bs-card-box-shadow);
             }}
-        
+            
             .card-stats .icon-big {{
                 font-size: 3rem;
                 line-height: 1;
                 color: #fff;
             }}
-        
+            
             .card-stats .icon-primary {{
                 background-color: #007bff;
             }}
-        
+            
             .bubble-shadow-small {{
                 box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
                 border-radius: 50%;
                 padding: 1rem;
             }}
-        
+            
             .card-stats .numbers {{
                 font-size: 2rem;
                 font-weight: bold;
                 text-align: center;
             }}
-        
+            
             .card-stats .card-category {{
                 color: #6c757d;
                 font-size: 0.8rem;
                 margin: 0;
                 text-align: center;
             }}
-        
+            
             .card-stats .card-title {{
                 margin: 0;
                 font-size: 1.2rem;
@@ -598,7 +619,7 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 height: 100%;
                 margin-bottom: 0;
             }}
-        
+            
             .card-custom {{
                 height: 215px;
                 display: flex;
@@ -606,7 +627,7 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 justify-content: center;
                 text-align: center;
             }}
-        
+            
             .card-body-custom {{
                 display: flex;
                 flex-direction: column;
@@ -615,30 +636,34 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 height: 100%;
                 text-align: center;
             }}
-        
+            
             .css-table {{
                 overflow-x: auto;
                 overflow-y: auto;
                 width: 100%;
                 height: 100%;
             }}
-        
+            
             .css-table table {{
                 width: 100%;
                 padding: 0;
+                table-layout: fixed; 
+                border-collapse: collapse;
             }}
-        
+            
             .css-table td {{
                 text-align: left;
                 padding: 0;
+                overflow: hidden; 
+                text-overflow: ellipsis; 
             }}
-        
+            
             .css-table h6 {{
                 line-height: 1; 
                 font-size: 50px;
                 padding: 0;
             }}
-        
+            
             .css-table td[colspan="labelsection"] {{
                 text-align: left;
                 font-size: 15px;
@@ -649,8 +674,9 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 margin-top: 20px;
                 display: block;
                 font-family: 'Inter';
+                width: 100%;
             }}
-        
+            
             .css-table td[colspan="labelsectionborder"] {{
                 text-align: left;
                 border: none;
@@ -658,73 +684,74 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 margin-top: 20px;
                 display: block;
                 padding: 0;
+                width: 100%;
             }}
-        
+            
             #top {{
                 position: absolute;
                 top: 0;
             }}
-        
+            
             #top:target::before {{
                 content: '';
                 display: block;
                 height: 100px; 
                 margin-top: -100px; 
             }}
-        
+            
             .map-container-wrapper, .graph-container-wrapper {{
                 display: flex;
                 justify-content: space-between;
-                gap: 10px; /* Separación pequeña entre elementos */
+                gap: 10px; 
             }}  
-        
+            
             .map-container-wrapper > div, .map-container-wrapper > img, .graph-container-wrapper > div {{
                 flex: 1;
                 height: 400px;
                 width: 48%;
             }}
-        
+            
             #map-container {{
-                background-image: url('{{streetview}}');
+                background-image: url('{{{{streetview}}}}');
                 background-size: cover;
             }}
-        
+            
             #map-container-sat {{
-                background-image: url('{{satelital}}');
+                background-image: url('{{{{satelital}}}}');
                 background-size: cover;
             }}
-        
+            
             #map {{
                 width: 100%;
                 height: 600px;
             }}
-        
+            
             .property-map {{
                 width: 100%;
                 height: 100%;
             }}
-        
+            
             .property-image {{
                 width: 100%;
                 height: 250px;
                 overflow: hidden; 
                 margin-bottom: 10px;
             }}
-        
+            
             .price-info {{
                 font-family: 'Roboto', sans-serif;
                 font-size: 20px;
                 margin-bottom: 2px;
                 text-align: center;
             }}
-        
+            
             .caracteristicas-info {{
                 font-family: 'Roboto', sans-serif;
                 font-size: 12px;
                 margin-bottom: 2px;
                 text-align: center;
             }}
-        
+            
             img {{
                 max-width: 100%;
                 width: 100%;
@@ -732,52 +759,57 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
                 object-fit: cover;
                 margin-bottom: 10px; 
             }}
-        
+            
             .header-container {{
                 width: 100%;
-                background-color: #f2f2f2; /* Gris muy claro */
-                padding: 20px 0; /* Espaciado arriba y abajo */
+                background-color: #f2f2f2;
+                padding: 20px 0;
             }}
-        
+            
             .header-title {{
-                color: #A16CFF; /* Azul claro */
+                color: #A16CFF;
                 text-align: center;
-                font-size: 24px; /* Tamaño de fuente del título */
+                font-size: 24px;
                 margin: 0;
             }}
-        
+            
             body {{
                 font-family: Arial, sans-serif;
-                font-size: 10px; /* Reducir el tamaño de la fuente */
+                font-size: 10px;
             }}
-        
+            
             .table-wrapper {{
                 width: 100%;
                 margin: 0 auto;
             }}
-        
+            
             .fl-table {{
                 border-collapse: collapse;
                 margin: 25px 0;
-                font-size: 10px; /* Reducir el tamaño de la fuente */
+                font-size: 10px;
                 width: 100%;
                 border: 1px solid #ddd;
                 text-align: left;
             }}
-        
+            
             .fl-table th, .fl-table td {{
-                padding: 8px 10px; /* Reducir el padding */
+                padding: 8px 10px;
             }}
-        
+            
             .fl-table th {{
                 background-color: #f2f2f2;
             }}
-        
+            
             .fl-table tr:nth-child(even) {{
                 background-color: #f9f9f9;
             }}
+            
+            .mb-20 {{
+                margin-bottom: 10px;
+            }}
         </style>
         """
+
         html = f"""
         <!DOCTYPE html>
         <html lang="es">
@@ -791,10 +823,11 @@ def reportehtml(barmanpre=None,chip=None,building=False,market=False,predio=Fals
           {style}
         </head>
         <body>
+          {header_html}
           <div class="map-container-wrapper">
-              <div id="map-container"></div>
-              <div id="map-container-sat"></div>
-              <img src="{static_map}" class="property-map">
+            <img src="{streetview}" id="map-container" >
+            <img src="{satelital}" id="map-container-sat">
+            <img src="{static_map}" class="property-map">
           </div>
           {html}
         </body>
@@ -833,3 +866,24 @@ def getlogofromtoken(token):
                 logo = logot
     engine.dispose()
     return logo
+
+@st.cache_data(show_spinner=False)
+def mergeprecuso(datacatastro=pd.DataFrame(),datavigencia=pd.DataFrame()):
+    if not datacatastro.empty and not datavigencia.empty:
+        datamerge    = datacatastro.drop_duplicates(subset=['prechip'],keep='first')
+        datamerge.rename(columns={'prechip':'chip'},inplace=True)
+        variables = [x for x in ['precuso','preaconst'] if x not in datavigencia]
+        if isinstance(variables,list) and variables!=[]:
+            variables = [x for x in variables if x in datamerge]
+        if isinstance(variables,list) and variables!=[]:
+            variables.append('chip') 
+            datavigencia = datavigencia.merge(datamerge[variables],on='chip',how='left',validate='m:1')
+    
+    if not datavigencia.empty and all([x for x in ['precuso','preaconst'] if x in datavigencia]):
+        datavigencia['avaluomt2'] = datavigencia['valorAutoavaluo']/datavigencia['preaconst']
+        
+    for i in ['precuso','preaconst','avaluomt2']:
+        if i not in datavigencia: 
+            datavigencia[i] = None
+
+    return datavigencia

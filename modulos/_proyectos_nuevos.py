@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, AgGridTheme
 from st_aggrid.shared import JsCode
 
-from data.getdataproyectosnuevos import main as getdataproyectosnuevos
+from data.getdataproyectosnuevos import dataproyectosnuevos, datatransaccionesproyectos
 from data.circle_polygon import circle_polygon
 
 from display.stylefunctions  import style_function,style_function_geojson
@@ -50,6 +50,8 @@ def main(tipo=None,code=None):
     
 def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
 
+    usosuelo = ['002','038']
+    
     #-------------------------------------------------------------------------#
     # Variables 
     formato = {
@@ -63,6 +65,7 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
                'dataformulada':pd.DataFrame(),
                'datalongproyectos':pd.DataFrame(),
                'datapricing':pd.DataFrame(),
+               'datatransacciones':pd.DataFrame(),
                }
     
     for key,value in formato.items():
@@ -189,7 +192,8 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
         with colb1:
             if st.button('Buscar'):
                 with st.spinner('Buscando información'):
-                    st.session_state.dataproyectos,st.session_state.dataformulada,st.session_state.datalongproyectos,st.session_state.datapricing = getdataproyectosnuevos(str(st.session_state.polygon_proyectos))
+                    st.session_state.dataproyectos,st.session_state.dataformulada,st.session_state.datalongproyectos,st.session_state.datapricing = dataproyectosnuevos(str(st.session_state.polygon_proyectos))
+                    st.session_state.datatransacciones = datatransaccionesproyectos({'polygon':str(st.session_state.polygon_proyectos),'precuso':usosuelo})
                     st.session_state.estado = 'reporte'
                     st.rerun()
     with colb2:
@@ -201,11 +205,14 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
     if 'polygon' in st.session_state.estado:
         with st.spinner('Buscando información'):
             st.session_state.polygon_proyectos = circle_polygon(st.session_state.metros,st.session_state.latitud,st.session_state.longitud)
-            st.session_state.dataproyectos,st.session_state.dataformulada,st.session_state.datalongproyectos,st.session_state.datapricing = getdataproyectosnuevos(str(st.session_state.polygon_proyectos))
+            st.session_state.dataproyectos,st.session_state.dataformulada,st.session_state.datalongproyectos,st.session_state.datapricing = dataproyectosnuevos(str(st.session_state.polygon_proyectos))
+            st.session_state.datatransacciones =  datatransaccionesproyectos({'polygon':str(st.session_state.polygon_proyectos),'precuso':usosuelo})
             st.session_state.estado     = 'reporte'
             st.session_state.zoom_start = 14
             st.rerun()
         
+    st.dataframe(st.session_state.datatransacciones)
+    
     if 'reporte' in st.session_state.estado and not dataproyectos.empty:
         
         col1,col2 = st.columns([0.3,0.7])
@@ -316,7 +323,7 @@ def landing(tipo=None,code=None,mapwidth=1280,mapheight=200):
                 with col2:
                     html = pricingHtml(datapricing=datalongproyectos,mapwidth=mapwidth,mapheight=200)
                     st.components.v1.html(html, height=300)
-    else:
+    elif 'reporte' in st.session_state.estado and dataproyectos.empty:
         st.error('No se encontraron proyectos nuevos')
         
     

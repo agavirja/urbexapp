@@ -62,8 +62,8 @@ def buildingMarketValues(direccion,precuso=None,mpioccdgo=None):
         
     if query!="":
         query               = query.strip().strip('AND').strip()
-        datamarketactivos   = pd.read_sql_query(f"SELECT code,valor,tipoinmueble,tiponegocio,direccion,areaconstruida,valoradministracion,url_img,habitaciones,banos,garajes FROM bigdata.market_portales_activos WHERE {query}" , engine)
-        datamarkethistorico = pd.read_sql_query(f"SELECT code,valor,tipoinmueble,tiponegocio,direccion,areaconstruida,valoradministracion,url_img,habitaciones,banos,garajes FROM bigdata.market_portales_historico WHERE {query}" , engine)
+        datamarketactivos   = pd.read_sql_query(f"SELECT code,valor,tipoinmueble,tiponegocio,direccion,areaconstruida,valoradministracion,url_img,habitaciones,banos,garajes,fecha_inicial FROM bigdata.market_portales_activos WHERE {query}" , engine)
+        datamarkethistorico = pd.read_sql_query(f"SELECT code,valor,tipoinmueble,tiponegocio,direccion,areaconstruida,valoradministracion,url_img,habitaciones,banos,garajes,fecha_inicial FROM bigdata.market_portales_historico WHERE {query}" , engine)
         
         # Eliminar los inmuebles activos de la data historica para el analisis
         idd                 = datamarkethistorico['code'].isin(datamarketactivos['code'])

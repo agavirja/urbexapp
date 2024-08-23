@@ -21,7 +21,7 @@ from data.datacomplemento import main as datacomplemento
 from data.getdatabuilding import main as getdatabuilding
 from data.getdatalotescombinacion import getdatacombinacionlotes,mergedatabybarmanpre
 from data.getdata_market_analysis import main as getdata_market_analysis
-from data.getdataproyectosnuevos import main as getdataproyectosnuevos
+from data.getdataproyectosnuevos import dataproyectosnuevos as getdataproyectosnuevos
 from data.getuso_destino import usosuelo_class
 from data.data_referencia_cabidas import valor_referencia_avaluo,cargas_fijas_variables
 

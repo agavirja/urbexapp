@@ -499,7 +499,4 @@ def getdatamarketbycode(code=None,tipoinmueble=None,tiponegocio=None):
         data = datamarketactivos.copy()
     elif not datamarkethistorico.empty:
         data = datamarkethistorico.copy()
-    return data    
-    
-    
-    
+    return data

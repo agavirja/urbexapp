@@ -63,6 +63,7 @@ def landing(mapwidth,mapheight):
             st.session_state[key] = value
      
     colb1,colb2          = st.columns([0.8,0.2])
+    coll1,coll2          = st.columns([0.3,0.7])
     colf1,colf2          = st.columns([0.3,0.7])
     maxpiso              = 6
     alturaminpot         = 0
@@ -79,7 +80,7 @@ def landing(mapwidth,mapheight):
         tratamiento          = st.multiselect('Tratamiento P.O.T',['CONSOLIDACION', 'DESARROLLO', 'RENOVACION', 'CONSERVACION', 'MEJORAMIENTO INTEGRAL'])
         actuacionestrategica = st.selectbox('Actuación estrategica', options=['Todos','Si','No'])
         areaactividad = st.multiselect('Área de actividad P.O.T',['Área de Actividad Grandes Servicios Metropolitanos - AAGSM', 'Área de Actividad de Proximidad - AAP- Generadora de soportes urbanos', 'Área de Actividad de Proximidad - AAP - Receptora de soportes urbanos', 'Área de Actividad Estructurante - AAE - Receptora de vivienda de interés social', 'Plan Especial de Manejo y Protección -PEMP BIC Nacional: se rige por lo establecido en la Resolución que lo aprueba o la norma que la modifique o sustituya', 'Área de Actividad Estructurante - AAE - Receptora de actividades económicas'])
-        maxpropietario       = st.number_input('Número máximo de propietarios por manzana',value=0,min_value=0)
+        maxpropietario       = st.number_input('Número máximo de propietarios por lote',value=0,min_value=0)
         maxavaluo            = st.number_input('Valor máximo de avalúo catastral de la manzana',value=0,min_value=0)
         viaprincipal         = st.selectbox('Sobre vía principal', options=['Todos','Si','No'])
 
@@ -109,7 +110,7 @@ def landing(mapwidth,mapheight):
     data            = st.session_state.data.copy()
     datalocalidades = st.session_state.datalocalidades.copy()
     datacompilado   = pd.DataFrame(columns=['wkt','type'])  
-    
+
     if not data.empty:
         #-----------------------#
         # Seleccion de manzanas #
@@ -127,15 +128,17 @@ def landing(mapwidth,mapheight):
         if 'geometry' in datacompilado: 
             del datacompilado['geometry']
             datacompilado = pd.DataFrame(datacompilado)
-        
-        datacompilado['label'] = '<b>Localidad: </b>'+datacompilado['locnombre'].copy()
-        idd                    = datacompilado['type']=='manzanas'
-        datacompilado.loc[idd,'label'] = '<b>Manzana: </b>'+datacompilado.loc[idd,'mancodigo']
-    
+
+        idd  = datacompilado['type']=='localidad'
+        datacompilado.loc[idd,'label'] = datacompilado.loc[idd].apply(lambda x: f'<b style="font-size:12px;">Localidad: </b> <span style="font-size:12px;">{x["locnombre"]}</span><br><b style="font-size:12px;"># Manzanas: </b> <span style="font-size:12px;">{int(x["countmanzanas"])}</span>', axis=1)
+
+        idd  = datacompilado['type']=='manzanas'
+        datacompilado.loc[idd,'label']  = datacompilado.loc[idd].apply(lambda x: f'<b style="font-size:12px;">Manzana: </b> <span style="font-size:12px;">{x["mancodigo"]}</span><br><b style="font-size:12px;"># Lotes: </b> <span style="font-size:12px;">{int(x["lotes"])}</span>', axis=1)
+
     m = folium.Map(location=[st.session_state.latitud, st.session_state.longitud], zoom_start=st.session_state.zoom_start,tiles="cartodbpositron")
 
     if not datacompilado.empty:
-        geojson = data2geopandas(datacompilado)
+        geojson = data2geopandas(datacompilado,constraints=inputvar)
         popup   = folium.GeoJsonPopup(
             fields=["popup"],
             aliases=[""],
@@ -162,9 +165,20 @@ def landing(mapwidth,mapheight):
                     st.session_state.codseleccion = codigo
                     st.rerun()
          
+    label = None
+    if not datacompilado.empty:
+        if not 'manzanas' in datacompilado['type'].unique():
+            _,label = colormap(datacompilado,'countmanzanas')
+        else:
+            _,label = colormap(datacompilado,'avaluo_catastral')
+    
+    with coll2:
+        if label is not None:
+            html = labelhtml(label)
+            st.components.v1.html(html, height=60)
 
 @st.cache_data(show_spinner=False)
-def data2geopandas(data):
+def data2geopandas(data,constraints={}):
     
     geojson = pd.DataFrame().to_json()
     if 'wkt' in data: 
@@ -176,9 +190,9 @@ def data2geopandas(data):
         data['color']    = '#5A189A' #'#003F2D'
                 
         if not 'manzanas' in data['type'].unique():
-            data = colormap(data,'countmanzanas')
+            data,_ = colormap(data,'countmanzanas')
         else:
-            data = colormap(data,'avaluo_catastral')
+            data,_ = colormap(data,'avaluo_catastral')
             idd  = data['type']=='localidad'
             data.loc[idd,'color'] = '#CFCFCF'
         
@@ -207,7 +221,8 @@ def data2geopandas(data):
                                    'longitud':items['geometry'].centroid.x,
                                    'zoom':18,
                                    'polygon':items['wkt'],
-                                   'estado':'search'}
+                                   'estado':'search',
+                                   'constraints':constraints}
                     encryptjson = json.dumps(encryptjson)
                     encryptjson = encryptjson.encode('utf-8')
                     encryptjson = base64.b64encode(encryptjson)
@@ -253,11 +268,29 @@ def data2geopandas(data):
     return geojson
 
 def colormap(data,tipoconsulta):
+    label = pd.DataFrame(columns=['pos','color','value'])
     if not data.empty and tipoconsulta in data: 
         data['normvalue'] = data[tipoconsulta].rank(pct=True)
-        cmap              = plt.cm.RdYlGn.reversed() # plt.cm.RdYlGn - plt.cm.viridis
+        #cmap              = plt.cm.RdYlGn.reversed() # plt.cm.RdYlGn - plt.cm.viridis
+        cmap              = plt.cm.coolwarm # plt.cm.RdYlGn - plt.cm.viridis
         data['color']     = data['normvalue'].apply(lambda x: to_hex(cmap(x)))
-    return data
+        
+        label  = []
+        conteo = 0
+        for j in [0,0.2,0.4,0.6,0.8,1]:
+            conteo    += 1
+            df         = data.copy()
+            df['diff'] = abs(j-df['normvalue'])
+            df         = df.sort_values(by='diff',ascending=True)
+            color      = df['color'].iloc[0]
+            value      = df[tipoconsulta].iloc[0]
+            if 'avaluo_catastral' in tipoconsulta: 
+                value = f"${value /1000000:,.2f} mm"
+            elif 'countmanzanas' in tipoconsulta:
+                value = f'{value}    '
+            label.append({'pos':conteo,'color':color,'value':value})
+        label = pd.DataFrame(label) 
+    return data,label
 
 def highlight_function(feature):
     return {
@@ -266,3 +299,76 @@ def highlight_function(feature):
         'weight': 0,             # Grosor del borde cuando haces hover
         'fillOpacity': 0.1,      # Opacidad del relleno cuando haces hover
     }
+
+@st.cache_data(show_spinner=False)
+def labelhtml(data):
+    
+    data['color'] = data['color'].apply(lambda x: f'<span class="legend-color" style="background:{x};"></span>')
+    data['value'] = data['value'].apply(lambda x: f'<span>{x}</span>')
+    colors        = ''.join(data['color'])
+    valores       = ''.join(data['value'])
+
+    style = """
+    <style>
+        .legend-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .legend-bar {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .legend-color {
+            height: 20px;
+            width: 100px; /* Width of each color box */
+            margin: 0; /* Remove margin */
+        }
+        .legend-numbers {
+            display: flex;
+            justify-content: space-between;
+            position: absolute;
+            top: 20px; 
+            left: calc(50% + 60px); /* Move numbers a bit to the right */
+            transform: translateX(-50%); /* Adjust to center relative to the new position */
+            width: calc(100px * 6); /* Width based on the number of colors */
+            font-size: 12px;
+            color: #555;
+            margin: 0; /* Remove margin */
+            padding: 0; /* Remove padding */
+            text-align: center; /* Center numbers horizontally within their space */
+        }
+        .legend-numbers span {
+            display: block;
+            width: 100px; /* Same width as color boxes */
+            text-align: center;
+            margin: 0; /* Remove margin */
+            padding: 0; /* Remove padding */
+        }
+    </style>
+
+    """
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        {style}
+    </head>
+    <body>
+        <!-- Leyenda del Mapa de Calor -->
+        <div class="legend-container">
+            <div class="legend-bar">
+                {colors}
+                <div class="legend-numbers">
+                {valores}
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html

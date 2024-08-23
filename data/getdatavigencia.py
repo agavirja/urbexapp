@@ -14,6 +14,7 @@ def main(chip):
     
     datavigencia     = pd.DataFrame()
     datashd2024      = pd.DataFrame()
+    datashd2023      = pd.DataFrame()
     datapropietarios = pd.DataFrame()
 
     if isinstance(chip, list):
@@ -34,6 +35,16 @@ def main(chip):
         for batch in batches: 
             query = "','".join(batch)
             query = f" chip IN ('{query}')"
+            query = f"SELECT chip,year as vigencia,identificacion as nroIdentificacion,avaluo_catastral as valorAutoavaluo,impuesto_ajustado as valorImpuesto  FROM  {schema}.data_bogota_shd_2023 WHERE {query}"
+            futures.append(pool.apply_async(downloadData,args = (query, )))
+            
+        for future in futures:
+            datashd2023 = pd.concat([datashd2023,future.get()])      
+        
+        futures = [] 
+        for batch in batches: 
+            query = "','".join(batch)
+            query = f" chip IN ('{query}')"
             query = f"SELECT chip,year as vigencia,identificacion as nroIdentificacion,avaluo_catastral as valorAutoavaluo,impuesto_ajustado as valorImpuesto,copropiedad  FROM  {schema}.data_bogota_shd_2024 WHERE {query}"
             futures.append(pool.apply_async(downloadData,args = (query, )))
             
@@ -45,14 +56,15 @@ def main(chip):
         engine        = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
         datavigencia  = pd.read_sql_query(f"SELECT chip,vigencia,nroIdentificacion,valorAutoavaluo,valorImpuesto,indPago,idSoporteTributario  FROM  {schema}.data_bogota_catastro_vigencia WHERE {query}" , engine)
         datashd2024   = pd.read_sql_query(f"SELECT chip,year as vigencia,identificacion as nroIdentificacion,avaluo_catastral as valorAutoavaluo,impuesto_ajustado as valorImpuesto,copropiedad  FROM  {schema}.data_bogota_shd_2024 WHERE {query}" , engine)
+        datashd2023   = pd.read_sql_query(f"SELECT chip,year as vigencia,identificacion as nroIdentificacion,avaluo_catastral as valorAutoavaluo,impuesto_ajustado as valorImpuesto,copropiedad  FROM  {schema}.data_bogota_shd_2023 WHERE {query}" , engine)
         engine.dispose()
     
-    if not datashd2024.empty and not datavigencia.empty:
-        datashd2024  = datashd2024.drop_duplicates()
-        datavigencia = pd.concat([datashd2024,datavigencia])
-    elif not datashd2024.empty and datavigencia.empty:
-        datavigencia = datashd2024.copy()
-        
+    if not datashd2024.empty: datashd2024  = datashd2024.drop_duplicates()
+    if not datashd2023.empty: datashd2023  = datashd2023.drop_duplicates()
+    datavigencia = pd.concat([datashd2024,datashd2023,datavigencia])
+    datavigencia = datavigencia.groupby(['chip', 'vigencia'], group_keys=False).apply(selectNotNull)
+    datavigencia = datavigencia.sort_values(by=['chip', 'vigencia'],ascending=False)
+    
     if not datavigencia.empty:
         listaid = datavigencia[datavigencia['nroIdentificacion'].notnull()]['nroIdentificacion'].astype(str).unique()
         batches = [listaid[i:i + 1000] for i in range(0, len(listaid), 1000)]
@@ -91,3 +103,10 @@ def downloadData(query):
 def getparam(x,tipo,pos):
     try: return json.loads(x)[pos][tipo]
     except: return None
+
+def selectNotNull(grupo):
+    if len(grupo) > 1:
+        # Si hay más de un registro con la misma vigencia y alguno tiene un nroIdentificacion nulo, mantener el que no es nulo
+        if grupo['nroIdentificacion'].isnull().any():
+            return grupo.loc[grupo['nroIdentificacion'].notnull()]
+    return grupo

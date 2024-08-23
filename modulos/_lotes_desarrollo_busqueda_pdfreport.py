@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import create_engine 
 from streamlit_js_eval import streamlit_js_eval
 
-from modulos._busqueda_avanzada_descripcion_lote import gruoptransactions,analytics_transacciones,shwolistings
+from modulos._busqueda_avanzada_descripcion_lote import gruoptransactions,analytics_transacciones,showlistings
 from modulos._lotes_descripcion_combinacionlote import data2geopandas as data2geopandascombinacion,principal_table as html_descripcion_general
 from modulos._propietarios import gethtml as gethtmlpropietarios
 
@@ -59,9 +59,9 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 usosuelo = st.selectbox('Uso del suelo:',options=options)
                 if 'todo' not in usosuelo.lower():
                     datadestinouso = datadestinouso[datadestinouso['usosuelo']==usosuelo]
-                    precuso        = list(datadestinouso['precuso'].unique())
-
-                metros = st.selectbox('Metros a la redonda',options=[100,200,300,400,500],index=4)
+                
+                precuso = list(datadestinouso['precuso'].unique())
+                metros  = st.selectbox('Metros a la redonda',options=[100,200,300,400,500],index=4)
                 st.write('')
                 st.write('')
                 
@@ -76,36 +76,49 @@ def main(code=None,latitud=None,longitud=None,precuso=None):
                 with st.spinner('Generando reporte, por favor espera un momento'):
                     html = reportehtml(code=code,building=building,market=market,logo=logo,tipodestino=precdestin,tipouso=precuso,metros=metros,listingsA=listingsA,listingsNA=listingsNA,latitud=latitud,longitud=longitud,mapwidth=mapwidth,mapheight=200)
                                
-                    API_KEY      = '1a7a2a64fcce84bcb9e1dbb0a7363b75'
-                    pdfcrowduser = 'agavirja3'
-                    wd, pdf_temp_path = tempfile.mkstemp(suffix=".pdf")       
+                    #API_KEY      = '1a7a2a64fcce84bcb9e1dbb0a7363b75'
+                    #pdfcrowduser = 'agavirja3'
+                    #wd, pdf_temp_path = tempfile.mkstemp(suffix=".pdf")       
                     
                     if 'token' not in st.session_state: 
                         st.session_state.token = None
                         
-                    logo = getlogofromtoken(st.session_state.token)
-                    header_html = f"""
-                    <div style="text-align: right;">
-                        <img src="{logo}" style="width: 100px; height: auto;">
-                    </div>
-                    """
+                    #logo = getlogofromtoken(st.session_state.token)
+                    #header_html = f"""
+                    #<div style="text-align: right;">
+                    #    <img src="{logo}" style="width: 100px; height: auto;">
+                    #</div>
+                    #"""
                     
-                    client = pdfcrowd.HtmlToPdfClient(pdfcrowduser,API_KEY)
-                    client.setHeaderHtml(header_html)
-                    client.setPageHeight('-1')
-                    client.convertStringToFile(html, pdf_temp_path)
+                    #client = pdfcrowd.HtmlToPdfClient(pdfcrowduser,API_KEY)
+                    #client.setHeaderHtml(header_html)
+                    #client.setPageHeight('-1')
+                    #client.convertStringToFile(html, pdf_temp_path)
 
-                    with open(pdf_temp_path, "rb") as pdf_file:
-                        PDFbyte = pdf_file.read()
+                    #with open(pdf_temp_path, "rb") as pdf_file:
+                    #    PDFbyte = pdf_file.read()
 
                     #with open(r"D:\...\reportelote.html", "w", encoding="utf-8") as file:
                     #    file.write(html)
                         
-                    st.download_button(label="Descargar PDF",
-                                        data=PDFbyte,
-                                        file_name="reportePDF.pdf",
-                                        mime='application/octet-stream')
+                    #st.download_button(label="Descargar PDF",
+                    #                    data=PDFbyte,
+                    #                    file_name="reportePDF.pdf",
+                    #                    mime='application/octet-stream')
 
+                    temp_html = 'temp_reporte.html'
+                    with open(temp_html, 'w') as file:
+                        file.write(html)
+
+                    with open(temp_html, "r") as html_file:
+                        HTMLbyte = html_file.read()
+                    
+                    if HTMLbyte:
+                        st.download_button(label="Descargar Reporte",
+                                           data=HTMLbyte,
+                                           file_name="reporte-urbex.html",
+                                           mime='text/html')
+                        
 def style_function_geojson(feature):
     return {
         'fillColor': '#0000ff',
@@ -418,7 +431,7 @@ def reportehtml(code=None,building=False,market=False,logo=None,tipodestino=None
         polygon  = str(circle_polygon(metros,latitud,longitud))
             
     if market and isinstance(polygon,str):
-        datapredios_estudio,datacatastro_estudio,datavigencia_estudio,datatransacciones_estudio,datamarket_estudio = getdata_market_analysis(polygon=polygon,precuso=precuso)
+        datapredios_estudio,datacatastro_estudio,datavigencia_estudio,datatransacciones_estudio,datamarket_estudio = getdata_market_analysis(polygon=polygon,precuso=tipouso) 
 
         dataoutput = datapredios_estudio.sort_values(by='transacciones',ascending=False).drop_duplicates(subset='barmanpre',keep='first')
         geojson    = data2geopandas(dataoutput,barmanpreref=None)
@@ -501,7 +514,7 @@ def reportehtml(code=None,building=False,market=False,logo=None,tipodestino=None
         datapaso = datalistings[datalistings['tipo']=='activos']
         if not datapaso.empty:
             datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-            html_listings_paso = shwolistings(datapaso)
+            html_listings_paso = showlistings(datapaso)
             try:
                 soup = BeautifulSoup(html_listings_paso, 'html.parser')
                 soup = soup.find('body')
@@ -516,7 +529,7 @@ def reportehtml(code=None,building=False,market=False,logo=None,tipodestino=None
         datapaso = datalistings[datalistings['tipo']=='historico']
         if not datapaso.empty:
             datapaso = datapaso.sort_values(by='tiponegocio',ascending=True)
-            html_listings_paso = shwolistings(datapaso)
+            html_listings_paso = showlistings(datapaso)
             try:
                 soup = BeautifulSoup(html_listings_paso, 'html.parser')
                 soup = soup.find('body')
