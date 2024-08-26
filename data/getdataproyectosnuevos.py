@@ -170,13 +170,14 @@ def datatransaccionesproyectos(inputvar):
     host     = st.secrets["host_bigdata_lectura"]
     schema   = st.secrets["schema_bigdata"]
     engine   = create_engine(f'mysql+mysqlconnector://{user}:{password}@{host}/{schema}')
-
+    data     = pd.DataFrame()
+    
     polygon  = inputvar['polygon'] if 'polygon' in inputvar and isinstance(inputvar['polygon'], str) else None
     usosuelo = inputvar['precuso'] if 'precuso' in inputvar and isinstance(inputvar['precuso'], list) else None
 
     query = ""
     if isinstance(polygon, str) and not 'none' in polygon.lower() :
-        query += f' AND ST_CONTAINS(ST_GEOMFROMTEXT("{polygon}"), POINT(longitud, latitud))'
+        query += f" AND ST_CONTAINS(ST_GEOMFROMTEXT('{polygon}'), POINT(longitud, latitud))"
     if isinstance(usosuelo, list) and usosuelo!=[]:
         lista  = "','".join(usosuelo)
         query += f" AND precuso IN ('{lista}')"       

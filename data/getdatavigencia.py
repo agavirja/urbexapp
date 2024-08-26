@@ -62,10 +62,11 @@ def main(chip):
     if not datashd2024.empty: datashd2024  = datashd2024.drop_duplicates()
     if not datashd2023.empty: datashd2023  = datashd2023.drop_duplicates()
     datavigencia = pd.concat([datashd2024,datashd2023,datavigencia])
-    datavigencia = datavigencia.groupby(['chip', 'vigencia'], group_keys=False).apply(selectNotNull)
-    datavigencia = datavigencia.sort_values(by=['chip', 'vigencia'],ascending=False)
     
     if not datavigencia.empty:
+        datavigencia = datavigencia.groupby(['chip', 'vigencia'], group_keys=False).apply(selectNotNull)
+        datavigencia = datavigencia.sort_values(by=['chip', 'vigencia'],ascending=False)
+
         listaid = datavigencia[datavigencia['nroIdentificacion'].notnull()]['nroIdentificacion'].astype(str).unique()
         batches = [listaid[i:i + 1000] for i in range(0, len(listaid), 1000)]
         futures = [] 
