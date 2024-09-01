@@ -65,10 +65,58 @@ def ifPolygon(mapwidth,mapheight):
         if key not in st.session_state: 
             st.session_state[key] = value
             
-    colt1,colt2,colt3    = st.columns([0.025,0.475,0.50])
-    colm1,colm2,colm3    = st.columns([0.025,0.95,0.025])
-    colf1,colf2          = st.columns(2)
 
+    #-------------------------------------------------------------------------#
+    # Mapa
+    
+    if st.session_state.geojson_data_busqueda_avanzada_default is None:
+        colt1,colt2,colt3 = st.columns([0.025,0.475,0.50])
+        with colt2:
+            html = pasosApp("Dibuja el poligono para realziar la busqueda de lotes","1")
+            html = BeautifulSoup(html, 'html.parser')
+            st.markdown(html, unsafe_allow_html=True)
+                
+    with st.container():
+        m    = folium.Map(location=[st.session_state.latitud_busqueda_avanzada_default, st.session_state.longitud_busqueda_avanzada_default], zoom_start=st.session_state.zoom_start_data_busqueda_avanzada_default,tiles="cartodbpositron")
+        draw = Draw(
+                    draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
+                    edit_options={"poly": {"allowIntersection": False}}
+                    )
+        draw.add_to(m)
+    
+        if st.session_state.geojson_data_busqueda_avanzada_default is not None:
+            if st.session_state.datalotes_busqueda_avanzada_default.empty:
+                folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function).add_to(m)
+            else:
+                folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function_color).add_to(m)
+                
+        if not st.session_state.datalotes_busqueda_avanzada_default.empty:
+            geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default)
+            popup   = folium.GeoJsonPopup(
+                fields=["popup"],
+                aliases=[""],
+                localize=True,
+                labels=True,
+            )
+            folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
+            
+        st_map = st_folium(m,width=int(mapwidth*0.95),height=500)
+
+        if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
+            if st_map['all_drawings']!=[]:
+                if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
+                    coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
+                    st.session_state.polygon_busqueda_avanzada_default = Polygon(coordenadas[0])
+                    st.session_state.geojson_data_busqueda_avanzada_default            = mapping(st.session_state.polygon_busqueda_avanzada_default)
+                    polygon_shape                            = shape(st.session_state.geojson_data_busqueda_avanzada_default)
+                    centroid                                 = polygon_shape.centroid
+                    st.session_state.latitud_busqueda_avanzada_default                 = centroid.y
+                    st.session_state.longitud_busqueda_avanzada_default                = centroid.x
+                    st.session_state.zoom_start_data_busqueda_avanzada_default              = 16
+                    st.rerun()
+
+    #-------------------------------------------------------------------------#
+    # Formulario
     areamin              = 0
     areamax              = 0
     antiguedadmin        = 0
@@ -86,11 +134,9 @@ def ifPolygon(mapwidth,mapheight):
     actuacionestrategica = 'Todos'
     tipoedificio         = "Todos"
     
-    #-------------------------------------------------------------------------#
-    # Formulario            
+    colf1,colf2 = st.columns(2)
     with colf1: seleccion  = st.multiselect('Tipo de inmueble(s)', key='seleccion',options=st.session_state.options_busqueda_avanzada_default, default=st.session_state.default,on_change=multyselectoptions,placeholder='Selecciona uno o varios inmuebles')
     colf1,colf2 = st.columns(2)
-    colb1,colb2 = st.columns(2)
     
     if 'Edificio' in seleccion:
         with colf1: tipoedificio   = st.selectbox('Tipo de Edificio', options=['Todos','Oficinas y Consultorios','Residencial'])
@@ -113,55 +159,7 @@ def ifPolygon(mapwidth,mapheight):
             with colf1: loteesquinero = st.selectbox('Lote esquinero', options=['Todos','Si','No'])
             with colf2: viaprincipal  = st.selectbox('Sobre vía principal', options=['Todos','Si','No'])
         
-    #-------------------------------------------------------------------------#
-    # Mapa
-    with colm2:
-        with st.container():
-            m    = folium.Map(location=[st.session_state.latitud_busqueda_avanzada_default, st.session_state.longitud_busqueda_avanzada_default], zoom_start=st.session_state.zoom_start_data_busqueda_avanzada_default,tiles="cartodbpositron")
-            draw = Draw(
-                        draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
-                        edit_options={"poly": {"allowIntersection": False}}
-                        )
-            draw.add_to(m)
         
-            if st.session_state.geojson_data_busqueda_avanzada_default is not None:
-                if st.session_state.datalotes_busqueda_avanzada_default.empty:
-                    folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function).add_to(m)
-                else:
-                    folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function_color).add_to(m)
-            else:
-                with colt2:
-                    html = pasosApp("Dibuja el poligono para realziar la busqueda de lotes","1")
-                    html = BeautifulSoup(html, 'html.parser')
-                    st.markdown(html, unsafe_allow_html=True)
-                    
-            if not st.session_state.datalotes_busqueda_avanzada_default.empty:
-                geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default,seleccion)
-                popup   = folium.GeoJsonPopup(
-                    fields=["popup"],
-                    aliases=[""],
-                    localize=True,
-                    labels=True,
-                )
-                folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
-                
-            st_map = st_folium(m,width=int(mapwidth*0.95),height=500)
-    
-            if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
-                if st_map['all_drawings']!=[]:
-                    if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
-                        coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
-                        st.session_state.polygon_busqueda_avanzada_default = Polygon(coordenadas[0])
-                        st.session_state.geojson_data_busqueda_avanzada_default            = mapping(st.session_state.polygon_busqueda_avanzada_default)
-                        polygon_shape                            = shape(st.session_state.geojson_data_busqueda_avanzada_default)
-                        centroid                                 = polygon_shape.centroid
-                        st.session_state.latitud_busqueda_avanzada_default                 = centroid.y
-                        st.session_state.longitud_busqueda_avanzada_default                = centroid.x
-                        st.session_state.zoom_start_data_busqueda_avanzada_default              = 16
-                        st.rerun()
-
-    #-------------------------------------------------------------------------#
-    # Reporte
     if seleccion==[]: seleccion = ['Todos']
     inputvar = {
         'tipoinmueble':seleccion,
@@ -183,6 +181,9 @@ def ifPolygon(mapwidth,mapheight):
                ]
         }
 
+    #-------------------------------------------------------------------------#
+    # Reporte
+    colb1,colb2 = st.columns(2)
     if st.session_state.polygon_busqueda_avanzada_default is not None:        
         inputvar['polygon'] = str(st.session_state.polygon_busqueda_avanzada_default)
         with colb1:
@@ -196,6 +197,7 @@ def ifPolygon(mapwidth,mapheight):
                     del st.session_state[key]
                 st.rerun()
             
+    colm1,colm2,colm3 = st.columns([0.025,0.95,0.025])
     if st.session_state.reporte_busqueda_avanzada_default:
         with colm2:
             with st.spinner('Buscando data'):
@@ -236,7 +238,7 @@ def multyselectoptions():
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,seleccion=[]):
     
-    urlexport = "http://localhost:8501/Busqueda_avanzada"
+    urlexport = "http://www.urbex.com.co/Busqueda_avanzada"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]
