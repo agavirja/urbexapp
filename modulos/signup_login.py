@@ -5,7 +5,6 @@ import boto3
 import hashlib
 from datetime import datetime
 from sqlalchemy import create_engine
-from streamlit_js_eval import streamlit_js_eval
 from botocore.exceptions import ClientError
 
 user     = st.secrets["user_bigdata"]
@@ -19,13 +18,6 @@ client       = boto3.client('cognito-idp', region_name='us-east-2')
 
 def main():
     
-    wsize = None
-    try:
-        js_code     = """function getWindowSize() {return { width: window.innerWidth, height: window.innerHeight };}getWindowSize();"""
-        window_size = streamlit_js_eval(js_expressions=js_code, key='window_size')
-        wsize       = window_size['width']
-    except: pass 
-
     #-------------------------------------------------------------------------#
     # Tamano de la pantalla 
     colorlogo  = "negativo"
@@ -37,15 +29,6 @@ def main():
     }
     """
     housepng = 'https://iconsapp.nyc3.digitaloceanspaces.com/house-black.png'
-    if wsize is not None:
-        if wsize>1000:
-            colorlogo  = "positivo"
-            background = """
-            .stApp {
-                background: linear-gradient(to right, #000 50%, #FFF 50%);
-            }
-            """
-            housepng = 'https://iconsapp.nyc3.digitaloceanspaces.com/house-white.png'
     style(background,housepng)
     
     #-------------------------------------------------------------------------#
