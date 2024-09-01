@@ -68,7 +68,6 @@ def ifPolygon(mapwidth,mapheight):
 
     #-------------------------------------------------------------------------#
     # Mapa
-    
     if st.session_state.geojson_data_busqueda_avanzada_default is None:
         colt1,colt2,colt3 = st.columns([0.025,0.475,0.50])
         with colt2:
@@ -76,44 +75,43 @@ def ifPolygon(mapwidth,mapheight):
             html = BeautifulSoup(html, 'html.parser')
             st.markdown(html, unsafe_allow_html=True)
                 
-    with st.container():
-        m    = folium.Map(location=[st.session_state.latitud_busqueda_avanzada_default, st.session_state.longitud_busqueda_avanzada_default], zoom_start=st.session_state.zoom_start_data_busqueda_avanzada_default,tiles="cartodbpositron")
-        draw = Draw(
-                    draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
-                    edit_options={"poly": {"allowIntersection": False}}
-                    )
-        draw.add_to(m)
-    
-        if st.session_state.geojson_data_busqueda_avanzada_default is not None:
-            if st.session_state.datalotes_busqueda_avanzada_default.empty:
-                folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function).add_to(m)
-            else:
-                folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function_color).add_to(m)
-                
-        if not st.session_state.datalotes_busqueda_avanzada_default.empty:
-            geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default)
-            popup   = folium.GeoJsonPopup(
-                fields=["popup"],
-                aliases=[""],
-                localize=True,
-                labels=True,
-            )
-            folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
-            
-        st_map = st_folium(m,width=int(mapwidth*0.95),height=500)
+    m    = folium.Map(location=[st.session_state.latitud_busqueda_avanzada_default, st.session_state.longitud_busqueda_avanzada_default], zoom_start=st.session_state.zoom_start_data_busqueda_avanzada_default,tiles="cartodbpositron")
+    draw = Draw(
+                draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
+                edit_options={"poly": {"allowIntersection": False}}
+                )
+    draw.add_to(m)
 
-        if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
-            if st_map['all_drawings']!=[]:
-                if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
-                    coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
-                    st.session_state.polygon_busqueda_avanzada_default = Polygon(coordenadas[0])
-                    st.session_state.geojson_data_busqueda_avanzada_default            = mapping(st.session_state.polygon_busqueda_avanzada_default)
-                    polygon_shape                            = shape(st.session_state.geojson_data_busqueda_avanzada_default)
-                    centroid                                 = polygon_shape.centroid
-                    st.session_state.latitud_busqueda_avanzada_default                 = centroid.y
-                    st.session_state.longitud_busqueda_avanzada_default                = centroid.x
-                    st.session_state.zoom_start_data_busqueda_avanzada_default              = 16
-                    st.rerun()
+    if st.session_state.geojson_data_busqueda_avanzada_default is not None:
+        if st.session_state.datalotes_busqueda_avanzada_default.empty:
+            folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function).add_to(m)
+        else:
+            folium.GeoJson(st.session_state.geojson_data_busqueda_avanzada_default, style_function=style_function_color).add_to(m)
+            
+    if not st.session_state.datalotes_busqueda_avanzada_default.empty:
+        geojson = data2geopandas(st.session_state.datalotes_busqueda_avanzada_default)
+        popup   = folium.GeoJsonPopup(
+            fields=["popup"],
+            aliases=[""],
+            localize=True,
+            labels=True,
+        )
+        folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
+            
+    st_map = st_folium(m,width=int(mapwidth*0.95),height=500)
+
+    if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
+        if st_map['all_drawings']!=[]:
+            if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
+                coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
+                st.session_state.polygon_busqueda_avanzada_default = Polygon(coordenadas[0])
+                st.session_state.geojson_data_busqueda_avanzada_default            = mapping(st.session_state.polygon_busqueda_avanzada_default)
+                polygon_shape                            = shape(st.session_state.geojson_data_busqueda_avanzada_default)
+                centroid                                 = polygon_shape.centroid
+                st.session_state.latitud_busqueda_avanzada_default                 = centroid.y
+                st.session_state.longitud_busqueda_avanzada_default                = centroid.x
+                st.session_state.zoom_start_data_busqueda_avanzada_default              = 16
+                st.rerun()
 
     #-------------------------------------------------------------------------#
     # Formulario
