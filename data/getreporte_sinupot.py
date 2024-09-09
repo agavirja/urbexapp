@@ -1,12 +1,13 @@
 import streamlit as st
 import requests
+import pandas as pd
 import os
 import urllib.parse
 import re
 import nest_asyncio
 import aiohttp
 import asyncio
-import pandas as pd
+import ssl
 from pypdf import PdfMerger, PdfReader
 from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
@@ -91,7 +92,7 @@ def generalSINUPOT(chip=None,barmanpre=None,tipocodigo=None,tipoarea=None,report
                     "returnDistinctValues": "true"
                 }
                 url = "https://sinupot.sdp.gov.co/serverp/rest/services/Consultas/MapServer/15/query?" + urllib.parse.urlencode(params)
-                try:    r = requests.get(url).json()
+                try:    r = requests.get(url,verify=False).json()
                 except: r = None
                 
                 if r is not None:
@@ -163,13 +164,19 @@ def getpdfsinupot(urlist):
     # Requests paralelo y asyncronico
     if isinstance(urlist,list) and urlist!=[]:
         nest_asyncio.apply()
+
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
         async def fetch_pdf(session, url_info):
             try:
-                async with session.get(url_info['url']) as response:
+                async with session.get(url_info['url'], ssl=ssl_context) as response:  # ssl=ssl_context deshabilita la verificación
                     r = await response.json()
                     pdf_url = r['results'][0]['value']['url'] if r.get('results') else None
                     url_info['pdf'] = pdf_url
-            except: url_info['pdf'] = None
+            except:
+                url_info['pdf'] = None
             return url_info
         
         async def fetch_all_pdfs(urls):
@@ -193,7 +200,7 @@ def getpdfsinupot(urlist):
         merger     = PdfMerger()
         
         for idx, url in enumerate(pdf_urls):
-            response = requests.get(url)
+            response = requests.get(url,verify=False)
             response.raise_for_status()
             temp_pdf = f'temp_{idx}.pdf'
             with open(temp_pdf, 'wb') as file:

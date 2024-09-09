@@ -25,7 +25,7 @@ def main(chip=None,barmanpre=None,vartype=None):
         mapheight  = int(screensize)
     except: pass
     
-    col1,col2,col3      = st.columns([0.05,0.4,0.55],gap="small")
+    col1,col2,col3  = st.columns([0.05,0.4,0.55],gap="small")
     chip_referencia = chip
 
     if isinstance(barmanpre, str):
