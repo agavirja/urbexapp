@@ -23,11 +23,17 @@ def main():
     initialformat = {
         'access':False,
         'token':'',
+        'mapkey':None,
         }
     for key,value in initialformat.items():
         if key not in st.session_state: 
             st.session_state[key] = value
 
+    if st.session_state.mapkey is None:
+        keytime  = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        keyvalue = random.randint(10000, 99999)
+        st.session_state.mapkey = f'map_{keytime}{keyvalue}'
+        
     #-------------------------------------------------------------------------#
     # Tamano de la pantalla 
     screensize = 1920
@@ -189,10 +195,12 @@ def ifPolygon(formato,mapwidth,mapheight):
             folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
 
         if st.session_state.datalotes_busqueda_avanzada_default.empty:
-            keytime  = datetime.now().strftime('%Y%m%d%H%M%S%f')
-            keyvalue = random_value = random.randint(10000, 99999)
-            keyvalue = f'map_{keytime}{keyvalue}'
-            st_map = st_folium(m, key=keyvalue,width=int(mapwidth*0.95),height=500)
+            if st.session_state.mapkey is None:
+                keytime  = datetime.now().strftime('%Y%m%d%H%M%S%f')
+                keyvalue = random.randint(10000, 99999)
+                st.session_state.mapkey = f'map_{keytime}{keyvalue}'
+                
+            st_map = st_folium(m, key=st.session_state.mapkey,width=int(mapwidth*0.95),height=500)
     
             if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
                 if st_map['all_drawings']!=[]:
