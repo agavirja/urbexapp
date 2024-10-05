@@ -192,7 +192,7 @@ def ifPolygon(formato,mapwidth,mapheight):
             keytime  = datetime.now().strftime('%Y%m%d%H%M%S%f')
             keyvalue = random_value = random.randint(10000, 99999)
             keyvalue = f'map_{keytime}{keyvalue}'
-            st_map = st_folium(m, key=keyvalue,width=int(mapwidth*0.95),height=500,no_reload=True)
+            st_map = st_folium(m, key=keyvalue,width=int(mapwidth*0.95),height=500)
     
             if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
                 if st_map['all_drawings']!=[]:
