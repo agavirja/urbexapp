@@ -2,7 +2,7 @@ import streamlit as st
 import folium
 import pandas as pd
 import geopandas as gpd
-from streamlit_folium import st_folium
+from streamlit_folium import st_folium,folium_static
 from folium.plugins import Draw
 from shapely.geometry import Polygon,Point,mapping,shape
 from streamlit_js_eval import streamlit_js_eval
@@ -105,11 +105,13 @@ def landing(mapwidth,mapheight):
     # Mapa
     
     m    = folium.Map(location=[st.session_state.latitud, st.session_state.longitud], zoom_start=st.session_state.zoom_start,tiles="cartodbpositron")
-    draw = Draw(
-                draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
-                edit_options={"poly": {"allowIntersection": False}}
-                )
-    draw.add_to(m)
+    
+    if st.session_state.data_mls.empty:
+        draw = Draw(
+                    draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
+                    edit_options={"poly": {"allowIntersection": False}}
+                    )
+        draw.add_to(m)
     
     if st.session_state.polygon_am is not None:
         folium.GeoJson(mapping(st.session_state.polygon_am), style_function=style_function).add_to(m)
@@ -125,24 +127,29 @@ def landing(mapwidth,mapheight):
         folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
     
     with col3:
-        st_map = st_folium(m,width=mapwidth,height=mapheight)
-    
-    polygonType = ''
-    if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
-        if st_map['all_drawings']!=[]:
-            if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry']:
-                polygonType = st_map['all_drawings'][0]['geometry']['type']
+        if st.session_state.data_mls.empty:
         
-    if 'polygon' in polygonType.lower():
-        coordenadas                 = st_map['all_drawings'][0]['geometry']['coordinates']
-        st.session_state.polygon_am = Polygon(coordenadas[0])
-        geojson_data_mls            = mapping(st.session_state.polygon_am)
-        polygon_shape               = shape(geojson_data_mls)
-        centroid                    = polygon_shape.centroid
-        st.session_state.latitud    = centroid.y
-        st.session_state.longitud   = centroid.x
-        st.session_state.zoom_start = 16
-        st.rerun()
+            st_map = st_folium(m,width=mapwidth,height=mapheight)
+    
+            polygonType = ''
+            if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
+                if st_map['all_drawings']!=[]:
+                    if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry']:
+                        polygonType = st_map['all_drawings'][0]['geometry']['type']
+                
+            if 'polygon' in polygonType.lower():
+                coordenadas                 = st_map['all_drawings'][0]['geometry']['coordinates']
+                st.session_state.polygon_am = Polygon(coordenadas[0])
+                geojson_data_mls            = mapping(st.session_state.polygon_am)
+                polygon_shape               = shape(geojson_data_mls)
+                centroid                    = polygon_shape.centroid
+                st.session_state.latitud    = centroid.y
+                st.session_state.longitud   = centroid.x
+                st.session_state.zoom_start = 16
+                st.rerun()
+                
+        if not st.session_state.data_mls.empty:
+            folium_static(m,width=mapwidth,height=mapheight)
 
     if st.session_state.polygon_am is not None:        
         polygon = str(st.session_state.polygon_am)

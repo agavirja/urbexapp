@@ -7,7 +7,7 @@ import json
 from shapely import wkt
 from shapely.geometry import mapping
 from bs4 import BeautifulSoup
-from streamlit_folium import st_folium
+from streamlit_folium import folium_static
 from shapely.affinity import scale
 from area import area as areapolygon
 from sklearn.cluster import KMeans
@@ -228,7 +228,7 @@ def landing(barmanpre,mapwidth,mapheight):
             m = folium.Map(location=[latitud, longitud], zoom_start=18,tiles="cartodbpositron")
             folium.GeoJson(mapping(polygon), style_function=style_function_bigpolygon).add_to(m)
             folium.GeoJson(mapping(newpolygon), style_function=style_function_smallpolygon).add_to(m)
-            st_map = st_folium(m,width=500,height=600)
+            folium_static(m,width=500,height=600)
         
         #-----------------------------------------------------------------------------#
         # Mapa 3D

@@ -8,7 +8,7 @@ import tempfile
 import pdfcrowd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from streamlit_folium import st_folium
+from streamlit_folium import folium_static
 from shapely.geometry import Point
 from streamlit_js_eval import streamlit_js_eval
 from bs4 import BeautifulSoup
@@ -167,7 +167,7 @@ def main(polygon=None,precuso=None,barmanpreref=None,latitud=None,longitud=None,
                 folium.GeoJson(geopoints,style_function=style_function_geojson,marker=marker).add_to(m)
                 
             with col1:
-                st_map = st_folium(m,width=int(mapwidth*0.3),height=900)
+                folium_static(m,width=int(mapwidth*0.3),height=900)
         
         #---------------------------------------------------------------------#
         # Reporte

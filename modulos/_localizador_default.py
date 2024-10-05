@@ -2,7 +2,7 @@ import streamlit as st
 import folium
 import pandas as pd
 import geopandas as gpd
-from streamlit_folium import st_folium
+from streamlit_folium import folium_static
 from shapely.geometry import Point
 from streamlit_js_eval import streamlit_js_eval
 
@@ -175,7 +175,7 @@ def display_brand_map(data,latitud,longitud,mapwidth,mapheight):
             )
             folium.Marker(location=[items["latitud"], items["longitud"]], icon=icon).add_to(m)
         
-        st_map = st_folium(m,width=mapwidth,height=mapheight)
+        folium_static(m,width=mapwidth,height=mapheight)
 
 @st.cache_data(show_spinner=False)
 def data2geopandas_brand(data):
@@ -251,7 +251,7 @@ def display_owner_map(data,latitud,longitud,mapwidth,mapheight):
         folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
         geopoints = point2geopandas_owner(data)
         folium.GeoJson(geopoints).add_to(m)
-        st_map = st_folium(m,width=mapwidth,height=mapheight)
+        folium_static(m,width=mapwidth,height=mapheight)
 
 @st.cache_data(show_spinner=False)
 def data2geopandas_owner(data):

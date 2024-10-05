@@ -6,7 +6,7 @@ import base64
 import json
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_hex
-from streamlit_folium import st_folium
+from streamlit_folium import st_folium,folium_static
 from folium.plugins import Draw
 from shapely.geometry import Polygon,mapping,shape
 from streamlit_js_eval import streamlit_js_eval
@@ -153,17 +153,22 @@ def landing(mapwidth,mapheight):
             
         folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup,highlight_function=highlight_function,tooltip=tooltip).add_to(m)
         
-    with colf2:
-        st_map = st_folium(m,width=int(mapwidth*0.7),height=900)
-    
-        if "last_active_drawing" in st_map and st_map['last_active_drawing'] is not None and 'properties' in st_map['last_active_drawing']  and 'popup' in st_map['last_active_drawing']['properties'] and st_map['last_active_drawing']['properties']['popup']:
-            text = st_map['last_active_drawing']['properties']['popup'].strip()
-            if 'Localidad' in str(text):
-                localidad = str(text).split('Localidad:')[-1].split('</b>')[-1].split('<br>')[0].strip()
-                codigo = st.session_state.datalocalidades[st.session_state.datalocalidades['locnombre'] == localidad]['loccodigo'].iloc[0]
-                if st.session_state.codseleccion is None or (isinstance(codigo, str) and isinstance(st.session_state.codseleccion, str) and st.session_state.codseleccion != codigo):
-                    st.session_state.codseleccion = codigo
-                    st.rerun()
+    if datacompilado.empty:
+        with colf2:
+            st_map = st_folium(m,width=int(mapwidth*0.7),height=900)
+        
+            if "last_active_drawing" in st_map and st_map['last_active_drawing'] is not None and 'properties' in st_map['last_active_drawing']  and 'popup' in st_map['last_active_drawing']['properties'] and st_map['last_active_drawing']['properties']['popup']:
+                text = st_map['last_active_drawing']['properties']['popup'].strip()
+                if 'Localidad' in str(text):
+                    localidad = str(text).split('Localidad:')[-1].split('</b>')[-1].split('<br>')[0].strip()
+                    codigo = st.session_state.datalocalidades[st.session_state.datalocalidades['locnombre'] == localidad]['loccodigo'].iloc[0]
+                    if st.session_state.codseleccion is None or (isinstance(codigo, str) and isinstance(st.session_state.codseleccion, str) and st.session_state.codseleccion != codigo):
+                        st.session_state.codseleccion = codigo
+                        st.rerun()
+    if not datacompilado.empty:
+        with colf2:
+            folium_static(m,width=int(mapwidth*0.7),height=900)
+        
          
     label = None
     if not datacompilado.empty:

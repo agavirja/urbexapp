@@ -11,6 +11,7 @@ import ssl
 from pypdf import PdfMerger, PdfReader
 from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
+from multiprocessing.dummy import Pool
 
 from data.getdatabuilding import chip2codigolote_sinupot
 
@@ -157,6 +158,7 @@ def generalSINUPOT(chip=None,barmanpre=None,tipocodigo=None,tipoarea=None,report
 
     return PDFbyte
 
+
 @st.cache_data(show_spinner=False)
 def getpdfsinupot(urlist):
     PDFbyte = None
@@ -195,21 +197,68 @@ def getpdfsinupot(urlist):
         for i in urlist:
             if 'pdf' in i and isinstance(i['pdf'],str) and i['pdf']!='':
                 pdf_urls.append(i['pdf'])
-        
+
         output_pdf = 'combined.pdf'
         merger     = PdfMerger()
         
         for idx, url in enumerate(pdf_urls):
-            response = requests.get(url,verify=False)
-            response.raise_for_status()
-            temp_pdf = f'temp_{idx}.pdf'
-            with open(temp_pdf, 'wb') as file:
-                file.write(response.content)
             try:
-                reader = PdfReader(temp_pdf)
-                merger.append(reader)
+                response = requests.get(url,verify=False)
+                response.raise_for_status()
+                temp_pdf = f'temp_{idx}.pdf'
+                with open(temp_pdf, 'wb') as file:
+                    file.write(response.content)
+                try:
+                    reader = PdfReader(temp_pdf)
+                    merger.append(reader)
+                except: pass
+                finally: os.remove(temp_pdf)
             except: pass
-            finally: os.remove(temp_pdf)
+        with open(output_pdf, 'wb') as final_pdf:
+            merger.write(final_pdf)
+            
+        merger.close()
+        with open(output_pdf, "rb") as pdf_file:
+            PDFbyte = pdf_file.read()
+            
+    return PDFbyte
+
+
+@st.cache_data(show_spinner=False)
+def getpdfsinupot1(urlist):
+    PDFbyte = None
+    #-----------------------------------------------------------------------------#
+    # Requests paralelo y asyncronico
+    if isinstance(urlist,list) and urlist!=[]:
+        pool       = Pool(5)
+        futures    = []
+        pdf_urls = []
+        for x in urlist:
+            futures.append(pool.apply_async(requests.get, [x['url']],dict(verify=False)))
+        for future in futures:
+            r = future.get().json()
+            try:    urlappend = r['results'][0]['value']['url'] if r.get('results') else None
+            except: urlappend = None
+            pdf_urls.append(urlappend)
+        
+        #-----------------------------------------------------------------------------#
+        # Consolidar todos los pdf en uno solo
+        output_pdf = 'combined.pdf'
+        merger     = PdfMerger()
+        
+        for idx, url in enumerate(pdf_urls):
+            try:
+                response = requests.get(url,verify=False)
+                response.raise_for_status()
+                temp_pdf = f'temp_{idx}.pdf'
+                with open(temp_pdf, 'wb') as file:
+                    file.write(response.content)
+                try:
+                    reader = PdfReader(temp_pdf)
+                    merger.append(reader)
+                except: pass
+                finally: os.remove(temp_pdf)
+            except: pass
         with open(output_pdf, 'wb') as final_pdf:
             merger.write(final_pdf)
             

@@ -3,7 +3,7 @@ import pandas as pd
 import geopandas as gpd
 import shapely.wkt as wkt
 import folium
-from streamlit_folium import st_folium
+from streamlit_folium import folium_static
 from streamlit_js_eval import streamlit_js_eval
 from bs4 import BeautifulSoup
 
@@ -69,7 +69,7 @@ def main(code=None):
                 folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
                 
             with col5:
-                st_map = st_folium(m,width=int(mapwidth*0.4),height=400)
+                folium_static(m,width=int(mapwidth*0.4),height=400)
         
         #-------------------------------------------------------------------------#
         # Google maps streetview

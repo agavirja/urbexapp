@@ -3,12 +3,14 @@ import re
 import folium
 import pandas as pd
 import geopandas as gpd
-from streamlit_folium import st_folium
+import random
+from streamlit_folium import st_folium,folium_static
 from folium.plugins import Draw
 from shapely.geometry import Polygon,mapping,shape
 from streamlit_js_eval import streamlit_js_eval
 from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 from data.getdatalotes import main as getdatalotes
 from data.getdatalotesedificios import main as getdatalotesedificios
@@ -157,11 +159,13 @@ def ifPolygon(formato,mapwidth,mapheight):
     # Mapa
     with colm2:
         m    = folium.Map(location=[st.session_state.latitud_busqueda_avanzada_default, st.session_state.longitud_busqueda_avanzada_default], zoom_start=st.session_state.zoom_start_data_busqueda_avanzada_default,tiles="cartodbpositron")
-        draw = Draw(
-                    draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
-                    edit_options={"poly": {"allowIntersection": False}}
-                    )
-        draw.add_to(m)
+        
+        if st.session_state.datalotes_busqueda_avanzada_default.empty:
+            draw = Draw(
+                        draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
+                        edit_options={"poly": {"allowIntersection": False}}
+                        )
+            draw.add_to(m)
     
         if st.session_state.geojson_data_busqueda_avanzada_default is not None:
             if st.session_state.datalotes_busqueda_avanzada_default.empty:
@@ -183,22 +187,29 @@ def ifPolygon(formato,mapwidth,mapheight):
                 labels=True,
             )
             folium.GeoJson(geojson,style_function=style_function_geojson,popup=popup).add_to(m)
+
+        if st.session_state.datalotes_busqueda_avanzada_default.empty:
+            keytime  = datetime.now().strftime('%Y%m%d%H%M%S%f')
+            keyvalue = random_value = random.randint(10000, 99999)
+            keyvalue = f'map_{keytime}{keyvalue}'
+            st_map = st_folium(m, key=keyvalue,width=int(mapwidth*0.95),height=500,no_reload=True)
+    
+            if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
+                if st_map['all_drawings']!=[]:
+                    if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
+                        coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
+                        st.session_state.polygon_busqueda_avanzada_default = Polygon(coordenadas[0])
+                        st.session_state.geojson_data_busqueda_avanzada_default            = mapping(st.session_state.polygon_busqueda_avanzada_default)
+                        polygon_shape                            = shape(st.session_state.geojson_data_busqueda_avanzada_default)
+                        centroid                                 = polygon_shape.centroid
+                        st.session_state.latitud_busqueda_avanzada_default                 = centroid.y
+                        st.session_state.longitud_busqueda_avanzada_default                = centroid.x
+                        st.session_state.zoom_start_data_busqueda_avanzada_default              = 16
+                        st.rerun()
+
+        else: 
+            folium_static(m,width=int(mapwidth*0.95),height=500)
             
-        st_map = st_folium(m,width=int(mapwidth*0.95),height=500)
-
-        if 'all_drawings' in st_map and st_map['all_drawings'] is not None:
-            if st_map['all_drawings']!=[]:
-                if 'geometry' in st_map['all_drawings'][0] and 'type' in st_map['all_drawings'][0]['geometry'] and "Polygon" in st_map['all_drawings'][0]['geometry']['type']:
-                    coordenadas                              = st_map['all_drawings'][0]['geometry']['coordinates']
-                    st.session_state.polygon_busqueda_avanzada_default = Polygon(coordenadas[0])
-                    st.session_state.geojson_data_busqueda_avanzada_default            = mapping(st.session_state.polygon_busqueda_avanzada_default)
-                    polygon_shape                            = shape(st.session_state.geojson_data_busqueda_avanzada_default)
-                    centroid                                 = polygon_shape.centroid
-                    st.session_state.latitud_busqueda_avanzada_default                 = centroid.y
-                    st.session_state.longitud_busqueda_avanzada_default                = centroid.x
-                    st.session_state.zoom_start_data_busqueda_avanzada_default              = 16
-                    st.rerun()
-
     #-------------------------------------------------------------------------#
     # Reporte
     if seleccion==[]: seleccion = ['Todos']

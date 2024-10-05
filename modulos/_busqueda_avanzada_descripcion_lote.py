@@ -5,7 +5,7 @@ import shapely.wkt as wkt
 import plotly.graph_objects as go
 import plotly.express as px
 from bs4 import BeautifulSoup
-from streamlit_folium import st_folium
+from streamlit_folium import folium_static
 from streamlit_js_eval import streamlit_js_eval
 from datetime import datetime
 from plotly.subplots import make_subplots
@@ -80,7 +80,7 @@ def main(code=None):
                 except: pass
         folium.Marker(location=[latitud, longitud]).add_to(m)
         with col5:
-            st_map = st_folium(m,width=int(mapwidth*0.5),height=400)
+            folium_static(m,width=int(mapwidth*0.5),height=400)
     
         with col1:
             html = mapstreetview(latitud,longitud)
