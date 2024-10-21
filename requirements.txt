@@ -31,3 +31,4 @@ unidecode
 openpyxl
 mapbox
 scikit-learn
+geopy
