@@ -189,10 +189,6 @@ def dashboard(data,mapwidth=1280):
     #---------------------------------------------------------------------#
     # Mapa de referencia
     #---------------------------------------------------------------------#
-    st.dataframe(data)
-    st.write(data['radio'].iloc[0])
-    st.write(json.loads(data['radio'].iloc[0]))
-    
     if not data.empty:
         
         latitud,longitud = 4.688002,-74.054444  # Para centrarlo en Bogota 
