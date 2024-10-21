@@ -2,6 +2,7 @@ import folium
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
+import json
 import plotly.express as px
 from streamlit_folium import folium_static
 from bs4 import BeautifulSoup
@@ -10,7 +11,8 @@ from shapely.geometry import Point
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, AgGridTheme
 from st_aggrid.shared import JsCode
 from datetime import datetime
-from data.getdataBrands import getoptions,getdatabrans
+
+from data.getdataBrands import getoptions,getallcountrybrands
 
 from display.stylefunctions  import style_function_geojson
 
@@ -61,66 +63,43 @@ def landing(mapwidth,mapheight):
         
     latitud   = 4.652652 
     longitud  = -74.077899
-    inputvar  = []
-
+    idxlabel  = []
+    
     with st.spinner('Busqueda de información'):
         dataoptions = getoptions()
 
-        col1,col2,col3 = st.columns([0.1,0.45,0.45])
+        col1,col2,col3 = st.columns([0.4,0.3,0.3])
+        
         with col1:
-            check = st.checkbox('',value=True)
-            
-        if check: disablevar = False
-        else:     disablevar = True
+            segmento = st.multiselect('Busqueda por:',options=sorted(list(dataoptions['label'].unique())))
+            if isinstance(segmento,list) and segmento!=[]:
+                idxlabel = list(set(list(dataoptions[dataoptions['label'].isin(segmento)]['idxlabel'].unique())))
         
+    if isinstance(idxlabel,list) and idxlabel!=[]:
         with col2:
-            segmento = st.selectbox('Busqueda por:',options=sorted(list(dataoptions['label'].unique())),disabled=disablevar)
-            idxlabel = dataoptions[dataoptions['label']==segmento]['idxlabel'].iloc[0]
-        with col3:
-            empresa  = st.selectbox('Marca:',options=sorted(list(dataoptions[dataoptions['idxlabel']==idxlabel]['empresa'].unique())),disabled=disablevar)
-            idd      = dataoptions['empresa']==empresa
-            dataoptions = dataoptions[~idd]
-        
-        if check:
-            inputvar.append({'mpio_ccdgo':'11001','idxlabel':idxlabel,'empresa':empresa})
-            
-        if check:
-            col1,col2,col3 = st.columns([0.1,0.45,0.45])
-            with col1:
-                check = st.checkbox(' ',value=False)
-                
-            if check: disablevar = False
-            else:     disablevar = True
-            
-            with col2:
-                segmento = st.selectbox('Busqueda por: ',options=sorted(list(dataoptions['label'].unique())),disabled=disablevar)
-                idxlabel = dataoptions[dataoptions['label']==segmento]['idxlabel'].iloc[0]
-            with col3:
-                empresa  = st.selectbox('Marca: ',options=sorted(list(dataoptions[dataoptions['idxlabel']==idxlabel]['empresa'].unique())),disabled=disablevar)
-            
-            if check:
-                inputvar.append({'mpio_ccdgo':'11001','idxlabel':idxlabel,'empresa':empresa})
-            
-    col1,col2,col3 = st.columns([0.1,0.45,0.45])
-    if isinstance(inputvar,list) and inputvar!=[]:
-        with col2:
+            st.write('')
+            st.write('')
             if st.button('Buscar'):
                 with st.spinner('Buscando data'):
-                    st.session_state.data_localizador_marcas   = getdatabrans(inputvar)
+                    st.session_state.data_localizador_marcas   = getallcountrybrands(idxlabel=idxlabel)
                     st.session_state.search_localizador_marcas = True
                     st.rerun()
                     
         with col3:
+            st.write('')
+            st.write('')
             if st.button('Resetear búsqueda'):
                 for key,value in formato.items():
                     del st.session_state[key]
                 st.rerun()
             
+    #st.dataframe(st.session_state.data_localizador_marcas)
     if st.session_state.search_localizador_marcas and not st.session_state.data_localizador_marcas.empty:
         dashboard(st.session_state.data_localizador_marcas,mapwidth=mapwidth)
     elif st.session_state.search_localizador_marcas and st.session_state.data_localizador_marcas.empty:
         st.error('No se encontró información de predios')
-        
+ 
+
 
 def dashboard(data,mapwidth=1280):
     
@@ -210,9 +189,13 @@ def dashboard(data,mapwidth=1280):
     #---------------------------------------------------------------------#
     # Mapa de referencia
     #---------------------------------------------------------------------#
+    st.dataframe(data)
+    st.write(data['radio'].iloc[0])
+    st.write(json.loads(data['radio'].iloc[0]))
+    
     if not data.empty:
         
-        latitud,longitud = 4.688002,-74.054444
+        latitud,longitud = 4.688002,-74.054444  # Para centrarlo en Bogota 
         if 'latitud' in data and 'longitud' in data:
             latitud  = data['latitud'].mean()
             longitud = data['longitud'].mean()
@@ -220,7 +203,7 @@ def dashboard(data,mapwidth=1280):
         m = folium.Map(location=[latitud, longitud], zoom_start=11,tiles="cartodbpositron")
 
         geojson = data2geopandas(data)
-        popup                 = folium.GeoJsonPopup(
+        popup   = folium.GeoJsonPopup(
             fields=["popup"],
             aliases=[""],
             localize=True,
@@ -239,7 +222,62 @@ def dashboard(data,mapwidth=1280):
                     icon_image = items["marker"],
                     icon_size  = (25, 25),
                 )
-                folium.Marker(location=[items["latitud"], items["longitud"]], icon=icon).add_to(m)
+                try:    empresa = f"<b> Empresa:</b> {items['empresa']}<br>" if isinstance(items['empresa'],str) and items['empresa']!='' else 'Sin información'
+                except: empresa = "<b> Empresa:</b> Sin información <br>" 
+                try:    direccion = f"<b> Dirección:</b> {items['direccion']}<br>" if isinstance(items['direccion'],str) and items['direccion']!='' else 'Sin información'
+                except: direccion = "<b> Dirección:</b> Sin información <br>" 
+                try:    nombre = f"<b> Nombre:</b> {items['nombre']}<br>" if isinstance(items['nombre'],str) and items['nombre']!='' else 'Sin información'
+                except: nombre = "<b> Nombre:</b> Sin información <br>" 
+                try:    barrio = f"<b> Barrio:</b> {items['prenbarrio']}<br>" if isinstance(items['prenbarrio'],str) and items['prenbarrio']!='' else 'Sin información'
+                except: barrio = "<b> Barrio:</b> Sin información <br>"      
+                
+                popup_content = ""
+                if 'barmanpre' in items and isinstance(items['barmanpre'],str) and items['barmanpre']!='':
+                    urllink       = f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={items['barmanpre']}&vartype=barmanpre&token={st.session_state.token}"
+                    popup_content =  f'''
+                    <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:250px;font-size: 12px;">
+                        <h5 style="text-align: center; margin-bottom: 10px;">Detalle del predio:</h5>
+                        <a href="{urllink}" target="_blank" style="color: black;">
+                            {empresa}
+                            {direccion}
+                            {nombre}
+                            {barrio}
+                        </a>
+                    </div>
+                    '''
+                
+                if 'radio' in items and isinstance(items['radio'],str) and items['radio']!='':
+                    urllink = f"http://www.urbex.com.co/Busqueda_avanzada?type=marcaradio&code={items['id']}&vartype=id&token={st.session_state.token}"
+                    popup_content +=  f'''
+                    <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:250px;font-size: 12px;">
+                        <h5 style="text-align: center; margin-bottom: 10px;">Análisis de radio:</h5>
+                        <a href="{urllink}" target="_blank" style="color: black;">
+                            <b> Empresa:</b> {items['empresa']}<br>
+                            <b> Nombre:</b> {items['nombre']}<br>
+                            <b> Dirección:</b> {items['direccion']}<br>
+                        </a>
+                    </div>
+                    '''
+                if popup_content=='':
+                    popup_content =  f'''
+                    <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:250px;font-size: 12px;">
+                        {empresa}
+                        {direccion}
+                        {nombre}
+                        {barrio}
+                    </div>
+                    '''
+                    
+                popup_content =  f'''
+                <!DOCTYPE html>
+                <html>
+                    <body>
+                        {popup_content}
+                    </body>
+                </html>
+                '''
+                
+                folium.Marker(location=[items["latitud"], items["longitud"]], icon=icon,popup=popup_content).add_to(m)
             
         with col1:
             folium_static(m,width=int(mapwidth*0.4),height=900)

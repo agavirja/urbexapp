@@ -359,7 +359,7 @@ def landing(barmanpre,mapwidth,mapheight):
             
             try:    colorplant1 = datapisos[datapisos['piso']==1]['color'].iloc[0]
             except: colorplant1 = '#FFF'
-            
+                    
             mapa = mapa.replace('centerlat', f'{latitud}').replace('centerlng', f'{longitud}').replace('replace_access_token', access_token)
             mapa = mapa.replace('geojsonpolygon', f'{geojson_feature}').replace('numero_pisos', f'{numero_pisos}').replace('altura_pisos', f'{altura_pisos}')
             mapa = mapa.replace('geojsonsuperficie', f'{geojson_feature_superficie}')

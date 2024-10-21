@@ -4,6 +4,7 @@ import warnings
 from modulos._busqueda_avanzada_default  import main as _busqueda_avanzada_default
 from modulos._busqueda_avanzada_predio   import main as _busqueda_avanzada_predio
 from modulos._busqueda_avanzada_lote     import main as _busqueda_avanzada_lote
+from modulos._localizador_marcas_radio   import main as _localizador_marcas_radio
 
 from data.getuser import getuser
 from display.style_white import style 
@@ -55,6 +56,8 @@ if st.session_state.access:
         if isinstance(st.session_state._market_precuso,str) and st.session_state._market_precuso!="":
             precuso = st.session_state._market_precuso.split('|')
         _busqueda_avanzada_lote(st.session_state.code,precuso=precuso,selectoption=st.session_state._market_select)
+    elif isinstance(st.session_state.code, str) and isinstance(st.session_state.type, str) and 'marcaradio' in st.session_state.type.lower():
+        _localizador_marcas_radio(codigo=st.session_state.code)
 else:
     from modulos.signup_login import main as signup_login
     signup_login()
