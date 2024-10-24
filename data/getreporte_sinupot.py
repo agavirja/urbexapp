@@ -8,7 +8,7 @@ import nest_asyncio
 import aiohttp
 import asyncio
 import ssl
-from pypdf import PdfMerger, PdfReader
+from pypdf import PdfMerger, PdfReader, PdfWriter
 from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
 from multiprocessing.dummy import Pool
@@ -198,26 +198,31 @@ def getpdfsinupot(urlist):
             if 'pdf' in i and isinstance(i['pdf'],str) and i['pdf']!='':
                 pdf_urls.append(i['pdf'])
 
+        #-----------------------------------------------------------------------------#
+        # Consolidar todos los pdf en uno solo
         output_pdf = 'combined.pdf'
-        merger     = PdfMerger()
+        writer = PdfWriter()  # Usar PdfWriter en lugar de PdfMerger
         
         for idx, url in enumerate(pdf_urls):
             try:
-                response = requests.get(url,verify=False)
+                response = requests.get(url, verify=False)
                 response.raise_for_status()
                 temp_pdf = f'temp_{idx}.pdf'
                 with open(temp_pdf, 'wb') as file:
                     file.write(response.content)
+                
                 try:
                     reader = PdfReader(temp_pdf)
-                    merger.append(reader)
+                    for page in range(len(reader.pages)):
+                        writer.add_page(reader.pages[page])  # Agregar cada página al PdfWriter
                 except: pass
-                finally: os.remove(temp_pdf)
+                finally:
+                    os.remove(temp_pdf)
             except: pass
+        
         with open(output_pdf, 'wb') as final_pdf:
-            merger.write(final_pdf)
+            writer.write(final_pdf)
             
-        merger.close()
         with open(output_pdf, "rb") as pdf_file:
             PDFbyte = pdf_file.read()
             
