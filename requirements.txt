@@ -6,6 +6,7 @@ boto3
 botocore
 fitz
 folium
+frontend
 geopandas
 geojson
 geopy
@@ -33,6 +34,7 @@ sqlalchemy
 streamlit
 streamlit-aggrid
 streamlit-toggle
+streamlit_cookies_manager
 streamlit-cookies-manager
 streamlit_folium
 streamlit_js_eval
