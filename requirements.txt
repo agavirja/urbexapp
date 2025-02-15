@@ -4,9 +4,7 @@ area
 beautifulsoup4
 boto3
 botocore
-fitz
 folium
-frontend
 geopandas
 geojson
 geopy
