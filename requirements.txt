@@ -33,7 +33,7 @@ sqlalchemy
 streamlit
 streamlit-aggrid
 streamlit-toggle
-streamlit_cookies_manager
+streamlit-cookies-manager
 streamlit_folium
 streamlit_js_eval
 streamlit_option_menu
