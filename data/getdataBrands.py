@@ -115,7 +115,7 @@ def getallcountrybrands(idxlabel=None):
     if isinstance(idxlabel,list) and idxlabel!=[]:
         lista = "','".join(list(set(idxlabel)))
         query = f" idxlabel IN ('{lista}')"
-        data  = pd.read_sql_query(f"SELECT id,nombre,direccion,empresa,lotcodigo as barmanpre,predirecc,marker,marker_color,radio,latitud,longitud,prenbarrio,dpto_ccdgo FROM  bigdata.brand_data WHERE {query} " , engine)
+        data  = pd.read_sql_query(f"SELECT id,nombre,direccion,empresa,lotcodigo as barmanpre,predirecc,marker,marker_color,radio,latitud,longitud,prenbarrio,dpto_ccdgo,dpto_cnmbr,mpio_cnmbr,mpio_ccdgo FROM  bigdata.brand_data WHERE {query} " , engine)
 
     if not data.empty:
         data = data[data['dpto_ccdgo'].notnull()]

@@ -30,6 +30,13 @@ def style_referencia(feature):
         #'dashArray': '5, 5'
     }  
 
+def style_function_color(feature):
+    return {
+        'fillColor': '#828DEE',
+        'color':'#828DEE',
+        'weight': 1,
+    }
+
 def style_function_geojson(feature):
     color = feature['properties']['color']
     return {

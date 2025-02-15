@@ -1,43 +1,23 @@
 import streamlit as st
-import pdfcrowd
 import pandas as pd
 import re
-import tempfile
 from sqlalchemy import create_engine 
 from bs4 import BeautifulSoup
 from datetime import datetime
+#import mapbox
+
+from functions._principal_getpdf import main as _principal_getpdf
+
 
 def main(code=None,tipoinmueble=None,tiponegocio=None):
 
+    coldownbutton1,coldownbutton2 = st.columns([0.7,0.3])
+    
     with st.spinner('Buscando información'):
         data = getdatamarketbycode(code=code,tipoinmueble=tipoinmueble,tiponegocio=tiponegocio)
         if not data.empty:
-            data         = data.to_dict(orient='records')[0]
-            API_KEY      = st.secrets["API_KEY"]
-            pdfcrowduser = st.secrets["pdfcrowduser"]
-            pdfcrowdpass = st.secrets["pdfcrowdpass"]
+            data = data.to_dict(orient='records')[0]
             
-            col1, col2,col3 = st.columns([3,1,1])
-            with col2:
-                if st.button('Generar Ficha en PDF'):
-                    with st.spinner("Generando PDF"):
-                        if st.session_state.html_pdf is not None:
-                            fd, temp_path     = tempfile.mkstemp(suffix=".html")
-                            wd, pdf_temp_path = tempfile.mkstemp(suffix=".pdf")       
-                            
-                            client = pdfcrowd.HtmlToPdfClient(pdfcrowduser,pdfcrowdpass)
-                            client.convertStringToFile(st.session_state.html_pdf, pdf_temp_path)
-                            client.setPageSize('Letter')
-                            
-                            with open(pdf_temp_path, "rb") as pdf_file:
-                                PDFbyte = pdf_file.read()
-                            
-                            with col3:
-                                st.download_button(label="Descargar Ficha",
-                                                    data=PDFbyte,
-                                                    file_name=f"ficha-codigo-{code}.pdf",
-                                                    mime='application/octet-stream')
-                            
             #-------------------------------------------------------------------------#
             # Catacteristicas del inmueble
             ciudad,localidad,barrio,tipoinmueble,direccion,latitud,longitud,estrato,areaconstruida,habitaciones,banos,garajes,precio = [None,None,None,None,None,None,None,None,None,None,None,None,None]
@@ -58,14 +38,35 @@ def main(code=None,tipoinmueble=None,tiponegocio=None):
             except: pass
             try:estrato        = int(data['estrato'])
             except: pass
-            try:areaconstruida = int(data['areaconstruida'])
+            try: 
+                areaconstruida = int(data['areaconstruida'])
+                areaconstruida = f'<strong>{areaconstruida} </strong> mt<sup>2</sup>' if isinstance(areaconstruida,int) else "" 
             except: pass
-            try:habitaciones   = int(data['habitaciones'])
-            except: pass
-            try:banos          = int(data['banos'])
-            except: pass
-            try:garajes        = int(data['garajes'])
-            except: pass
+
+            try:
+                habitaciones   = int(data['habitaciones'])
+                if habitaciones==1:
+                    habitaciones = f' | <strong>{habitaciones} </strong> Habitación' if isinstance(habitaciones,int) else "" 
+                elif habitaciones>1:
+                    habitaciones = f' | <strong>{habitaciones} </strong> Habitaciones' if isinstance(habitaciones,int) else ""
+                else: habitaciones = ''
+            except: habitaciones = ''
+            try:
+                banos = int(data['banos'])
+                if banos==1:
+                    banos = f' | <strong>{banos} </strong> Baño' if isinstance(banos,int) else "" 
+                elif banos>1:
+                    banos = f' | <strong>{banos} </strong> Baños' if isinstance(banos,int) else "" 
+                else: banos = ''
+            except: banos = ''
+            try:
+                garajes = int(data['garajes'])
+                if garajes==1:
+                    garajes = f' | <strong>{garajes} </strong> Garaje' if isinstance(garajes,int) else "" 
+                elif garajes>1:
+                    garajes = f' | <strong>{garajes} </strong> Garajes' if isinstance(garajes,int) else "" 
+                else: garajes = ''
+            except: garajes = ''
             try:
                 precio = data['valor']
                 precio = f'${precio:,.0f}'
@@ -78,11 +79,13 @@ def main(code=None,tipoinmueble=None,tiponegocio=None):
             try:
                 if data['valoradministracion'] is not None and float(data['valoradministracion'])>0:
                     valoradministracion = data['valoradministracion']
-                    valoradministracion  = f'''<p class="caracteristicas-info">Administración:  ${valoradministracion:,.0f}</p>'''
+                    valoradministracion  = f'''Administración:  ${valoradministracion:,.0f}'''
                 else: valoradministracion = ""
             except: valoradministracion = ""
             
-            caracteristicas = f'<strong>{areaconstruida}</strong> mt<sup>2</sup> | <strong>{habitaciones}</strong> habitaciones | <strong>{banos}</strong> baños | <strong>{garajes}</strong> garajes'
+            #caracteristicas = f'<strong>{areaconstruida} </strong> mt<sup>2</sup> | if isinstance(areaconstruida,(float,int)) else "" <strong>{habitaciones}</strong> habitaciones | <strong>{banos}</strong> baños | <strong>{garajes}</strong> garajes'
+            caracteristicas = f'{areaconstruida}{habitaciones}{banos}{garajes}'
+
             try:
                 descripcion     = data['descripcion']
                 descripcion     = homogenizar_texto(descripcion)
@@ -98,20 +101,30 @@ def main(code=None,tipoinmueble=None,tiponegocio=None):
             
             #-------------------------------------------------------------------------#
         
-            imagenes   = '<div class="property-card-images">\n'
-            imagelinks = [x.strip() for x in data['url_img'].split('|')] if 'url_img' in data and isinstance(data['url_img'], str) else None
-            conteo     = 0
-            if isinstance(imagelinks, list):
-                for i in imagelinks:
-                    if isinstance(i, str) and len(i)>=7:
-                        if 'sin_imagen' not in i:
-                            imagenes += f'''<img src="{i}" alt="property image" onerror="this.src='https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/sin_imagen.png';">\n'''
-                            conteo += 1
-                    if conteo==2:
-                        imagenes += '</div>\n'
-                        imagenes += '<div class="property-card-images">\n'
-                        conteo   = 0
-            imagenes = BeautifulSoup(imagenes, 'html.parser')
+            imagelinks = [x.strip() for x in data.get("url_img", "").split("|")] if isinstance(data.get("url_img"), str) else []
+    
+            imagenes = """
+            <div class="urbex-col-12 urbex-col-lg-7">
+              <div class="urbex-row">
+            """
+            conteo = 0
+             
+            for i in imagelinks:
+                if isinstance(i, str) and len(i) >= 7 and "sin_imagen" not in i:
+                    imagenes += f"""
+            <div class="urbex-col-6">
+                 <div class="urbex-d-flex urbex-flex-column urbex-h-100 urbex-p-2" id="box_shadow_default">
+                  <img src="{i}" alt="property image" style="height: 250px;width: 100%;" onerror="this.src='https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/sin_imagen.png';"/>
+                 </div>
+            </div>
+            """
+                conteo += 1
+                
+            imagenes += """
+              </div>
+            </div>
+            """
+
             
             #---------------------------------------------------------------------#
             # Detalle del inmueble
@@ -127,44 +140,33 @@ def main(code=None,tipoinmueble=None,tiponegocio=None):
             if isinstance(piso, int) or isinstance(piso, float): outuput_list.update({'Piso':int(piso)})
         
             tabla_detalle = ""
-            for i,j in outuput_list.items():
+            for i, j in outuput_list.items():
                 if j is not None:
-                    tabla_detalle += f""" 
+                    tabla_detalle += f"""
                     <tr>
-                      <td style="border-top:none; border-left:none;border-right:none;border-bottom: 1px solid #ccc;">
-                        <h6 class="text-sm" style="margin-bottom: -20px">{i}</h6>
+                      <td>
+                        <span id="label_inside">{i}</span>
                       </td>
-                      <td style="border-top:none; border-left:none;border-right:none;border-bottom: 1px solid #ccc;">
-                        <h6 class="text-sm" style="margin-bottom: -20px">{j}</h6>
+                      <td>
+                        <span id="value_inside">{j}</span>
                       </td>                    
                     </tr>     
                     """
+            
             tabla_detalle = f"""
-            <div class="tabla_principal">
-                <table class="table align-items-center mb-0">
-                  {tabla_detalle}
-                </table>
+            <div class="urbex-col-12" style="margin-top:20px">
+                <div class="urbex-text-center urbex-d-flex urbex-h-100 urbex-d-flex urbex-flex-column" id="box_shadow_default">
+                    <div class="urbex-table-responsive urbex-flex-grow-1" style="line-height: 0.5;">
+                        <table class="urbex-table urbex-table-sm urbex-table-borderless">
+                            <tbody>
+                                {tabla_detalle}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
             """
-        
-            #---------------------------------------------------------------------#
-            # Descripcion
-            #---------------------------------------------------------------------#
-            descripcion_seccion = ""
-            if descripcion!='':
-                descripcion_seccion = f"""
-                <div class="col-xl-12 col-sm-6 mb-xl-2 mb-0">
-                  <div class="card">
-                    <div class="card-body p-3">
-                      <div class="container-fluid py-2">
-                        <h6 class="caracteristicas-info">Descripción</h6>
-                        <p class="text-justify">{descripcion}</p>            
-                      </div>            
-                    </div>        
-                  </div>
-                </div>        
-                """
-                
+                    
             #---------------------------------------------------------------------#
             # Telefonos y link
             #---------------------------------------------------------------------#
@@ -180,42 +182,48 @@ def main(code=None,tipoinmueble=None,tiponegocio=None):
             
             
             tabla_contacto = ""
-            for i,j in outuput_list.items():
+            for i, j in outuput_list.items():
                 if j is not None:
-                    tabla_contacto += f""" 
+                    tabla_contacto += f"""
                     <tr>
-                      <td style="border:none;">
-                        <h6 class="text-sm" style="margin-bottom: -20px">{i}</h6>
+                      <td>
+                        <span id="label_inside">{i}</span>
                       </td>
-                      <td style="border:none;">
-                        <h6 class="text-sm" style="margin-bottom: -20px">{j}</h6>
+                      <td>
+                        <span id="value_inside">{j}</span>
                       </td>                    
                     </tr>     
                     """
-        
-            if isinstance(data['url'], str) and len(data['url'])>20: 
+            
+            if isinstance(data['url'], str) and len(data['url']) > 20:
                 link = f'''[Link]({data['url']})'''
                 tabla_contacto += f"""
                 <tr>
-                  <td style="border:none;">
-                    <h6 class="text-sm" style="margin-bottom: -20px">Ver inmueble</h6>
+                  <td>
+                    <span id="label_inside">Ver inmueble</span>
                   </td>
-                  <td style="border:none;">
-                    <h6 class="text-sm" style="margin-bottom: -20px">
+                  <td>
+                    <span id="value_inside">
                         <a href="{data['url']}">Link</a>
-                    </h6>
+                    </span>
                   </td>                    
                 </tr>  
                 """
-        
+            
             tabla_contacto = f"""
-            <div class="tabla_principal">
-                <h6 class="caracteristicas-info">Contacto</h6>
-                <table class="table align-items-center mb-0">
-                  {tabla_contacto}
-                </table>
+            <div class="urbex-col-12" style="margin-top:20px">
+                <div class="urbex-text-center urbex-d-flex urbex-h-100 urbex-d-flex urbex-flex-column" id="box_shadow_default">
+                    <div class="urbex-table-responsive urbex-flex-grow-1" style="line-height: 0.5;">
+                        <table class="urbex-table urbex-table-sm urbex-table-borderless">
+                            <tbody>
+                                {tabla_contacto}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
             """
+
         
             #---------------------------------------------------------------------#
             # Mapa
@@ -274,125 +282,125 @@ def main(code=None,tipoinmueble=None,tiponegocio=None):
             #---------------------------------------------------------------------#
             # Visual
             #---------------------------------------------------------------------#
-            style = """
-            <style>
-                .tabla_principal {
-                  max-width: 100%; 
-                  max-height: 100%; 
-                }  
-                .price-info {
-                  font-family: 'Roboto', sans-serif;
-                  font-size: 30px;
-                  margin-top:30px;
-                  margin-bottom: 10px;
-                  text-align: left;
-                }
-                .caracteristicas-info {
-                  font-family: 'Roboto', sans-serif;
-                  font-size: 16px;
-                  margin-bottom: 10px;
-                  text-align: left;
-                }
-                .property-card-left {
-                  width: 100%;
-                  height: 100%; /* or max-height: 300px; */
-                  overflow-y: scroll; /* enable vertical scrolling for the images */
-                }
-                .property-card-right {
-                  width: 100%;
-                  margin-left: 10px;
-                }
-            
-                .text-justify {
-                  text-align: justify;
-                }
-                
-                .no-margin {
-                  margin-bottom: 1px;
-                }
-                
-                .price-part1 {
-                  font-family: 'Comic Sans MS', cursive;
-                  font-size: 24px;
-                  margin-bottom: 1px;
-                }
-                
-                .price-part2 {
-                  font-size: 14px;
-                  font-family: 'Comic Sans MS';
-                  margin-bottom: 1px;
-                }
-        
-                .nota {
-                  font-size: 12px;
-                }
-                img{
-                  max-width: 100%;
-                  width: 45%;
-                  height:250px;
-                  object-fit: cover;
-                  margin-bottom: 10px; 
-                }
-            </style>
-            """
-            
             html = f"""
             <!DOCTYPE html>
-            <html>
+            <html data-bs-theme="light" lang="en">
             <head>
-              <link href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/nucleo-icons.css" rel="stylesheet">
-              <link href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/nucleo-svg.css" rel="stylesheet">
-              <link id="pagestyle" href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/soft-ui-dashboard.css?v=1.0.7" rel="stylesheet">
-              {style}
+              <meta charset="utf-8"/>
+              <meta content="width=device-width, initial-scale=1.0, shrink-to-fit=no" name="viewport"/>
+              <link href="https://iconsapp.nyc3.digitaloceanspaces.com/_estilo_general/prefixed_bootstrap.min.css" rel="stylesheet"/>
+              <link href="https://iconsapp.nyc3.digitaloceanspaces.com/_estilo_general/prefixed_styles.css" rel="stylesheet"/>
+              <style>
+        
+                body::-webkit-scrollbar {{
+                    display: none;
+                }}
+                
+                .precio {{
+                        font-size: 24px;
+                        font-weight: bold;
+                        margin-top:20px;
+                        margin-left: 20px;
+                        text-align: left;
+                    }}
+                .caracteristicas, .valor-admin, .codigo {{
+                    font-size: 16px;
+                    font-weight: normal;
+                    margin-left: 20px;
+                    text-align: left;
+                }}
+                .codigo strong {{
+                    font-weight: bold;
+                    margin-left: 20px;
+                    text-align: left;
+                }}
+                    
+                .urbex-table {{
+                    margin-top:20px;
+                    width: 100%;
+                    font-size: 16px;
+                    border: none;
+                }}
+                
+                .urbex-table tr, 
+                .urbex-table th, 
+                .urbex-table td {{
+                    border: none;
+                    padding: 8px;
+                    text-align: left;
+                }}
+                
+                #label_inside, #value_inside {{
+                    font-size: 16px;
+                    font-weight: normal;
+                    text-align: left;
+                }}
+    
+                #label_descripcion {{
+                    margin-top:20px;
+                    font-size: 24px;
+                    font-weight: bold;
+                    color: black;
+                    text-align: left;
+                }}
+    
+                #texto_descripcion {{
+                    font-size: 16px;
+                    color: black;
+                    text-align: justify;
+                }}
+    
+              </style>
+        
             </head>
             <body>
-            <div class="row">
-              <div class="col-xl-7 col-sm-0 mb-xl-0 mb-0">    
+              <section>
+               <div class="urbex-container-fluid">
+                <div class="urbex-row">
                 {imagenes}
-              </div>
-                
-              <div class="col-xl-5 col-sm-0 mb-xl-0 mb-0">
-                
-                <div class="col-xl-12 col-sm-6 mb-xl-2 mb-0">
-                  <div class="card">
-                    <div class="card-body p-3"> 
-                      <div class="container-fluid py-2">
-                        <h3 class="price-info">{precio}</h3>
-                        {valoradministracion}
-                        <p class="caracteristicas-info">{caracteristicas}</p>
-                        <p class="caracteristicas-info">Código: <strong>{code}</strong></p>
-                      </div>
+                 <div class="urbex-col-12 urbex-col-lg-5">
+                  <div class="urbex-row">
+                   <div class="urbex-col-12">
+                    <div class="urbex-text-center urbex-d-flex urbex-h-100 urbex-d-flex urbex-flex-column" id="box_shadow_default">
+                     <p class="precio">
+                      {precio}
+                     </p>
+                     <p class="caracteristicas">
+                      {tiponegocio if isinstance(tiponegocio,str) else ""}
+                     </p>
+                     <p class="caracteristicas">
+                      {caracteristicas}
+                     </p>
+                     <p class="valor-admin">
+                      {valoradministracion}
+                     </p>
+                     <p class="codigo">
+                      Código:<strong>{code}</strong>
+                     </p>
                     </div>
+                   </div>
+                   {tabla_detalle}
+                   <div class="urbex-col-12" style="margin-top:20px">
+                    <div class="urbex-text-center urbex-d-flex urbex-h-100 urbex-d-flex urbex-flex-column" id="box_shadow_default">
+                     <p id="label_descripcion">
+                      Descripción:
+                     </p>
+                     <p id="texto_descripcion">
+                      {descripcion}
+                     </p>
+                    </div>
+                   </div>
+                   {tabla_contacto}
+                   <div class="urbex-col-12" style="margin-top:20px">
+                    <div class="urbex-text-center urbex-d-flex urbex-h-100 urbex-d-flex urbex-flex-column" id="box_shadow_default">
+                     <img src="{static_map_url}" alt="Mapbox Map" class="property-map" style="width: 100%; height: 100%;">
+                    </div>
+                   </div>
                   </div>
-                </div> 
-                
-                <div class="col-xl-12 col-sm-6 mb-xl-2 mb-0">
-                  <div class="card">
-                    <div class="card-body p-3">
-                      <div class="container-fluid py-2">
-                          {tabla_detalle}
-                      </div>            
-                    </div>        
-                  </div>
+                 </div>
                 </div>
-                
-                {descripcion_seccion}
-                
-                <div class="col-xl-12 col-sm-6 mb-xl-2 mb-0">
-                  <div class="card">
-                    <div class="card-body p-3">
-                      <div class="container-fluid py-2">
-                          {tabla_contacto}
-                      </div>            
-                    </div>        
-                  </div>
-                </div>
-                
-                {mapa}
-        
-              </div>
-            </div>
-        
+               </div>
+              </section>
             </body>
             </html>
             """     
@@ -400,74 +408,24 @@ def main(code=None,tipoinmueble=None,tiponegocio=None):
             st.markdown(texto, unsafe_allow_html=True)
             
             
-            #---------------------------------------------------------------------#
-            # PDF
-            #---------------------------------------------------------------------#
-            pdf_tabla_detalle       = tabla_detalle[:]
-            pdf_descripcion_seccion = descripcion_seccion[:]
-            pdf_mapa                = mapa[:]
-            
-            pdf_tabla_detalle       = pdf_tabla_detalle.replace('-20px','0px')
-            pdf_descripcion_seccion = pdf_descripcion_seccion.replace('mb-xl-2','mb-xl-0')
-            pdf_mapa = pdf_mapa.replace('mb-xl-2','mb-xl-0')
-            pdf_mapa = pdf_mapa.replace('style="width: 100%; height: 100%;"','style="width: 60%; height: 60%;display: flex; justify-content: center; align-items: center;"')
-            #pdf_mapa = pdf_mapa.replace('420x250','250x150')
-            
-            html_pdf = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <link href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/nucleo-icons.css" rel="stylesheet">
-              <link href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/nucleo-svg.css" rel="stylesheet">
-              <link id="pagestyle" href="https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/css/soft-ui-dashboard.css?v=1.0.7" rel="stylesheet">
-              {style}
-            </head>
-            <body>
-            <div class="row">
-        
-              <div class="col-xl-5 col-sm-0 mb-xl-0 mb-0">
-                
-                <div class="col-xl-12 col-sm-6 mb-xl-0 mb-0">
-                  <div class="card">
-                    <div class="card-body p-3"> 
-                      <div class="container-fluid py-2">
-                        <h3 class="price-info">{precio}</h3>
-                        {valoradministracion}
-                        <p class="caracteristicas-info">{caracteristicas}</p>
-                        <p class="caracteristicas-info">Código: <strong>{code}</strong></p>
-                      </div>
-                    </div>
-                  </div>
-                </div> 
-                
-                <div class="col-xl-12 col-sm-6 mb-xl-0 mb-0">
-                  <div class="card">
-                    <div class="card-body p-3">
-                      <div class="container-fluid py-2">
-                          {pdf_tabla_detalle}
-                      </div>            
-                    </div>        
-                  </div>
-                </div>
-                
-                {pdf_descripcion_seccion}
-                
-                {pdf_mapa}
-        
-              <div class="col-xl-7 col-sm-0 mb-xl-0 mb-0">    
-                {imagenes}
-              </div>
-              
-              </div>
-            </div>
-        
-            </body>
-            </html>
-            """     
-            html_pdf = html_pdf.replace('p-3','p-1')
-            html_pdf = html_pdf.replace('py-2','py-1')
-            st.session_state.html_pdf = BeautifulSoup(html_pdf, 'html.parser')
-                                
+        with coldownbutton2:
+            if st.button('Generar PDF'):
+                with st.spinner('Procesando PDF...'):
+                    
+                    # Html version pdf
+                    pdf_bytes = _principal_getpdf(html,seccion='_download_pdf_detalle_building')
+                    
+                    if pdf_bytes:
+                        # Ofrecer el PDF para descarga
+                        st.download_button(
+                            label="Descargar PDF",
+                            data=pdf_bytes,
+                            file_name="reporte.pdf",
+                            mime='application/pdf'
+                        )
+                    else:
+                        st.error("Error al generar el PDF. Por favor intente nuevamente.")
+                        
 @st.cache_data(show_spinner=False)
 def homogenizar_texto(texto):
     # Remover múltiples espacios en blanco
@@ -499,4 +457,7 @@ def getdatamarketbycode(code=None,tipoinmueble=None,tiponegocio=None):
         data = datamarketactivos.copy()
     elif not datamarkethistorico.empty:
         data = datamarkethistorico.copy()
-    return data
+    return data    
+    
+    
+    

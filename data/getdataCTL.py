@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
+import json
 from sqlalchemy import create_engine 
+
+from data._principal_caracteristicas import datacaracteristicas
 
 user     = st.secrets["user_bigdata"]
 password = st.secrets["password_bigdata"]
@@ -8,9 +11,29 @@ host     = st.secrets["host_bigdata_lectura"]
 schema   = st.secrets["schema_bigdata"]
 
 @st.cache_data(show_spinner=False)
-def main(data):
+def main(grupo=None):
     
-    # input: data -> Es la data catastral, debe tener la columna matricula inmobiliaria
+    #-------------------------------------------------------------------------#
+    # Data con matriculas inmobiliarias
+    data_general = datacaracteristicas(grupo=grupo)
+    item         = 'catastro_predios'
+    data         = pd.DataFrame()
+    if item in data_general and not data_general.empty:
+        df         = data_general[['barmanpre',item]]
+        df         = df[df[item].notnull()]
+        df[item]   = df[item].apply(lambda x: json.loads(x) if isinstance(x, str) else None)
+        df         = df[df[item].notnull()]
+        df         = df.explode(item)
+        df         = df.apply(lambda x: {**(x[item]), 'barmanpre': x['barmanpre']}, axis=1)
+        df         = pd.DataFrame(df)
+        df.columns = ['formato']
+        data       = pd.json_normalize(df['formato'])
+
+    datactl = getctl(data)
+    return datactl
+
+@st.cache_data(show_spinner=False)
+def getctl(data):
     datactl   = pd.DataFrame()
     datamatch = pd.DataFrame()
     

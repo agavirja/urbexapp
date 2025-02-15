@@ -1,6 +1,22 @@
 import streamlit as st
-def style():
-    #FAFAFA
+def style(maxwidth=None):
+    letra_options = '1vw'
+    letra_titulo  = '1vw'
+    
+    if isinstance(maxwidth,(float,int)):
+        if maxwidth < 1280:
+            letra_options = '10px'
+            letra_titulo  = '10px'
+        elif 1280 <= maxwidth < 1600:
+            letra_options = '12px'
+            letra_titulo  = '12px'
+        elif 1600 <= maxwidth < 1920:
+            letra_options = '14px'
+            letra_titulo  = '14px'
+        else:
+            letra_options = '16px'
+            letra_titulo  = '16px'
+
     st.markdown(
         f"""
         <style>
@@ -101,9 +117,11 @@ def style():
             }}
         
         .stButton button:hover {{
-            background-color: #A16CFF;
-            color: white;
-            border: #A16CFF;
+                background-color: #7F4BFF;
+                font-weight: bold;
+                width: 100%;
+                border: 2px solid #7F4BFF;
+                color:white;
         }}
         
         .stButton button:active {{
@@ -119,6 +137,12 @@ def style():
             border-radius: 5px;
             padding: 5px; 
         }}
+        li[role="option"] > div {{
+            font-size: {letra_options};
+        }}
+        div[data-testid="stMultiSelect"] div[data-baseweb="select"] span {{
+            font-size: {letra_options};
+        }}
         
         [data-baseweb="select"] > div {{
             background-color: #fff;
@@ -128,7 +152,8 @@ def style():
             border: 5px solid #F0F0F0;
             background-color: #F0F0F0;
             border-radius: 5px;
-            padding: 5px; 
+            padding: 5px;
+            font-size: {letra_options};
         }}
     
     
@@ -150,6 +175,7 @@ def style():
             background-color: #F0F0F0;
             border-radius: 5px;
             padding: 5px;
+            font-size: {letra_options};
         }}
         
         [data-baseweb="input"] > div {{
@@ -161,7 +187,7 @@ def style():
         }}
         
         label[data-testid="stWidgetLabel"] p {{
-            font-size: 14px;
+            font-size: {letra_titulo};
             font-weight: bold;
             color: #3C3840;
             font-family: 'Aptos Narrow';
@@ -185,11 +211,21 @@ def style():
             border: 2px solid #DAE8D8;
             color: black;
         }}
+        
         .stDownloadButton button:hover {{
             background-color: #DAE8D8;
             color: black;
             border: #DAE8D8;
+        }}        
+
+        [data-testid="stNumberInput-Input"]::placeholder {{
+            font-size: 8px;
         }}
+        
+        [data-testid="stTextInput-Input"] {{
+            font-size: {letra_options};
+        }}
+
         </style>
         """,
         unsafe_allow_html=True
