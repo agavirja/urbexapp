@@ -21,6 +21,7 @@ pdfcrowd
 pdfservices_sdk
 plotly
 price_parser
+pymupdf
 PyMySQL
 pypdf
 pyproj
