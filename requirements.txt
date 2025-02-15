@@ -35,11 +35,7 @@ streamlit-toggle
 streamlit_cookies_manager
 streamlit-cookies-manager
 streamlit_folium
-streamlit-folium
 streamlit_js_eval
-streamlit-js-eval
 streamlit_option_menu
-streamlit-option-menu
 streamlit_vertical_slider
-streamlit-vertical-slider
 unidecode

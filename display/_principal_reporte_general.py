@@ -477,7 +477,6 @@ def main(formato, data_predios, data_transacciones, data_listings, datactl, data
             df         = df.sort_values(by=['ejey'],ascending=False)
             df['color'] = '#5C9AE0'
             if not df.empty:
-                st.dataframe(df)
                 style_chart += pie_chart(df,'byProporcion',title='Tipos de uso')
         except: pass
     

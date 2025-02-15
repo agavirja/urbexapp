@@ -53,8 +53,8 @@ def html_to_pdf(html_content):
         pdf_email_2         = st.secrets["pdf_email_2"]
                 
         credentials_list = [
-            {"client_id": pdf_client_id_1, "client_secret":pdf_client_secret_1, "email":pdf_email_1},
-            {"client_id": pdf_client_id_2, "client_secret":pdf_client_secret_2, "email":pdf_email_2},
+            {"client_id": pdf_client_id_1, "client_secret":f'p8e-{pdf_client_secret_1}', "email":pdf_email_1},
+            {"client_id": pdf_client_id_2, "client_secret":f'p8e-{pdf_client_secret_2}', "email":pdf_email_2},
         ]
         
         # Seleccionar un set de credenciales aleatoriamente
