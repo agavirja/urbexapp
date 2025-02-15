@@ -91,7 +91,7 @@ def main(grupo=None,screensize=1920):
                     htmlrender = buildtable(datagroup)
                     st.components.v1.html(htmlrender, height=400)
 
-                    urlexport = "http://localhost:8501/Reporte"
+                    urlexport = "http://www.urbex.com.co/Reporte"
                     params       = {'type':'predio','grupo':datagroup['grupo'].iloc[0],'barmanpre':datagroup['barmanpre'].iloc[0],'token':st.session_state.token}
                     params       = json.dumps(params)
                     params       = base64.urlsafe_b64encode(params.encode()).decode()

@@ -155,7 +155,7 @@ def main():
                     </style>
                     """
                     nombre = '¿Seguro quiere salir de está página?'
-                    html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://localhost:8501/Busqueda" class="custom-button-urbex" target="_self">{nombre}</a></body></html>"""
+                    html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">{style_button_dir}</head><body><a href="http://www.urbex.com.co/Busqueda" class="custom-button-urbex" target="_self">{nombre}</a></body></html>"""
                     html = BeautifulSoup(html, 'html.parser')
                     with col2:
                         st.markdown(html, unsafe_allow_html=True)

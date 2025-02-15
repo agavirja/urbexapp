@@ -137,7 +137,7 @@ def data2geopandas(data):
     
     try: data = getitems(data)
     except: pass
-    urlexport = "http://localhost:8501/Reporte"
+    urlexport = "http://www.urbex.com.co/Reporte"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]

@@ -262,7 +262,7 @@ def style_function_color(feature):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data):
 
-    urlexport = "http://localhost:8501/Lotes"
+    urlexport = "http://www.urbex.com.co/Lotes"
     geojson   = pd.DataFrame().to_json()
     if 'geometry' in data: 
         data = data[data['geometry'].notnull()]

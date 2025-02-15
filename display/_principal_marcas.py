@@ -385,7 +385,7 @@ def point2geopandas(data):
         data['geometry'] = data.apply(lambda x: Point(x['longitud'],x['latitud']),axis=1)
         data             = gpd.GeoDataFrame(data, geometry='geometry')
         data['popup']    = None
-        urlexport        = "http://localhost:8501/Reporte"
+        urlexport        = "http://www.urbex.com.co/Reporte"
 
         for idd,items in data.iterrows():
 
@@ -419,7 +419,7 @@ def point2geopandas(data):
                 '''
             
             if 'radio' in items and isinstance(items['radio'],str) and items['radio']!='':
-                urllink = f"http://localhost:8501/Busqueda_avanzada?type=marcaradio&code={items['id']}&vartype=id&token={st.session_state.token}"
+                urllink = f"http://www.urbex.com.co/Busqueda_avanzada?type=marcaradio&code={items['id']}&vartype=id&token={st.session_state.token}"
                 popup_content +=  f'''
                 <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:250px;font-size: 12px;">
                     <h5 style="text-align: center; margin-bottom: 10px;">Análisis de radio:</h5>
