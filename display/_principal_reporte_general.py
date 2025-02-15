@@ -115,7 +115,7 @@ def main(formato, data_predios, data_transacciones, data_listings, datactl, data
     if pdfversion: fulltable = ''
     
     data_predios['link'] = data_predios['prechip'].apply(
-        lambda x: f"http://www.urbex.com.co/Busqueda_avanzada?type=predio&code={x}&vartype=chip&token={st.session_state.token}"
+        lambda x: f"http://localhost:8501/Busqueda_avanzada?type=predio&code={x}&vartype=chip&token={st.session_state.token}"
     ) if 'prechip' in data_predios else ''
     
     data_transacciones['link'] = data_transacciones['docid'].apply(
@@ -276,7 +276,7 @@ def main(formato, data_predios, data_transacciones, data_listings, datactl, data
                     params    = json.dumps(params)
                     params    = base64.urlsafe_b64encode(params.encode()).decode()
                     params    = urllib.parse.urlencode({'token': params})
-                    urlexport = "http://www.urbex.com.co/Reporte"
+                    urlexport = "http://localhost:8501/Reporte"
                     urllink   = f"{urlexport}?{params}"
                     imagen_principal = items['url_img'].split('|')[0].strip() if 'url_img' in items and isinstance(items['url_img'], str) else "https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/sin_imagen.png"
 

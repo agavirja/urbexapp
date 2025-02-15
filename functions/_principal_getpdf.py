@@ -44,18 +44,17 @@ def main(html_content,seccion=None):
 def html_to_pdf(html_content):
     try:
         # Configurar credenciales
-        #credentials = ServicePrincipalCredentials(
-        #    client_id='1808ca6ed472427c8d772e2a30164f77',
-        #    client_secret='p8e-MK08vM12OyuL9CkN3FPTWQ13iXTr2-MB'
-        #)
-        user     = st.secrets["user_write_urbex"]
-        password = st.secrets["password_write_urbex"]
-        host     = st.secrets["host_read_urbex"]
-        schema   = st.secrets["schema_write_urbex"]
+        pdf_client_id_1     = st.secrets["pdf_client_id_1"]
+        pdf_client_secret_1 = st.secrets["pdf_client_secret_1"]
+        pdf_email_1         = st.secrets["pdf_email_1"]
         
+        pdf_client_id_2     = st.secrets["pdf_client_id_2"]
+        pdf_client_secret_2 = st.secrets["pdf_client_secret_2"]
+        pdf_email_2         = st.secrets["pdf_email_2"]
+                
         credentials_list = [
-            {"client_id": user, "client_secret": user,"email":user},
-            {"client_id": user, "client_secret": user,"email":user},
+            {"client_id": pdf_client_id_1, "client_secret":pdf_client_secret_1, "email":pdf_email_1},
+            {"client_id": pdf_client_id_2, "client_secret":pdf_client_secret_2, "email":pdf_email_2},
         ]
         
         # Seleccionar un set de credenciales aleatoriamente

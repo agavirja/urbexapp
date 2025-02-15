@@ -91,7 +91,7 @@ def style_function_color(feature):
 
 @st.cache_data(show_spinner=False)
 def data2geopandas(data):
-    urlexport = "http://www.urbex.com.co/Lotes"
+    urlexport = "http://localhost:8501/Lotes"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
         data = data[data['wkt'].notnull()]

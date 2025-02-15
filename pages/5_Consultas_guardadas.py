@@ -211,7 +211,7 @@ def htmltable(data=pd.DataFrame()):
     return html_content
         
 def params2url_detalle_building(grupo,barmanpre,id_consulta,token):
-    urlexport = "http://www.urbex.com.co/Reporte"
+    urlexport = "http://localhost:8501/Reporte"
     params    = {'type':'predio','grupo':grupo,'barmanpre':barmanpre,'token':token,'favorito':True,'id_consulta':id_consulta}
     params    = json.dumps(params)
     params    = base64.urlsafe_b64encode(params.encode()).decode()
@@ -219,7 +219,7 @@ def params2url_detalle_building(grupo,barmanpre,id_consulta,token):
     return f"{urlexport}?{params}"
     
 def params2url_busqueda_general(inputvar,id_consulta,token):
-    urlexport = "http://www.urbex.com.co/Reporte"
+    urlexport = "http://localhost:8501/Reporte"
     params    = {'type':'busqueda_general','inputvar':inputvar,'token':token,'favorito':True,'id_consulta':id_consulta}
     params    = json.dumps(params)
     params    = base64.urlsafe_b64encode(params.encode()).decode()
@@ -227,7 +227,7 @@ def params2url_busqueda_general(inputvar,id_consulta,token):
     return f"{urlexport}?{params}"
 
 def params2url_busqueda_lotes(inputvar,id_consulta,token):
-    urlexport = "http://www.urbex.com.co/Reporte"
+    urlexport = "http://localhost:8501/Reporte"
     params    = {'type':'busqueda_lotes','inputvar':inputvar,'token':token,'favorito':True,'id_consulta':id_consulta}
     params    = json.dumps(params)
     params    = base64.urlsafe_b64encode(params.encode()).decode()
@@ -235,8 +235,8 @@ def params2url_busqueda_lotes(inputvar,id_consulta,token):
     return f"{urlexport}?{params}"
 
 def params2url_combinacion_lotes(grupo,barmanpre,id_consulta,token):
-    #urlexport = "http://www.urbex.com.co/Lotes"
-    urlexport = "http://www.urbex.com.co/Reporte"
+    #urlexport = "http://localhost:8501/Lotes"
+    urlexport = "http://localhost:8501/Reporte"
     params    = {'type':'combinacion_lote','grupo':grupo,'barmanpre':barmanpre,'token':token,'favorito':True,'id_consulta':id_consulta}
     params    = json.dumps(params)
     params    = base64.urlsafe_b64encode(params.encode()).decode()

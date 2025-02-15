@@ -182,7 +182,7 @@ def style_function_color(feature):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data,tiponegocio=None):
     
-    urlexport = "http://www.urbex.com.co/Ficha"
+    urlexport = "http://localhost:8501/Ficha"
     geojson   = pd.DataFrame().to_json()
     if 'latitud' in data and 'longitud' in data:
         data = data[(data['latitud'].notnull()) & (data['longitud'].notnull())]
@@ -267,7 +267,7 @@ def showlistings(data_listings):
         
         # Generar todos los listings pero inicialmente ocultos
         for idx, items in data_listings.iterrows():
-            urllink = f"http://www.urbex.com.co/Ficha?code={items['code']}&tiponegocio={items['tiponegocio'].lower()}&tipoinmueble={items['tipoinmueble'].lower()}"
+            urllink = f"http://localhost:8501/Ficha?code={items['code']}&tiponegocio={items['tiponegocio'].lower()}&tipoinmueble={items['tipoinmueble'].lower()}"
             imagen_principal = items['url_img'].split('|')[0].strip() if 'url_img' in items and isinstance(items['url_img'], str) else "https://personal-data-bucket-online.s3.us-east-2.amazonaws.com/sin_imagen.png"
             
             listings_html += f'''

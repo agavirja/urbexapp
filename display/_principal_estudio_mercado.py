@@ -288,7 +288,7 @@ def map_function(datageometry,latitud, longitud, polygon=None,metros=500, data_c
             datageometry['geometry'] = gpd.GeoSeries.from_wkt(datageometry['wkt'])
             datageometry             = gpd.GeoDataFrame(datageometry, geometry='geometry')
             datageometry['color']    = '#5A189A'
-            urlexport                = "http://www.urbex.com.co/Reporte"
+            urlexport                = "http://localhost:8501/Reporte"
 
             if not data_caracteristicas.empty:
                 datamerge = data_caracteristicas.drop_duplicates(subset=['grupo','barmanpre'],keep='first')
