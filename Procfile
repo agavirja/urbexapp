@@ -1,1 +1,1 @@
-web: sh setup.sh && streamlit run Home.py --server.enableXsrfProtection=false --server.enableCORS=false
+web: sh setup.sh && streamlit run Home.py
