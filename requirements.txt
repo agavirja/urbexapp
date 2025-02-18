@@ -16,7 +16,6 @@ nest_asyncio
 numpy
 openpyxl
 pandas
-pdfcrowd
 pdfservices_sdk
 plotly
 price_parser

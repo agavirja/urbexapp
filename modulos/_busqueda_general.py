@@ -134,6 +134,7 @@ def main(screensize=1920):
             folium.GeoJson(st.session_state.geojson_data_busqueda_default, style_function=style_function_color).add_to(m)
 
         if not st.session_state.data_lotes_busqueda.empty:
+            
             geojson = data2geopandas(st.session_state.data_lotes_busqueda, st.session_state.barmanpre_ref)
             popup   = folium.GeoJsonPopup(
                 fields=["popup"],
@@ -209,7 +210,14 @@ def style_function_color(feature):
 @st.cache_data(show_spinner=False)
 def data2geopandas(data, barmanpre_ref=None):
     
-    data      = getitems(data)
+    try: 
+        variables = data.select_dtypes(include=['datetime64[ns]', 'timedelta64[ns]']).columns
+        if isinstance(variables,list) and variables!=[]:
+            data = data.drop(columns=variables)
+        data = getitems(data)
+    except: pass
+        
+        
     urlexport = "http://www.urbex.com.co/Reporte"
     geojson   = pd.DataFrame().to_json()
     if 'wkt' in data: 
@@ -292,12 +300,14 @@ def getitems(data):
         df         = df.explode(item)
         df         = df.apply(lambda x: {**(x[item]), 'barmanpre': x['barmanpre']}, axis=1)
         df         = pd.DataFrame(df)
-        df.columns = ['formato']
-        df         = pd.json_normalize(df['formato'])
-        if isinstance(variables,list) and variables!=[]:
-            df     = df[variables]
-            df     = df.sort_values(by=variables, na_position='last')
-        datamerge  = datamerge.merge(df,on='barmanpre',how='outer')
+        if not df.empty:
+            df.columns = ['formato']
+            df         = pd.json_normalize(df['formato'])
+            if isinstance(variables,list) and variables!=[]:
+                df     = df[variables]
+                df     = df.sort_values(by=variables, na_position='last')
+        if not df.empty:
+            datamerge  = datamerge.merge(df,on='barmanpre',how='outer')
             
     dataresultado = data[['grupo','barmanpre','wkt']]
 
