@@ -1,4 +1,7 @@
 import streamlit as st
+import warnings
+
+warnings.filterwarnings("ignore")
 
 st.set_page_config(layout='wide',page_icon="https://iconsapp.nyc3.digitaloceanspaces.com/urbex_favicon.png")
 

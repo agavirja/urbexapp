@@ -12,6 +12,8 @@ from shapely.geometry import Polygon,mapping,shape
 from datetime import datetime
 
 from display.stylefunctions  import style_function_geojson
+from display.puntos_descripcion_usuarios import pasosApp,procesoCliente
+
 
 from functions._principal_getdatalotes import main as getdatalotes
 from functions.getuso_destino import usosuelo_class
@@ -19,6 +21,10 @@ from functions.getlatlng import getlatlng
 from functions.circle_polygon import circle_polygon
 
 from data.tracking import savesearch,update_save_status
+from data._params_to_direccion import chip2direccion,matricula2direccion,buildinglist
+from data.barmanpreFromgrupo import grupoFrombarmanpre
+
+from display.style_white import style 
 
 def main(screensize=1920):
 
@@ -35,6 +41,7 @@ def main(screensize=1920):
                'zoom_start_data_busqueda_default':12,
                'latitud_busqueda_default':4.652652, 
                'longitud_busqueda_default':-74.077899,
+               'direccion':None,
                'barmanpre_ref':[],
                'mapkey':None,
                'token':None,
@@ -76,7 +83,21 @@ def main(screensize=1920):
                             st.rerun()
                             
     #-------------------------------------------------------------------------#
+    # Proceso
+    col1p,col2p,col3p = st.columns([1,2,1])
+    with col2p:
+        if st.session_state.geojson_data_busqueda_default is None and st.session_state.data_lotes_busqueda.empty:
+            html = procesoCliente(1)
+        elif st.session_state.geojson_data_busqueda_default is not None and st.session_state.data_lotes_busqueda.empty:
+            html = procesoCliente(3)
+        elif not st.session_state.data_lotes_busqueda.empty:
+            html = procesoCliente(5)
+        st.components.v1.html(html, height=100, scrolling=True)
+    
+    #-------------------------------------------------------------------------#
     # Busqueda por direccion 
+    col1paso,col2paso = st.columns([9,3],vertical_alignment='center')
+    col1text,col2text = st.columns([0.3,0.6],vertical_alignment='center')
     if screensize>1280:
         col1,col2,col3,col4,col5 = st.columns([0.3,0.15,0.3,0.15,0.1],vertical_alignment='center')
     else:
@@ -84,25 +105,171 @@ def main(screensize=1920):
         col4, col5 = st.columns([0.4,0.6],vertical_alignment='center')
     
     with col1:
-        tipobusqueda = st.selectbox('Ubicación por:',options=['Dirección','Nombre de la copropiedad'])
-    with col2:
-        ciudad = st.selectbox('Ciudad:',options=['Bogotá D.C.'])
-    with col3:
-        direccion = st.text_input('Dirección:',value='')   
-    with col4:
-        metros = st.selectbox('Metros a la redonda:',options=[100,200,300,400,500],index=0)   
-    with col5:
-        disabled = False if isinstance(direccion,str) and direccion!='' and metros<=500 else True
-        if st.button('Ubicar en el mapa',disabled=disabled):
-            st.session_state.latitud_busqueda_default,st.session_state.longitud_busqueda_default, st.session_state.barmanpre_ref = getlatlng(f'{direccion},{ciudad.lower()},colombia')
-            st.session_state.polygon_busqueda_default         = circle_polygon(metros,st.session_state.latitud_busqueda_default,st.session_state.longitud_busqueda_default)
-            st.session_state.geojson_data_busqueda_default    = mapping(st.session_state.polygon_busqueda_default)
-            st.session_state.zoom_start_data_busqueda_default = 16
-            st.rerun()
+        formato_options = {'En un poligono':1,'Por dirección':2,'Por chip':3,'Por matrícula inmobiliria':4,'Nombre de la copropiedad':5}
+        consulta        = st.selectbox('Tipo de busqueda:',options=list(formato_options))
+        option_selected = formato_options[consulta]
+
+    if option_selected==1:
+        if st.session_state.data_lotes_busqueda.empty:
+            with col1paso:
+                html = pasosApp(1, 'Seleccionar el tipo de búsqueda', 'Hay diferentes formas de ubicar un predio en el mapa, selecciona una de ellas. <br><i class="fa-solid fa-hexagon" style="color: #A16CFF;"></i> La opción <b>"En un poligono"</b> permite delimitar un poligono en el mapa y ubicar todos los lotes que están contenidos')
+                st.markdown(html, unsafe_allow_html=True)
+            
+    elif option_selected>1:
+        with col2:
+            ciudad = st.selectbox('Ciudad:',options=['Bogotá D.C.'])
+            
+        with col3:
+            if option_selected==3:
+                if st.session_state.data_lotes_busqueda.empty:
+                    with col1paso:
+                        html = pasosApp(1, 'Ubicar el lote', 'A partir del chip se busca la dirección, una vez encontrado se debe hacer <b>clic</b> en el botón que dice <b>"Ubicar en el mapa"</b> para verificar que el lote se encontró de manera exitosa')
+                        st.markdown(html, unsafe_allow_html=True)
+                chip = st.text_input('Chip:',value='',placeholder="Ej: AAA0158QWET")
+                if isinstance(chip,str) and chip!='':
+                    chip = chip.strip()
+                    with col5:
+                        if st.button('Buscar chip'):
+                            st.session_state.direccion = chip2direccion(chip)
+                            if not (isinstance(st.session_state.direccion,str) and st.session_state.direccion!=''):
+                                with col1text:
+                                    st.error('Chip no encontrado')
+                            else:
+                                with col1text:
+                                    st.success('Chip encontrado con exito!')
+                                
+            if option_selected==4:
+                if st.session_state.data_lotes_busqueda.empty:
+                    with col1paso:
+                        html = pasosApp(1, 'Ubicar el lote', 'A partir de la matrícula inmobiliaria se busca la dirección, una vez encontrado se debe hacer <b>clic</b> en el botón que dice <b>"Ubicar en el mapa"</b> para verificar que el lote se encontró de manera exitosa')
+                        st.markdown(html, unsafe_allow_html=True)
+                matricula = st.text_input('Matrícula inmobiliria:',value='',placeholder="Ej: 50N20612425")
+                if isinstance(matricula,str) and matricula!='':
+                    matricula = matricula.strip()
+                    with col5:
+                        if st.button('Buscar matrícula'):
+                            st.session_state.direccion = matricula2direccion(matricula)
+                            if not (isinstance(st.session_state.direccion,str) and st.session_state.direccion!=''):
+                                with col1text:
+                                    st.error('Matrícula no encontrado')
+                            else:
+                                with col1text:
+                                    st.success('Matrícula encontrado con exito!')
+                                    
+            if option_selected==5:
+                if st.session_state.data_lotes_busqueda.empty:
+                    with col1paso:
+                        html = pasosApp(1, 'Ubicar el lote', 'A partir del nombre de la copropiedad de la propiedad horizontal se busca la dirección, una vez encontrado se debe hacer <b>clic</b> en el botón que dice <b>"Ubicar en el mapa"</b> para verificar que el lote se encontró de manera exitosa')
+                        st.markdown(html, unsafe_allow_html=True)
+                dataoptions = buildinglist()
+                if not dataoptions.empty:
+                    lista       = list(sorted(dataoptions['nombre_conjunto'].unique()))
+                    copropiedad = st.selectbox('Nombre de la copropiedad:',options=lista)    
+                    if isinstance(copropiedad,str) and copropiedad!='':
+                        direcciones = list(dataoptions[dataoptions['nombre_conjunto']==copropiedad]['direccion'].unique())
+                        direcciones = [x.strip() for x in direcciones if isinstance(x,str)]
+                        if isinstance(direcciones,list) and direcciones!=[]:
+                            if len(direcciones)>1:
+                                st.session_state.direccion = st.selectbox('Dirección:',options=direcciones)  
+                            else:
+                                st.session_state.direccion = direcciones[0]
+
+            if option_selected==2:
+                if st.session_state.data_lotes_busqueda.empty:
+                    with col1paso:
+                        html = pasosApp(1, 'Ubicar el lote', 'Se debe poner la dirección, luego se debe hacer <b>clic</b> en el botón que dice <b>"Ubicar en el mapa"</b>')
+                        st.markdown(html, unsafe_allow_html=True)
+                st.session_state.direccion = st.text_input('Dirección:',value='',placeholder="Ej: Calle 134 19A 25")   
+
+        with col4:
+            metros = st.selectbox('Metros a la redonda:',options=[100,200,300,400,500],index=0)   
+        
+        disabled = False if isinstance(st.session_state.direccion,str) and st.session_state.direccion!='' and metros<=500 else True
+        with col5:
+            if st.button('Ubicar en el mapa',disabled=disabled):
+                st.session_state.latitud_busqueda_default,st.session_state.longitud_busqueda_default, st.session_state.barmanpre_ref = getlatlng(f'{st.session_state.direccion},{ciudad.lower()},colombia')
+                st.session_state.polygon_busqueda_default         = circle_polygon(metros,st.session_state.latitud_busqueda_default,st.session_state.longitud_busqueda_default)
+                st.session_state.geojson_data_busqueda_default    = mapping(st.session_state.polygon_busqueda_default)
+                st.session_state.zoom_start_data_busqueda_default = 16
+                st.rerun()
+
+    if isinstance(st.session_state.barmanpre_ref,list) and len(st.session_state.barmanpre_ref)==1:
+        with col5:
+            barmanpre2grupo = grupoFrombarmanpre(barmanpre=st.session_state.barmanpre_ref)
+            gruporef        = barmanpre2grupo['grupo'].iloc[0] if not barmanpre2grupo.empty and 'grupo' in barmanpre2grupo else None
+            try: gruporef   = int(gruporef)
+            except: pass
+            if isinstance(gruporef,int) and gruporef>0:
+                params       = {'type':'predio','grupo':gruporef,'barmanpre':st.session_state.barmanpre_ref[0],'token':st.session_state.token}
+                params       = json.dumps(params)
+                params       = base64.urlsafe_b64encode(params.encode()).decode()
+                params       = urllib.parse.urlencode({'token': params})
+                urlexport    = "http://www.urbex.com.co/Reporte"
+                urllink      = f"{urlexport}?{params}"
+                nombre       = 'Ir al reporte'
+        
+                style_button_dir = """
+                <style>
+                .custom-button {
+                    display: inline-block;
+                    padding: 5px 5px; /* Reducido el padding para menor altura */
+                    background-color: #A16CFF;
+                    color: #ffffff !important; /* Siempre blanco */
+                    font-weight: bold;
+                    font-size: 14px; /* Mantiene el tamaño de letra */
+                    text-decoration: none;
+                    border-radius: 8px; /* Borde más pequeño para menor tamaño */
+                    width: 100%;
+                    border: 2px solid #A16CFF;
+                    cursor: pointer;
+                    text-align: center;
+                    letter-spacing: 1px;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Menor sombra para compactar */
+                    margin-bottom: 0px; /* Espaciado inferior reducido */
+                }
+                .custom-button:hover {
+                    background-color: #7F4BFF;
+                    color: #ffffff !important; /* Asegura que siga siendo blanco */
+                    border: 2px solid #7F4BFF;
+                }
+                .custom-button:active {
+                    background-color: #FFF;
+                    color: #ffffff !important; /* Mantiene blanco incluso en clic */
+                    border: 2px solid #A16CFF;
+                    outline: none;
+                }
+                
+                /* Asegurar que los enlaces <a> también tengan letra blanca */
+                .custom-button a {
+                    color: #ffffff !important;
+                    text-decoration: none;
+                }
+                </style>
+                """
+                # Agregar estilos y botón en Markdown sin usar BeautifulSoup
+                st.markdown(style_button_dir, unsafe_allow_html=True)
+                st.markdown(f'<a href="{urllink}" class="custom-button" target="_blank" style="text-decoration: none;">{nombre}</a>', unsafe_allow_html=True)
+
     st.markdown('<div style="padding: 30px;"></div>', unsafe_allow_html=True)
 
     #-------------------------------------------------------------------------#
     # Formulario      
+    col1paso,col2paso = st.columns([0.3,0.7])   
+    if st.session_state.geojson_data_busqueda_default is not None and st.session_state.data_lotes_busqueda.empty:
+        with col1paso:
+            html = pasosApp(3, 'Filtros:', 'Estos filtros permiten segmentar los tipos de lotes que aparecen en el mapa.  <br> Al final de los filtros se pasa al punto <div class="circle_small">4</div> para realizar la búsqueda')
+            st.markdown(html, unsafe_allow_html=True)
+        
+        with col2paso:
+            html = pasosApp(2, 'Poligono:', 'Verifica que el poligono cubra el área donde está el predio')
+            st.markdown(html, unsafe_allow_html=True)
+    
+    if not st.session_state.data_lotes_busqueda.empty:
+        with col2paso:
+            texto_adicional = '[El poligono de color verde hace referencia a la dirección o predio]' if (isinstance(st.session_state.barmanpre_ref,str) and st.session_state.barmanpre_ref!='') or (isinstance(st.session_state.barmanpre_ref,list) and st.session_state.barmanpre_ref!=[]) else ''
+            html = pasosApp(5, 'Selección del lote o predio:', f'En el mapa aparecen todos los lotes que están contenidos en el poligono y que cumplen con los filtros. Para acceder a un predio se debe hacer: <br> (1) <b>Clic</b> en el lote {texto_adicional}<br> (2) Para entrar al lote se debe hacer <b>clic</b> en el texto que aparece con la descripción del lote')
+            st.markdown(html, unsafe_allow_html=True)
+            
     col1,col2 = st.columns([0.3,0.7])      
     with col1: 
         
@@ -123,7 +290,7 @@ def main(screensize=1920):
     with col2:
         m = folium.Map(location=[st.session_state.latitud_busqueda_default, st.session_state.longitud_busqueda_default], zoom_start=st.session_state.zoom_start_data_busqueda_default,tiles="cartodbpositron")
         
-        if st.session_state.data_lotes_busqueda.empty:
+        if st.session_state.data_lotes_busqueda.empty and option_selected==1:
             draw = Draw(
                         draw_options={"polyline": False,"marker": False,"circlemarker":False,"rectangle":False,"circle":False},
                         edit_options={"poly": {"allowIntersection": False}}
@@ -162,8 +329,15 @@ def main(screensize=1920):
         else:
             folium_static(m,width=int(mapwidth*0.6),height=700)
             
-    col1,col2,col3 = st.columns([0.15,0.15,0.7],vertical_alignment='center')  
-    cols1,cols2    = st.columns([0.3,0.7])
+    col1paso,col2paso = st.columns([0.3,0.7])
+    col1,col2,col3    = st.columns([0.15,0.15,0.7],vertical_alignment='center')  
+    cols1,cols2       = st.columns([0.3,0.7])
+    
+    if st.session_state.geojson_data_busqueda_default is not None and st.session_state.data_lotes_busqueda.empty:
+        with col1paso:
+            html = pasosApp(4, 'Búsqueda:', 'Una vez selecciondo el poligono en el mapa te aparece el botón de búsqueda <br> Al hacer <b>clic</b> puedes buscar todos los predios que están definidos en el poligono <br> O puedes resetear la búsqueda para hacer una nueva')
+            st.markdown(html, unsafe_allow_html=True)
+        
     with col1:
         if st.button('Resetear'):
             
@@ -263,13 +437,13 @@ def data2geopandas(data, barmanpre_ref=None):
             except: pass                    
             try:    buildinfinfo += f"""<b> Número transacciones:</b> {int(items['numero_transacciones'])}<br> """
             except: pass    
-
+            # <a href="{urllink}" target="_blank" style="color: black; text-decoration: none;">
             popup_content =  f'''
             <!DOCTYPE html>
             <html>
                 <body>
                     <div id="popupContent" style="cursor:pointer; display: flex; flex-direction: column; flex: 1;width:200px;font-size: 12px;">
-                        <a href="{urllink}" target="_blank" style="color: black; text-decoration: none;">
+                        <a href="{urllink}" target="_blank" style="color: black;">
                             {buildinfinfo}
                         </a>
                     </div>

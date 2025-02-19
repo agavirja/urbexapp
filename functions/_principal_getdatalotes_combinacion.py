@@ -65,11 +65,14 @@ def main(inputvar={}):
             idd          = (datageometry['grupo'].isin(lista)) | (datageometry['grupo'].astype(str).isin(lista))  | (datageometry['grupo'].astype(int).astype(str).isin(lista))
             datageometry = datageometry[idd]
             
-    if datageometry.empty and not data.empty: 
-        lista        = data['lista'].iloc[0].split('|')
-        lista        = ",".join(lista)
-        query        = f" grupo IN ({lista})"
-        datageometry = pd.read_sql_query(f"SELECT grupo, barmanpre, manzcodigo, ST_AsText(geometry) as wkt FROM  bigdata.bogota_lotes_geometry WHERE {query}" , engine)
+    # Si no hay lotes que cumplan, quiero que busque en todo bogota o dejo que no aparezcan
+    keepsearching = False
+    if keepsearching:
+        if datageometry.empty and not data.empty: 
+            lista        = data['lista'].iloc[0].split('|')
+            lista        = ",".join(lista)
+            query        = f" grupo IN ({lista})"
+            datageometry = pd.read_sql_query(f"SELECT grupo, barmanpre, manzcodigo, ST_AsText(geometry) as wkt FROM  bigdata.bogota_lotes_geometry WHERE {query}" , engine)
 
     if not datageometry.empty:
         datageometry['geometry'] = gpd.GeoSeries.from_wkt(datageometry['wkt'])

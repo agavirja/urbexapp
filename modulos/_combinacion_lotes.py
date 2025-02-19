@@ -14,6 +14,9 @@ from datetime import datetime
 
 from functions._principal_getcombinacionlotes import main as getcombinacionlotes
 
+from display.puntos_descripcion_usuarios import pasosApp,procesoCliente
+
+
 def main(grupo=None,screensize=1920):
 
     try:    mapwidth = int(screensize)
@@ -44,10 +47,15 @@ def main(grupo=None,screensize=1920):
     #-------------------------------------------------------------------------#
     # Mapa
     if grupo is not None:
-        data_general = getcombinacionlotes(grupo)
-        datagroup    = pd.DataFrame()
+        data_general      = getcombinacionlotes(grupo)
+        datagroup         = pd.DataFrame()
+        col1paso,col2paso = st.columns([0.6,0.4])
         
         if not data_general.empty:
+            with col1paso:
+                html = pasosApp(1, 'Consolidar lotes:', 'Los polígonos de color azul representan los lotes que cumplen con los criterios de búsqueda. Para conformar un terreno, puedes consolidar dos o más lotes utilizando el ícono de hexágono, ubicado en la parte superior izquierda del mapa. <br><br> Para hacerlo, selecciona los lotes que deseas consolidar (asegurándote de que cada lote esté completamente contenido en la selección). Una vez completada la consolidación, se generará un reporte general inicial con la información del nuevo terreno. <br><br>Si solo necesitas un lote, asegúrate de encerrar únicamente ese lote en el polígono')
+                st.markdown(html, unsafe_allow_html=True)
+                
             col1,col2 = st.columns([0.6,0.4])
             
             if 'latitud' in data_general and 'longitud' in data_general:
@@ -87,6 +95,11 @@ def main(grupo=None,screensize=1920):
                             st.rerun()
                        
             if not datagroup.empty:
+                with col2paso:
+                    html = pasosApp(2, 'Descripción del terreno:', 'Esta es la descripción general del terreno resultante de la consolidación del lote. Si cumple con los criterios de búsqueda, puedes hacer clic en <b>"Detalle del terreno"</b> para generar un reporte detallado del terreno consolidado. <br><br> Si lo deseas, puedes realizar una nueva consolidación con una combinación diferente de lotes hasta encontrar la configuración ideal')
+                    st.markdown(html, unsafe_allow_html=True)
+                    
+            
                 with col2:
                     htmlrender = buildtable(datagroup)
                     st.components.v1.html(htmlrender, height=400)
