@@ -28,7 +28,7 @@ requests
 scikit-learn
 shapely
 sqlalchemy
-streamlit
+streamlit>=1.36
 streamlit-aggrid
 streamlit-toggle
 streamlit-cookies-manager
