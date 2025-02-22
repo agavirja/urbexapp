@@ -1,19 +1,21 @@
 #!/bin/bash
 
-# Crear la carpeta de configuración si no existe
 mkdir -p ~/.streamlit/
 
-# Crear config.toml con la configuración correcta de CORS y XSRF
-cat <<EOL > ~/.streamlit/config.toml
-[server]
-headless = true
-enableCORS = false
-enableXsrfProtection = false
-port = $PORT
+echo "\
+[general]\n\
+email = \"agavirja+1@gmail.com\"\n\
+" > ~/.streamlit/credentials.toml
 
-[browser]
-gatherUsageStats = false
-EOL
+echo "\
+[server]\n\
+headless = true\n\
+enableCORS=false\n\
+enableXsrfProtection=false\n\
+port = $PORT\n\
+\n\
+[browser]\n\
+gatherUsageStats=false\n\
+" > ~/.streamlit/config.toml
 
-# Instalar dependencias si es necesario
 pip install --no-cache-dir --upgrade streamlit
