@@ -1,13 +1,19 @@
+#!/bin/bash
+
+# Crear la carpeta de configuración si no existe
 mkdir -p ~/.streamlit/
 
-echo "\
-[general]\n\
-email = \"agavirja+1@gmail.com\"\n\
-" > ~/.streamlit/credentials.toml
+# Crear config.toml con la configuración correcta de CORS y XSRF
+cat <<EOL > ~/.streamlit/config.toml
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+port = $PORT
 
-echo "\
-[server]\n\
-headless = true\n\
-enableCORS=false\n\
-port = $PORT\n\
-" > ~/.streamlit/config.toml
+[browser]
+gatherUsageStats = false
+EOL
+
+# Instalar dependencias si es necesario
+pip install --no-cache-dir --upgrade streamlit
